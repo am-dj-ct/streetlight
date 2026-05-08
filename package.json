@@ -18,6 +18,7 @@
     "diagnostics:local": "node scripts/print-local-diagnostics.mjs",
     "build:translation-worklist": "node scripts/build-translation-worklist.mjs",
     "validate:data": "node scripts/validate-resource-data.mjs",
+    "data:status": "node scripts/print-resource-status.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:quick": "SMOKE_CASE_LIMIT=2 node scripts/smoke.mjs",
     "regression:prompts": "node scripts/regression.mjs",

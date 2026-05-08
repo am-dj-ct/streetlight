@@ -75,6 +75,8 @@ this. Code stays public on GitHub regardless.
   writing files
 - `npm run validate:data` — validates referral/crisis schema plus source and
   last-verified metadata
+- `npm run data:status` — shows the oldest referral/crisis entries and whether
+  any have drifted past the freshness threshold
 - `npm run smoke` — checks key pages plus a small synthetic end-to-end chat
   flow against `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
 - `npm run smoke:quick` — cheaper local smoke pass with a smaller synthetic
