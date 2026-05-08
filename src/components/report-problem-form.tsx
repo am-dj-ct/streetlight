@@ -45,7 +45,7 @@ type ReportProblemFormProps = {
   commitSha: null | string;
   copy: UiCopy;
   deployEnv: string;
-  entryId?: string;
+  entryId?: ConversationEntryId;
   initialArea?: string;
   languageCode: SupportedLanguageCode;
   regionScope: RegionScope;
@@ -95,10 +95,7 @@ export function ReportProblemForm({
     ];
   const conversationLanguageLabel = getLanguageOption(conversationLanguage).label;
   const entryLabel = entryId
-    ? getConversationContentEntry(
-        entryId as ConversationEntryId,
-        conversationLanguage,
-      ).label
+    ? getConversationContentEntry(entryId, conversationLanguage).label
     : null;
   const chatModeLabel = getChatModeLabel(chatMode, copy);
   const regionScopeLabel = getRegionScopeLabel(regionScope, copy);

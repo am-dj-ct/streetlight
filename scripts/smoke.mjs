@@ -421,6 +421,27 @@ async function checkBlankChatMessage() {
   }
 }
 
+async function checkInvalidReportProblemEntryId() {
+  const response = await fetch(
+    new URL("/report-problem?lang=en&entryId=not-a-real-entry", baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /report-problem with invalid entryId.`);
+  }
+
+  const html = await response.text();
+
+  if (html.includes("Entry button:<!-- -->")) {
+    fail("Invalid report-problem entryId still rendered an entry-button label.");
+  }
+}
+
 const health = await getHealth({
   baseUrl,
   fail,
@@ -441,6 +462,8 @@ await checkUnsafeReportProblemSource();
 console.log("Unsafe source handling ok (/report-problem ignores external source links).");
 await checkBlankChatMessage();
 console.log("Blank message handling ok (/api/chat rejects all-whitespace messages).");
+await checkInvalidReportProblemEntryId();
+console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
 
 const smokeCases = await loadCases();
 const results = [];

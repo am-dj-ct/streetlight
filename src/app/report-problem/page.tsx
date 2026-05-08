@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
 import { ReportProblemForm } from "../../components/report-problem-form";
+import { isConversationEntryId } from "../../lib/chat-types";
 import { getPageRequestContext } from "../../lib/request-context";
 import {
   buildHomeHref,
@@ -53,6 +54,7 @@ export default async function ReportProblemPage({
   });
   const runtimeState = getRuntimeState();
   const safeSourcePath = sanitizeInternalSourcePath(source);
+  const safeEntryId = isConversationEntryId(entryId) ? entryId : undefined;
 
   return (
     <InfoPageShell
@@ -65,7 +67,7 @@ export default async function ReportProblemPage({
       getLanguageHref={(nextLanguageCode) =>
         buildReportProblemHref({
           area,
-          entryId,
+          entryId: safeEntryId,
           languageCode: nextLanguageCode,
           sourcePath: safeSourcePath,
         })
@@ -76,7 +78,7 @@ export default async function ReportProblemPage({
         commitSha={runtimeState.commitSha}
         copy={copy}
         deployEnv={runtimeState.deployEnv}
-        entryId={entryId}
+        entryId={safeEntryId}
         initialArea={area}
         languageCode={languageCode}
         regionScope={regionScope}
