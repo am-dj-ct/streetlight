@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     !body ||
     !isConversationEntryId(body.entryId) ||
     !isSupportedLanguageCode(body.language) ||
+    (body.turnstileToken !== undefined && typeof body.turnstileToken !== "string") ||
     !Array.isArray(body.messages) ||
     body.messages.length === 0 ||
     !body.messages.every(isClientChatMessage)

@@ -338,6 +338,37 @@ async function checkInvalidChatLanguage() {
   }
 }
 
+async function checkInvalidTurnstileToken() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-invalid-turnstile",
+          role: "user",
+          text: "hello",
+        },
+      ],
+      turnstileToken: { nope: true },
+    }),
+  });
+
+  if (response.status !== 400) {
+    fail(`Expected 400 from /api/chat for invalid turnstileToken, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid request shape.") {
+    fail("Unexpected invalid-turnstile response body from /api/chat.");
+  }
+}
+
 const health = await getHealth({
   baseUrl,
   fail,
@@ -352,6 +383,8 @@ await checkInvalidChatEntryId();
 console.log("Invalid entryId handling ok (/api/chat rejects bad entry ids).");
 await checkInvalidChatLanguage();
 console.log("Invalid language handling ok (/api/chat rejects bad language codes).");
+await checkInvalidTurnstileToken();
+console.log("Invalid turnstileToken handling ok (/api/chat rejects bad token shapes).");
 
 const smokeCases = await loadCases();
 const results = [];
