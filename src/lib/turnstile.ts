@@ -49,10 +49,19 @@ export async function validateTurnstileToken({
         remoteip: getClientIp(request) ?? undefined,
       }),
     },
-  );
-  const data = (await response.json()) as TurnstileSiteverifyResponse;
+  ).catch(() => null);
 
-  if (data.success) {
+  if (!response?.ok) {
+    return {
+      allowed: false,
+      reason: "invalid",
+    };
+  }
+
+  const data = ((await response.json().catch(() => null)) ??
+    null) as null | TurnstileSiteverifyResponse;
+
+  if (data?.success) {
     return {
       allowed: true,
       reason: "allowed",
