@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import type { ConversationEntryId } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
 import { getConversationContentEntry } from "../lib/conversation-content";
+import {
+  isReportArea,
+  type ReportArea,
+} from "../lib/report-problem";
 import type { ChatMode } from "../lib/runtime-state";
 import { buildMailtoHref } from "../lib/support";
 import {
@@ -13,12 +17,17 @@ import {
 } from "../lib/languages";
 import type { UiCopy } from "../lib/ui-copy";
 
-type ReportOption = {
+type ReportAreaOption = {
+  value: ReportArea;
+  copyKey: keyof UiCopy;
+};
+
+type ProblemOption = {
   value: string;
   copyKey: keyof UiCopy;
 };
 
-const whereOptions: readonly ReportOption[] = [
+const whereOptions: readonly ReportAreaOption[] = [
   { value: "main-screen", copyKey: "reportAreaMainScreen" },
   { value: "conversation", copyKey: "reportAreaConversation" },
   { value: "find-human", copyKey: "reportAreaFindHuman" },
@@ -29,7 +38,7 @@ const whereOptions: readonly ReportOption[] = [
   { value: "other", copyKey: "reportAreaOther" },
 ];
 
-const problemOptions: readonly ReportOption[] = [
+const problemOptions: readonly ProblemOption[] = [
   { value: "wrong-facts", copyKey: "reportWrongFacts" },
   { value: "missed-point", copyKey: "reportWrongMissedPoint" },
   { value: "unsafe-advice", copyKey: "reportWrongUnsafe" },
@@ -46,15 +55,11 @@ type ReportProblemFormProps = {
   copy: UiCopy;
   deployEnv: string;
   entryId?: ConversationEntryId;
-  initialArea?: string;
+  initialArea?: ReportArea;
   languageCode: SupportedLanguageCode;
   regionScope: RegionScope;
   sourcePath?: string;
 };
-
-function isWhereOption(value: string | undefined): value is string {
-  return whereOptions.some((option) => option.value === value);
-}
 
 function getChatModeLabel(chatMode: ChatMode, copy: UiCopy) {
   return chatMode === "mock-local"
@@ -80,7 +85,7 @@ export function ReportProblemForm({
   sourcePath,
 }: ReportProblemFormProps) {
   const [where, setWhere] = useState(
-    isWhereOption(initialArea) ? initialArea : "conversation",
+    isReportArea(initialArea) ? initialArea : "conversation",
   );
   const [conversationLanguage, setConversationLanguage] = useState(languageCode);
   const [goal, setGoal] = useState("");
@@ -238,7 +243,13 @@ export function ReportProblemForm({
           </span>
           <select
             value={where}
-            onChange={(event) => setWhere(event.target.value)}
+            onChange={(event) =>
+              setWhere(
+                isReportArea(event.target.value)
+                  ? event.target.value
+                  : "conversation",
+              )
+            }
             className="min-h-12 w-full rounded-[16px] border border-[#b7c7bd] bg-white px-3 text-[16px] leading-6 text-[#1f2923] outline-none"
           >
             {whereOptions.map((option) => (

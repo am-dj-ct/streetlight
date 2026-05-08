@@ -5,6 +5,7 @@ import { InfoPageShell } from "../../components/info-page-shell";
 import { ReportProblemForm } from "../../components/report-problem-form";
 import { isConversationEntryId } from "../../lib/chat-types";
 import { getPageRequestContext } from "../../lib/request-context";
+import { isReportArea } from "../../lib/report-problem";
 import {
   buildHomeHref,
   buildReportProblemHref,
@@ -55,6 +56,7 @@ export default async function ReportProblemPage({
   const runtimeState = getRuntimeState();
   const safeSourcePath = sanitizeInternalSourcePath(source);
   const safeEntryId = isConversationEntryId(entryId) ? entryId : undefined;
+  const safeArea = isReportArea(area) ? area : undefined;
 
   return (
     <InfoPageShell
@@ -66,7 +68,7 @@ export default async function ReportProblemPage({
       lastUpdated="2026-05-08"
       getLanguageHref={(nextLanguageCode) =>
         buildReportProblemHref({
-          area,
+          area: safeArea,
           entryId: safeEntryId,
           languageCode: nextLanguageCode,
           sourcePath: safeSourcePath,
@@ -79,7 +81,7 @@ export default async function ReportProblemPage({
         copy={copy}
         deployEnv={runtimeState.deployEnv}
         entryId={safeEntryId}
-        initialArea={area}
+        initialArea={safeArea}
         languageCode={languageCode}
         regionScope={regionScope}
         sourcePath={safeSourcePath ?? undefined}
