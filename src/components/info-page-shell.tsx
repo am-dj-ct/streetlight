@@ -37,12 +37,12 @@ export function InfoPageShell({
             >
               <span aria-hidden="true">{"<"}</span>
             </Link>
-            <div className="max-w-[14rem]">
-              <LanguageStripLinks
-                currentLanguageCode={currentLanguage.code}
-                getHref={getLanguageHref}
-              />
-            </div>
+          </div>
+          <div className="pt-3">
+            <LanguageStripLinks
+              currentLanguageCode={currentLanguage.code}
+              getHref={getLanguageHref}
+            />
           </div>
 
           <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">

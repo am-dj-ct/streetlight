@@ -69,31 +69,31 @@ export default async function FindHumanPage({
             >
               <span aria-hidden="true">{"<"}</span>
             </Link>
-            <div className="flex max-w-[16rem] items-center gap-2">
-              <div className="max-w-[11rem]">
-                <LanguageStripLinks
-                  currentLanguageCode={currentLanguage.code}
-                  getHref={(nextLanguageCode) => {
-                    const nextParams = new URLSearchParams();
-
-                    if (category) {
-                      nextParams.set("category", category);
-                    }
-
-                    if (entryId) {
-                      nextParams.set("entryId", entryId);
-                    }
-
-                    nextParams.set("lang", nextLanguageCode);
-
-                    return `/find-human?${nextParams.toString()}`;
-                  }}
-                />
-              </div>
+            <div className="flex items-center gap-2">
               <span className="rounded-full border border-[#cfd7cf] bg-white px-3 py-2 text-[14px] font-medium text-[#314036]">
                 {regionScope === "king" ? copy.referralsRegionKing : copy.referralsRegionFallback}
               </span>
             </div>
+          </div>
+          <div className="pt-3">
+            <LanguageStripLinks
+              currentLanguageCode={currentLanguage.code}
+              getHref={(nextLanguageCode) => {
+                const nextParams = new URLSearchParams();
+
+                if (category) {
+                  nextParams.set("category", category);
+                }
+
+                if (entryId) {
+                  nextParams.set("entryId", entryId);
+                }
+
+                nextParams.set("lang", nextLanguageCode);
+
+                return `/find-human?${nextParams.toString()}`;
+              }}
+            />
           </div>
 
           <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
