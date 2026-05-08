@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ConversationClient } from "../../../components/conversation-client";
+import { LocalDevBadge } from "../../../components/local-dev-badge";
 import {
   conversationSeeds,
   getLocalizedConversationSeed,
@@ -67,13 +68,16 @@ export default async function ConversationPage({
   });
 
   return (
-    <ConversationClient
-      currentLanguageCode={currentLanguage.code}
-      currentLanguageLabel={currentLanguage.label}
-      entryId={seed.id}
-      initialAssistantMessage={seed.assistantMessage}
-      initialSuggestions={seed.suggestions}
-      regionScope={regionScope}
-    />
+    <>
+      <LocalDevBadge className="mx-auto flex w-full max-w-md px-4 pt-4" />
+      <ConversationClient
+        currentLanguageCode={currentLanguage.code}
+        currentLanguageLabel={currentLanguage.label}
+        entryId={seed.id}
+        initialAssistantMessage={seed.assistantMessage}
+        initialSuggestions={seed.suggestions}
+        regionScope={regionScope}
+      />
+    </>
   );
 }

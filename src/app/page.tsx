@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { CrisisFooter } from "../components/crisis-footer";
 import { LanguageStripLinks } from "../components/language-strip-links";
+import { LocalDevBadge } from "../components/local-dev-badge";
 import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getRegionScope } from "../lib/geo";
 import {
@@ -50,6 +51,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         </div>
 
         <section className="flex-1 pb-4">
+          <LocalDevBadge className="pb-3" />
           <h1 className="pt-2 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
             <span className="block">{copy.landingHeadingLineOne}</span>
             <span className="block">{copy.landingHeadingLineTwo}</span>
