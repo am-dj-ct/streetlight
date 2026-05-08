@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { CrisisFooter } from "./crisis-footer";
+import { LanguageStripLinks } from "./language-strip-links";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type { RegionScope } from "../lib/geo";
-import type { LanguageOption } from "../lib/languages";
+import type { LanguageOption, SupportedLanguageCode } from "../lib/languages";
 
 type InfoPageShellProps = {
   currentLanguage: LanguageOption;
   regionScope: RegionScope;
   title: string;
   lastUpdated: string;
+  getLanguageHref: (languageCode: SupportedLanguageCode) => string;
   children: React.ReactNode;
 };
 
@@ -17,6 +19,7 @@ export function InfoPageShell({
   regionScope,
   title,
   lastUpdated,
+  getLanguageHref,
   children,
 }: InfoPageShellProps) {
   const copy = getUiCopy(currentLanguage.code);
@@ -34,9 +37,12 @@ export function InfoPageShell({
             >
               <span aria-hidden="true">{"<"}</span>
             </Link>
-            <span className="rounded-full border border-[#cfd7cf] bg-white px-3 py-2 text-[14px] font-medium text-[#314036]">
-              {currentLanguage.label}
-            </span>
+            <div className="max-w-[14rem]">
+              <LanguageStripLinks
+                currentLanguageCode={currentLanguage.code}
+                getHref={getLanguageHref}
+              />
+            </div>
           </div>
 
           <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">

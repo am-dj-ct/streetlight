@@ -36,6 +36,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
       regionScope={regionScope}
       title={page.title}
       lastUpdated={page.lastUpdated}
+      getLanguageHref={(nextLanguageCode) => `/about?lang=${nextLanguageCode}`}
     >
       {page.sections.map((section) => (
         <article key={section.heading} className="space-y-3">

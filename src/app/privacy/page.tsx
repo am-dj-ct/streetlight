@@ -37,6 +37,7 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
       regionScope={regionScope}
       title={page.title}
       lastUpdated={page.lastUpdated}
+      getLanguageHref={(nextLanguageCode) => `/privacy?lang=${nextLanguageCode}`}
     >
       {page.sections.map((section) => (
         <article key={section.heading} className="space-y-3">
