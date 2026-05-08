@@ -203,9 +203,11 @@ function appendToMessage(
 function formatConversationForExport(
   messages: ClientChatMessage[],
   {
+    copy,
     entryLabel,
     languageLabel,
   }: {
+    copy: ReturnType<typeof getUiCopy>;
     entryLabel: string;
     languageLabel: string;
   },
@@ -217,15 +219,18 @@ function formatConversationForExport(
   const body = messages
     .filter((message) => message.text.trim().length > 0)
     .map((message) => {
-      const speaker = message.role === "assistant" ? "Access Tool" : "You";
+      const speaker =
+        message.role === "assistant"
+          ? copy.conversationExportAssistantLabel
+          : copy.conversationExportUserLabel;
       return `${speaker}:\n${message.text.trim()}`;
     })
     .join("\n\n");
 
-  return `Access Tool conversation
-Saved: ${exportedAt}
-Started from: ${entryLabel}
-Language: ${languageLabel}
+  return `${copy.conversationExportTitle}
+${copy.conversationExportSavedLabel}: ${exportedAt}
+${copy.conversationExportStartedFromLabel}: ${entryLabel}
+${copy.conversationExportLanguageLabel}: ${languageLabel}
 
 ${body}
 `;
@@ -461,7 +466,8 @@ export function ConversationClient({
     chooseBestVoice(voiceOptions, voiceLanguage)?.voiceURI ||
     "";
   const selectedVoiceName =
-    voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ?? "Default";
+    voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ??
+    copy.voiceDefaultOption;
   const speechUnavailable = speechSupported === false;
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
@@ -496,6 +502,7 @@ export function ConversationClient({
     }
 
     const fileContents = formatConversationForExport(messages, {
+      copy,
       entryLabel: exportEntryLabel,
       languageLabel: currentLanguageLabel,
     });
@@ -516,9 +523,10 @@ export function ConversationClient({
       return;
     }
 
-    const subject = encodeURIComponent("Access Tool conversation");
+    const subject = encodeURIComponent(copy.conversationExportTitle);
     const body = encodeURIComponent(
       formatConversationForExport(messages, {
+        copy,
         entryLabel: exportEntryLabel,
         languageLabel: currentLanguageLabel,
       }),
@@ -560,8 +568,9 @@ export function ConversationClient({
 
     try {
       await navigator.share({
-        title: "Access Tool conversation",
+        title: copy.conversationExportTitle,
         text: formatConversationForExport(messages, {
+          copy,
           entryLabel: exportEntryLabel,
           languageLabel: currentLanguageLabel,
         }),
@@ -579,6 +588,7 @@ export function ConversationClient({
     }
 
     const exportText = formatConversationForExport(messages, {
+      copy,
       entryLabel: exportEntryLabel,
       languageLabel: currentLanguageLabel,
     });
