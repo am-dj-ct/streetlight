@@ -1,6 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { defaultBaseUrl, extractHtmlLang, getHealth } from "./lib/access-tool-http.mjs";
+import {
+  defaultBaseUrl,
+  extractHtmlLang,
+  fetchHtmlPage,
+  getHealth,
+} from "./lib/access-tool-http.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 
@@ -161,17 +166,11 @@ async function loadCases() {
 
 async function checkPages() {
   for (const page of pageChecks) {
-    const response = await fetch(new URL(page.path, baseUrl), {
-      headers: {
-        Accept: "text/html",
-      },
+    const { html } = await fetchHtmlPage({
+      baseUrl,
+      fail,
+      path: page.path,
     });
-
-    if (!response.ok) {
-      fail(`HTTP ${response.status} from ${page.path}.`);
-    }
-
-    const html = await response.text();
 
     if (!html.includes(page.expectedText)) {
       fail(`Expected text not found on ${page.path}.`);
@@ -754,20 +753,12 @@ async function checkInvalidFindHumanCategory() {
 }
 
 async function checkInvalidConversationEntryRoute() {
-  const response = await fetch(
-    new URL("/conversation/not-a-real-entry?lang=en", baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
-
-  if (response.status !== 404) {
-    fail(`Expected 404 from invalid conversation route, got ${response.status}.`);
-  }
-
-  const html = await response.text();
+  const { html } = await fetchHtmlPage({
+    baseUrl,
+    expectedStatus: 404,
+    fail,
+    path: "/conversation/not-a-real-entry?lang=en",
+  });
 
   if (!html.includes("404")) {
     fail("Invalid conversation route did not render the 404 page.");

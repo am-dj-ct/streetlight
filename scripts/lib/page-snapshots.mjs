@@ -1,3 +1,5 @@
+import { fetchHtmlPage } from "./access-tool-http.mjs";
+
 function stripScriptTags(html) {
   return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 }
@@ -21,17 +23,11 @@ export async function getReportProblemSnapshot({
   fail,
   path,
 }) {
-  const response = await fetch(new URL(path, baseUrl), {
-    headers: {
-      Accept: "text/html",
-    },
+  const { html } = await fetchHtmlPage({
+    baseUrl,
+    fail,
+    path,
   });
-
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from ${path}.`);
-  }
-
-  const html = await response.text();
 
   return {
     commit: extractLabeledValue(html, "Current commit"),
@@ -50,17 +46,11 @@ export async function getReferralsSnapshot({
   fail,
   path,
 }) {
-  const response = await fetch(new URL(path, baseUrl), {
-    headers: {
-      Accept: "text/html",
-    },
+  const { html } = await fetchHtmlPage({
+    baseUrl,
+    fail,
+    path,
   });
-
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from ${path}.`);
-  }
-
-  const html = await response.text();
 
   return {
     checkedThrough: extractLabeledValue(html, "Resource list checked through"),

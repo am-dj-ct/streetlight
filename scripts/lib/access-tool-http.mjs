@@ -6,6 +6,30 @@ export function extractHtmlLang(html) {
   return match?.[1] ?? null;
 }
 
+export async function fetchHtmlPage({
+  baseUrl = defaultBaseUrl,
+  expectedStatus = 200,
+  fail,
+  headers = {},
+  path,
+}) {
+  const response = await fetch(new URL(path, baseUrl), {
+    headers: {
+      Accept: "text/html",
+      ...headers,
+    },
+  });
+
+  if (response.status !== expectedStatus) {
+    fail(`HTTP ${response.status} from ${path}.`);
+  }
+
+  return {
+    html: await response.text(),
+    response,
+  };
+}
+
 export async function getHealth({
   baseUrl = defaultBaseUrl,
   fail,
