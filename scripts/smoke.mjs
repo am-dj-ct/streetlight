@@ -152,6 +152,52 @@ async function checkPages() {
   }
 }
 
+async function checkLanguagePersistence() {
+  const languageResponse = await fetch(new URL("/?lang=es", baseUrl), {
+    headers: {
+      Accept: "text/html",
+    },
+  });
+
+  if (!languageResponse.ok) {
+    fail(`HTTP ${languageResponse.status} from /?lang=es.`);
+  }
+
+  const languageCookie = languageResponse.headers
+    .get("set-cookie")
+    ?.split(";")[0]
+    ?.trim();
+
+  if (languageCookie !== "access_tool_lang=es") {
+    fail("Expected Spanish language cookie was not set.");
+  }
+
+  const persistedResponse = await fetch(new URL("/privacy", baseUrl), {
+    headers: {
+      Accept: "text/html",
+      Cookie: languageCookie,
+    },
+  });
+
+  if (!persistedResponse.ok) {
+    fail(`HTTP ${persistedResponse.status} from /privacy with persisted language cookie.`);
+  }
+
+  const persistedHtml = await persistedResponse.text();
+
+  if (!persistedHtml.includes('<html lang="es">')) {
+    fail("Expected persisted Spanish html lang on /privacy.");
+  }
+
+  if (
+    !persistedHtml.includes(
+      "This page is still showing the English version while human translation is being added.",
+    )
+  ) {
+    fail("Expected non-English fallback notice on /privacy with persisted language cookie.");
+  }
+}
+
 async function parseSseResponse(response) {
   if (!response.ok) {
     const text = await response.text();
@@ -270,6 +316,8 @@ const chatMode = await checkHealth();
 console.log(`Health check ok (/healthz, chatMode=${chatMode}).`);
 await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
+await checkLanguagePersistence();
+console.log("Language persistence ok (query -> cookie -> later request).");
 
 const smokeCases = await loadCases();
 const results = [];
