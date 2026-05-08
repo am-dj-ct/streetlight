@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCrisisResources } from "../lib/crisis-resources";
+import type { ConversationEntryId } from "../lib/chat-types";
 import type { SupportedLanguageCode } from "../lib/languages";
 import type { RegionScope } from "../lib/geo";
 import {
@@ -19,7 +20,7 @@ export function CrisisFooter({
   sourcePath,
 }: {
   area?: string;
-  entryId?: string;
+  entryId?: ConversationEntryId;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;
   sourcePath?: InternalAppPath;

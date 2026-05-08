@@ -5,13 +5,13 @@ export type InternalAppPath = `/${string}`;
 
 type FindHumanHrefOptions = {
   category?: null | WeakCategory;
-  entryId?: null | string;
+  entryId?: ConversationEntryId | null;
   languageCode: SupportedLanguageCode;
 };
 
 type ReportProblemHrefOptions = {
   area?: null | string;
-  entryId?: null | string;
+  entryId?: ConversationEntryId | null;
   languageCode: SupportedLanguageCode;
   sourcePath?: InternalAppPath | null;
 };
