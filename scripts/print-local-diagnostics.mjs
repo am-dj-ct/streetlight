@@ -16,13 +16,6 @@ function fail(message) {
 
 function extractValue(html, label) {
   const normalizedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`${normalizedLabel}:\\s*<!-- -->\\s*([^<]+)`, "i");
-  const match = html.match(pattern);
-  return match?.[1]?.trim() ?? null;
-}
-
-function extractInlineValue(html, label) {
-  const normalizedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`${normalizedLabel}:\\s*(?:<!-- -->\\s*)*([^<]+)`, "i");
   const match = html.match(pattern);
   return match?.[1]?.trim() ?? null;
@@ -72,12 +65,12 @@ const reportCommit = extractValue(reportHtml, "Current commit");
 const reportResourceScope = extractValue(reportHtml, "Current resource scope");
 const reportSourceRoute = extractValue(reportHtml, "Source route");
 const reportEntryButton = extractValue(reportHtml, "Entry button");
-const referralsCheckedThrough = extractInlineValue(
+const referralsCheckedThrough = extractValue(
   referralsHtml,
   "Resource list checked through",
 );
-const referralsTopSource = extractInlineValue(referralsHtml, "Source");
-const referralsTopVerified = extractInlineValue(referralsHtml, "Verified");
+const referralsTopSource = extractValue(referralsHtml, "Source");
+const referralsTopVerified = extractValue(referralsHtml, "Verified");
 
 console.log("Access Tool local diagnostics");
 console.log("");

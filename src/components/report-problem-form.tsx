@@ -55,12 +55,16 @@ function isWhereOption(value: string | undefined): value is string {
   return whereOptions.some((option) => option.value === value);
 }
 
-function getChatModeLabel(chatMode: "live-model" | "mock-local") {
-  return chatMode === "mock-local" ? "local mock chat" : "live model";
+function getChatModeLabel(chatMode: "live-model" | "mock-local", copy: UiCopy) {
+  return chatMode === "mock-local"
+    ? copy.reportChatModeMockLocal
+    : copy.reportChatModeLiveModel;
 }
 
-function getRegionScopeLabel(regionScope: RegionScope) {
-  return regionScope === "king" ? "King County, WA" : "U.S. fallback";
+function getRegionScopeLabel(regionScope: RegionScope, copy: UiCopy) {
+  return regionScope === "king"
+    ? copy.reportRegionScopeKing
+    : copy.reportRegionScopeFallback;
 }
 
 export function ReportProblemForm({
@@ -92,14 +96,16 @@ export function ReportProblemForm({
   const entryLabel = entryId
     ? getConversationContentEntry(entryId as ConversationEntryId, "en").label
     : null;
-  const chatModeLabel = getChatModeLabel(chatMode);
-  const regionScopeLabel = getRegionScopeLabel(regionScope);
+  const chatModeLabel = getChatModeLabel(chatMode, copy);
+  const regionScopeLabel = getRegionScopeLabel(regionScope, copy);
+  const commitShaLabel = commitSha ?? copy.reportCommitFallback;
+  const sourcePathLabel = sourcePath ?? copy.reportSourceFallback;
 
   const selectedProblemLabels = selectedProblems.map(
     (value) => problemOptions.find((option) => option.value === value)?.copyKey ?? "reportWrongOther",
   );
   const reportSubject = useMemo(() => {
-    const parts = ["Access Tool problem report", whereLabel];
+    const parts = [copy.reportTemplateTitle, whereLabel];
 
     if (entryLabel) {
       parts.push(entryLabel);
@@ -108,33 +114,33 @@ export function ReportProblemForm({
     parts.push(chatModeLabel);
 
     return parts.join(" - ");
-  }, [chatModeLabel, entryLabel, whereLabel]);
+  }, [chatModeLabel, copy.reportTemplateTitle, entryLabel, whereLabel]);
 
   const reportBody = useMemo(() => {
     const lines = [
-      "Access Tool problem report",
+      copy.reportTemplateTitle,
       "",
-      `Where this happened: ${whereLabel}`,
-      `Chat mode: ${chatModeLabel}`,
-      `Deploy environment: ${deployEnv}`,
-      `Commit SHA: ${commitSha ?? "local-dev"}`,
-      `Resource scope: ${regionScopeLabel}`,
-      `Source route: ${sourcePath ?? "not supplied"}`,
-      `Conversation language: ${conversationLanguageLabel}`,
+      `${copy.reportTemplateWhereLabel}: ${whereLabel}`,
+      `${copy.reportTemplateChatModeLabel}: ${chatModeLabel}`,
+      `${copy.reportTemplateDeployEnvLabel}: ${deployEnv}`,
+      `${copy.reportTemplateCommitLabel}: ${commitShaLabel}`,
+      `${copy.reportTemplateResourceScopeLabel}: ${regionScopeLabel}`,
+      `${copy.reportTemplateSourceRouteLabel}: ${sourcePathLabel}`,
+      `${copy.reportTemplateConversationLanguageLabel}: ${conversationLanguageLabel}`,
     ];
 
     if (entryLabel) {
-      lines.push(`Entry button: ${entryLabel}`);
+      lines.push(`${copy.reportTemplateEntryButtonLabel}: ${entryLabel}`);
     }
 
     lines.push("");
-    lines.push("What the person was trying to do:");
+    lines.push(copy.reportTemplateGoalHeading);
     lines.push(goal.trim() || "[add paraphrase here]");
     lines.push("");
-    lines.push("What the tool said (paraphrase only):");
+    lines.push(copy.reportTemplateReplyHeading);
     lines.push(reply.trim() || "[add paraphrase here]");
     lines.push("");
-    lines.push("What felt wrong:");
+    lines.push(copy.reportTemplateWrongHeading);
     lines.push(
       selectedProblemLabels.length > 0
         ? selectedProblemLabels.map((key) => copy[key]).join(", ")
@@ -143,17 +149,17 @@ export function ReportProblemForm({
 
     if (details.trim()) {
       lines.push("");
-      lines.push("Anything else useful:");
+      lines.push(copy.reportTemplateDetailsHeading);
       lines.push(details.trim());
     }
 
     lines.push("");
-    lines.push("Reminder: do not paste the exact conversation or private details.");
+    lines.push(copy.reportTemplateReminder);
 
     return lines.join("\n");
   }, [
     chatModeLabel,
-    commitSha,
+    commitShaLabel,
     copy,
     details,
     deployEnv,
@@ -161,7 +167,7 @@ export function ReportProblemForm({
     regionScopeLabel,
     reply,
     selectedProblemLabels,
-    sourcePath,
+    sourcePathLabel,
     conversationLanguageLabel,
     entryLabel,
     whereLabel,
@@ -200,23 +206,23 @@ export function ReportProblemForm({
           {copy.reportPageIntro}
         </p>
         <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
-          Current chat mode: {chatModeLabel}
+          {copy.reportPageCurrentChatModeLabel} {chatModeLabel}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-          Current deploy environment: {deployEnv}
+          {copy.reportPageCurrentDeployLabel} {deployEnv}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-          Current commit: {commitSha ?? "local-dev"}
+          {copy.reportPageCurrentCommitLabel} {commitShaLabel}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-          Current resource scope: {regionScopeLabel}
+          {copy.reportPageCurrentResourceScopeLabel} {regionScopeLabel}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-          Source route: {sourcePath ?? "not supplied"}
+          {copy.reportPageCurrentSourceRouteLabel} {sourcePathLabel}
         </p>
         {entryLabel ? (
           <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-            Entry button: {entryLabel}
+            {copy.reportPageCurrentEntryButtonLabel} {entryLabel}
           </p>
         ) : null}
         <p className="pt-3 text-[15px] leading-6 text-[#5f6d64]">
