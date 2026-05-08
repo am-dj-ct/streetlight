@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultBaseUrl, extractHtmlLang, getHealth } from "./lib/access-tool-http.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
-import { getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
+import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -683,25 +683,13 @@ async function checkInvalidReportProblemEntryId() {
 }
 
 async function checkInvalidFindHumanCategory() {
-  const response = await fetch(
-    new URL(
-      "/find-human?category=not-a-real-category&entryId=understand-letter-or-form&lang=en",
-      baseUrl,
-    ),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReferralsSnapshot({
+    baseUrl,
+    fail,
+    path: "/find-human?category=not-a-real-category&entryId=understand-letter-or-form&lang=en",
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /find-human with invalid category.`);
-  }
-
-  const html = await response.text();
-
-  if (html.includes("Show all resources")) {
+  if (snapshot.filteredState) {
     fail("Invalid find-human category still rendered the filtered-state banner.");
   }
 }
@@ -728,22 +716,13 @@ async function checkInvalidConversationEntryRoute() {
 }
 
 async function checkInvalidReportProblemArea() {
-  const response = await fetch(
-    new URL("/report-problem?lang=en&area=not-real", baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: "/report-problem?lang=en&area=not-real",
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /report-problem with invalid area.`);
-  }
-
-  const html = await response.text();
-
-  if (!html.includes('<option value="conversation" selected="">Conversation</option>')) {
+  if (snapshot.selectedArea !== "conversation") {
     fail("Invalid report-problem area did not fall back to Conversation.");
   }
 }

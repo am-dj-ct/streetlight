@@ -2,6 +2,12 @@ function stripScriptTags(html) {
   return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 }
 
+function extractSelectedOptionValue(html) {
+  const visibleHtml = stripScriptTags(html);
+  const match = visibleHtml.match(/<option value="([^"]+)" selected="">/i);
+  return match?.[1] ?? null;
+}
+
 export function extractLabeledValue(html, label) {
   const visibleHtml = stripScriptTags(html);
   const normalizedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -33,6 +39,7 @@ export async function getReportProblemSnapshot({
     entryButton: extractLabeledValue(html, "Entry button"),
     html,
     resourceScope: extractLabeledValue(html, "Current resource scope"),
+    selectedArea: extractSelectedOptionValue(html),
     sourceRoute: extractLabeledValue(html, "Source route"),
     chatMode: extractLabeledValue(html, "Current chat mode"),
   };
@@ -57,6 +64,7 @@ export async function getReferralsSnapshot({
 
   return {
     checkedThrough: extractLabeledValue(html, "Resource list checked through"),
+    filteredState: stripScriptTags(html).includes("Show all resources"),
     html,
     topSource: extractLabeledValue(html, "Source"),
     topVerified: extractLabeledValue(html, "Verified"),
