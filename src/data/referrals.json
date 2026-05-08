@@ -92,6 +92,25 @@
     "regions": ["fallback"]
   },
   {
+    "id": "poison-help",
+    "name": "Poison Help",
+    "description": "Free 24/7 expert help for medication mistakes, overdoses, poisonings, and drug-interaction concerns anywhere in the U.S.",
+    "phone": "800-222-1222",
+    "website": "https://www.poisonhelp.org/",
+    "categories": ["medical_dosing", "drug_interactions"],
+    "regions": ["fallback"]
+  },
+  {
+    "id": "healthcare-marketplace",
+    "name": "HealthCare.gov Marketplace Call Center",
+    "description": "Official national help for Marketplace coverage, enrollment, eligibility, and local enrollment help outside Washington state.",
+    "phone": "800-318-2596",
+    "secondaryPhone": "855-889-4325",
+    "website": "https://www.healthcare.gov/contact-us/",
+    "categories": ["benefits_eligibility", "specific_deadlines"],
+    "regions": ["fallback"]
+  },
+  {
     "id": "national-988",
     "name": "988 Suicide & Crisis Lifeline",
     "description": "National crisis support by call, text, or chat. Good first stop if you need urgent emotional support anywhere in the U.S.",
