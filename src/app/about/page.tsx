@@ -11,16 +11,29 @@ import { getStaticPageContent } from "../../lib/static-pages";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
 
-export const metadata: Metadata = {
-  title: makeTitle("About"),
-  description: "What Access Tool is, what it is not, and who runs it.",
-};
-
 type AboutPageProps = {
   searchParams: Promise<{
     lang?: string;
   }>;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: AboutPageProps): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const { lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const copy = getUiCopy(languageCode);
+  const page = getStaticPageContent("about", languageCode);
+
+  return {
+    title: makeTitle(page.title),
+    description: copy.metaAboutDescription,
+  };
+}
 
 export default async function AboutPage({ searchParams }: AboutPageProps) {
   const requestHeaders = await headers();

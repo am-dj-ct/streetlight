@@ -16,11 +16,6 @@ import {
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
 
-export const metadata: Metadata = {
-  title: makeTitle("Report a Problem"),
-  description: "Structured, no-content bug reporting for Access Tool.",
-};
-
 type ReportProblemPageProps = {
   searchParams: Promise<{
     area?: string;
@@ -29,6 +24,23 @@ type ReportProblemPageProps = {
     source?: string;
   }>;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: ReportProblemPageProps): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const { lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const copy = getUiCopy(languageCode);
+
+  return {
+    title: makeTitle(copy.reportPageTitle),
+    description: copy.metaReportProblemDescription,
+  };
+}
 
 export default async function ReportProblemPage({
   searchParams,

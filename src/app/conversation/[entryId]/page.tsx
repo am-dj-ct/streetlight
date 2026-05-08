@@ -6,7 +6,6 @@ import { LocalDevBadge } from "../../../components/local-dev-badge";
 import {
   conversationSeeds,
   getLocalizedConversationSeed,
-  getConversationSeed,
 } from "../../../lib/conversation-shell";
 import { getRegionScope } from "../../../lib/geo";
 import {
@@ -14,6 +13,7 @@ import {
   getPreferredLanguageCode,
 } from "../../../lib/languages";
 import { makeTitle } from "../../../lib/site-metadata";
+import { getUiCopy } from "../../../lib/ui-copy";
 
 type ConversationPageProps = {
   params: Promise<{
@@ -32,13 +32,21 @@ export function generateStaticParams() {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: ConversationPageProps): Promise<Metadata> {
+  const requestHeaders = await headers();
   const { entryId } = await params;
-  const seed = getConversationSeed(entryId);
+  const { lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const copy = getUiCopy(languageCode);
+  const seed = getLocalizedConversationSeed(entryId, languageCode);
 
   return {
-    title: makeTitle(seed?.label ?? "Conversation"),
-    description: "A live Access Tool conversation.",
+    title: makeTitle(seed?.label ?? copy.metaConversationFallbackTitle),
+    description: copy.metaConversationDescription,
   };
 }
 

@@ -13,15 +13,27 @@ import {
 import { defaultDescription } from "../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 
-export const metadata: Metadata = {
-  description: defaultDescription,
-};
-
 type HomePageProps = {
   searchParams: Promise<{
     lang?: string;
   }>;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: HomePageProps): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const { lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const copy = getUiCopy(languageCode);
+
+  return {
+    description: copy.metaDefaultDescription ?? defaultDescription,
+  };
+}
 
 export default async function Home({ searchParams }: HomePageProps) {
   const requestHeaders = await headers();

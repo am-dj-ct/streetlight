@@ -20,11 +20,6 @@ import {
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../../lib/ui-copy";
 
-export const metadata: Metadata = {
-  title: makeTitle("Find a human"),
-  description: "Maintained human-help resources, with King County and U.S. fallback options.",
-};
-
 type FindHumanPageProps = {
   searchParams: Promise<{
     category?: string;
@@ -32,6 +27,23 @@ type FindHumanPageProps = {
     lang?: string;
   }>;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: FindHumanPageProps): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const { lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const copy = getUiCopy(languageCode);
+
+  return {
+    title: makeTitle(copy.referralsHeadingLineOne),
+    description: copy.metaFindHumanDescription,
+  };
+}
 
 export default async function FindHumanPage({
   searchParams,

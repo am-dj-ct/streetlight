@@ -11,16 +11,29 @@ import { getStaticPageContent } from "../../lib/static-pages";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
 
-export const metadata: Metadata = {
-  title: makeTitle("Privacy"),
-  description: "Plain-language privacy details for Access Tool.",
-};
-
 type PrivacyPageProps = {
   searchParams: Promise<{
     lang?: string;
   }>;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: PrivacyPageProps): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const { lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const copy = getUiCopy(languageCode);
+  const page = getStaticPageContent("privacy", languageCode);
+
+  return {
+    title: makeTitle(page.title),
+    description: copy.metaPrivacyDescription,
+  };
+}
 
 export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
   const requestHeaders = await headers();
