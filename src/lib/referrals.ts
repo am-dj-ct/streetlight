@@ -4,9 +4,11 @@ import {
   isWeakCategory,
   type ConversationEntryId,
   type WeakCategory,
+  weakCategories,
 } from "./chat-types";
 import type { RegionScope } from "./geo";
 import type { SupportedLanguageCode } from "./languages";
+import { isOneOf } from "./is-one-of";
 import {
   buildConversationHref,
   buildHomeHref,
@@ -29,7 +31,46 @@ export type ReferralResource = {
   regions: ReferralRegion[];
 };
 
-const referrals = referralsData as ReferralResource[];
+const validReferralCategories: readonly ReferralCategory[] = [
+  "all",
+  ...weakCategories,
+];
+const validReferralRegions: readonly ReferralRegion[] = ["king", "fallback"];
+
+function isReferralResource(value: unknown): value is ReferralResource {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ReferralResource>;
+
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    typeof candidate.description === "string" &&
+    typeof candidate.lastVerified === "string" &&
+    (candidate.phone === undefined || typeof candidate.phone === "string") &&
+    (candidate.secondaryPhone === undefined ||
+      typeof candidate.secondaryPhone === "string") &&
+    typeof candidate.sourceName === "string" &&
+    typeof candidate.website === "string" &&
+    Array.isArray(candidate.categories) &&
+    candidate.categories.every((category) => isOneOf(validReferralCategories, category)) &&
+    !candidate.categories.includes("none") &&
+    Array.isArray(candidate.regions) &&
+    candidate.regions.every((region) => isOneOf(validReferralRegions, region))
+  );
+}
+
+function loadReferrals(value: unknown): ReferralResource[] {
+  if (!Array.isArray(value) || !value.every(isReferralResource)) {
+    throw new Error("referrals.json is not a valid referral resource array.");
+  }
+
+  return value;
+}
+
+const referrals = loadReferrals(referralsData);
 
 function isSpecificCategoryMatch(
   resource: ReferralResource,
