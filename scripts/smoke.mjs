@@ -368,6 +368,16 @@ async function checkInvalidJsonBody() {
   }
 }
 
+async function checkWrongChatMethod() {
+  const response = await fetch(endpoint, {
+    method: "GET",
+  });
+
+  if (response.status !== 405) {
+    fail(`Expected 405 from /api/chat for GET, got ${response.status}.`);
+  }
+}
+
 async function checkNullJsonBody() {
   await expectInvalidChatRequestShape(null, "null JSON body");
 }
@@ -746,6 +756,8 @@ await checkLanguagePersistence();
 console.log("Language persistence ok (query -> cookie -> later request).");
 await checkInvalidJsonBody();
 console.log("Invalid JSON handling ok (/api/chat rejects malformed JSON bodies).");
+await checkWrongChatMethod();
+console.log("Wrong method handling ok (/api/chat rejects GET requests).");
 await checkNullJsonBody();
 console.log("Null JSON handling ok (/api/chat rejects null bodies).");
 await checkStringJsonBody();
