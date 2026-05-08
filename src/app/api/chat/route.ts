@@ -15,10 +15,11 @@ import { buildMockChatTurn } from "../../../lib/mock-chat";
 import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
-import type {
-  ChatRequestBody,
-  ClientChatMessage,
-  WeakCategory,
+import {
+  isConversationEntryId,
+  type ChatRequestBody,
+  type ClientChatMessage,
+  type WeakCategory,
 } from "../../../lib/chat-types";
 
 function isClientChatMessage(value: unknown): value is ClientChatMessage {
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
 
   if (
     !body ||
-    typeof body.entryId !== "string" ||
+    !isConversationEntryId(body.entryId) ||
     typeof body.language !== "string" ||
     !Array.isArray(body.messages) ||
     body.messages.length === 0 ||
