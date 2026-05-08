@@ -59,6 +59,11 @@ const localeDirectories = [
   "src/data/conversation-content",
   "src/data/static-pages",
 ];
+const resourceFiles = [
+  "src/data/referrals.json",
+  "src/data/crisis-resources.json",
+];
+const staleResourceThresholdDays = 180;
 
 function flattenObject(obj, prefix = "") {
   return Object.entries(obj).flatMap(([key, value]) => {
@@ -105,6 +110,15 @@ async function fileExists(relativePath) {
 
 function addFailure(failures, message) {
   failures.push(message);
+}
+
+function parseIsoDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Date.parse(`${value}T00:00:00Z`);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 async function checkRequiredFiles(failures) {
@@ -188,12 +202,45 @@ async function checkTranslations(failures) {
   }
 }
 
+async function checkResourceFreshness(failures) {
+  for (const relativePath of resourceFiles) {
+    const resources = await readJson(relativePath);
+
+    if (!Array.isArray(resources)) {
+      addFailure(failures, `${relativePath} must contain an array.`);
+      continue;
+    }
+
+    for (const resource of resources) {
+      const label = `${relativePath} → ${resource.id ?? "unknown-id"}`;
+      const parsed = parseIsoDate(resource.lastVerified);
+
+      if (parsed === null) {
+        addFailure(failures, `${label}: lastVerified must use YYYY-MM-DD.`);
+        continue;
+      }
+
+      const ageInDays = Math.floor(
+        (Date.now() - parsed) / (1000 * 60 * 60 * 24),
+      );
+
+      if (ageInDays > staleResourceThresholdDays) {
+        addFailure(
+          failures,
+          `${label}: lastVerified is ${ageInDays} days old (limit ${staleResourceThresholdDays}).`,
+        );
+      }
+    }
+  }
+}
+
 const failures = [];
 
 await checkRequiredFiles(failures);
 await checkEnvExample(failures);
 await checkPlaceholders(failures);
 await checkTranslations(failures);
+await checkResourceFreshness(failures);
 
 console.log("Launch readiness check");
 console.log("");

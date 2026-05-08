@@ -30,6 +30,7 @@ Use this before any named partner starts sending real people to the tool.
 ## Content checks
 
 - Referral list reviewed for obvious stale entries.
+- Referral and crisis entries have current `lastVerified` dates in the JSON data.
 - Crisis numbers reviewed.
 - Translation fallback behavior reviewed on non-English routes.
 
