@@ -1,5 +1,11 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { CrisisFooter } from "../../components/crisis-footer";
+import { getRegionScope } from "../../lib/geo";
+import {
+  getLanguageOption,
+  getPreferredLanguageCode,
+} from "../../lib/languages";
 import {
   getBackHrefForReferrals,
   getReferralsForCategory,
@@ -11,17 +17,31 @@ type FindHumanPageProps = {
   searchParams: Promise<{
     category?: string;
     entryId?: string;
+    lang?: string;
   }>;
 };
 
 export default async function FindHumanPage({
   searchParams,
 }: FindHumanPageProps) {
-  const { category: rawCategory, entryId } = await searchParams;
+  const requestHeaders = await headers();
+  const { category: rawCategory, entryId, lang } = await searchParams;
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const currentLanguage = getLanguageOption(languageCode);
+  const regionScope = getRegionScope({
+    countryHeader: requestHeaders.get("x-vercel-ip-country"),
+    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
+  });
   const category =
     rawCategory && isWeakCategory(rawCategory) ? rawCategory : undefined;
-  const referrals = getReferralsForCategory(category);
-  const backHref = getBackHrefForReferrals(entryId);
+  const referrals = getReferralsForCategory({ category, regionScope });
+  const backHref = getBackHrefForReferrals({
+    entryId,
+    languageCode,
+  });
   const categoryLabel = category ? getWeakCategoryLabel(category) : "";
 
   return (
@@ -36,9 +56,14 @@ export default async function FindHumanPage({
             >
               <span aria-hidden="true">{"<"}</span>
             </Link>
-            <span className="rounded-full border border-[#cfd7cf] bg-white px-3 py-2 text-[14px] font-medium text-[#314036]">
-              King County, WA
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-[#cfd7cf] bg-white px-3 py-2 text-[14px] font-medium text-[#314036]">
+                {currentLanguage.label}
+              </span>
+              <span className="rounded-full border border-[#cfd7cf] bg-white px-3 py-2 text-[14px] font-medium text-[#314036]">
+                {regionScope === "king" ? "King County, WA" : "U.S. fallback"}
+              </span>
+            </div>
           </div>
 
           <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
@@ -47,8 +72,9 @@ export default async function FindHumanPage({
           </h1>
           <p className="pt-3 text-[16px] leading-6 text-[#47564d]">
             These are real services, not model-generated suggestions.
-            Resources are curated for King County. If you are somewhere else,
-            start with 211 and 988.
+            {regionScope === "king"
+              ? " Resources are curated for King County."
+              : " You are seeing the fallback list for outside King County."}
           </p>
         </header>
 
@@ -105,7 +131,11 @@ export default async function FindHumanPage({
         </section>
       </div>
 
-      <CrisisFooter entryId={entryId} />
+      <CrisisFooter
+        entryId={entryId}
+        languageCode={languageCode}
+        regionScope={regionScope}
+      />
     </main>
   );
 }

@@ -14,6 +14,8 @@ import type {
   ConversationEntryId,
   WeakCategory,
 } from "../lib/chat-types";
+import type { RegionScope } from "../lib/geo";
+import type { SupportedLanguageCode } from "../lib/languages";
 
 type TurnstileApi = {
   render: (
@@ -33,15 +35,51 @@ type TurnstileApi = {
 
 declare global {
   interface Window {
+    SpeechRecognition?: {
+      new (): SpeechRecognitionInstance;
+    };
+    webkitSpeechRecognition?: {
+      new (): SpeechRecognitionInstance;
+    };
+  }
+
+  interface Window {
     turnstile?: TurnstileApi;
   }
 }
 
+type SpeechRecognitionResultItem = {
+  transcript: string;
+};
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  0: SpeechRecognitionResultItem;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionInstance = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onend: null | (() => void);
+  onerror: null | (() => void);
+  onresult: null | ((event: SpeechRecognitionEventLike) => void);
+  start: () => void;
+  stop: () => void;
+};
+
 type ConversationClientProps = {
+  currentLanguageCode: SupportedLanguageCode;
   currentLanguageLabel: string;
   entryId: ConversationEntryId;
   initialAssistantMessage: string;
   initialSuggestions: readonly string[];
+  regionScope: RegionScope;
 };
 
 function makeMessageId(prefix: string): string {
@@ -201,10 +239,12 @@ function setMessageWeakCategory(
 }
 
 export function ConversationClient({
+  currentLanguageCode,
   currentLanguageLabel,
   entryId,
   initialAssistantMessage,
   initialSuggestions,
+  regionScope,
 }: ConversationClientProps) {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
   const threadRef = useRef<HTMLElement | null>(null);
@@ -212,6 +252,7 @@ export function ConversationClient({
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
       id: "assistant-seed",
@@ -228,6 +269,11 @@ export function ConversationClient({
       typeof window !== "undefined" &&
       "speechSynthesis" in window &&
       "SpeechSynthesisUtterance" in window,
+  );
+  const [micSupported] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
   );
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceUri, setSelectedVoiceUri] = useState(
@@ -263,6 +309,7 @@ export function ConversationClient({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -332,6 +379,13 @@ export function ConversationClient({
 
     window.localStorage.setItem("access-tool-speech-rate", String(speechRate));
   }, [selectedVoiceUri, speechRate]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -507,6 +561,66 @@ export function ConversationClient({
     window.speechSynthesis.speak(utterance);
   }
 
+  function handleMicInput() {
+    if (
+      typeof window === "undefined" ||
+      (!window.SpeechRecognition && !window.webkitSpeechRecognition)
+    ) {
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const Recognition =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (!Recognition) {
+      return;
+    }
+
+    recognitionRef.current?.stop();
+
+    const recognition = new Recognition();
+    recognition.lang = getSpeechLanguage(currentLanguageLabel);
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.onresult = (event) => {
+      let transcript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        transcript += event.results[i]?.[0]?.transcript ?? "";
+      }
+
+      setDraft((currentDraft) => {
+        const trimmedTranscript = transcript.trim();
+
+        if (!trimmedTranscript) {
+          return currentDraft;
+        }
+
+        const base = currentDraft.trimEnd();
+
+        return base ? `${base} ${trimmedTranscript}` : trimmedTranscript;
+      });
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.start();
+  }
+
   function sendMessage(text: string) {
     const trimmed = text.trim();
 
@@ -550,7 +664,7 @@ export function ConversationClient({
           },
           body: JSON.stringify({
             entryId,
-            language: "en",
+            language: currentLanguageCode,
             messages: nextMessages,
             turnstileToken: turnstileSiteKey ? turnstileToken : undefined,
           }),
@@ -671,7 +785,7 @@ export function ConversationClient({
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3">
         <header className="flex items-center justify-between pb-3">
           <Link
-            href="/"
+            href={`/?lang=${currentLanguageCode}`}
             aria-label="Go back"
             className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22]"
           >
@@ -737,7 +851,7 @@ export function ConversationClient({
                       <div className="mt-3 space-y-3">
                         {weakCategory ? (
                           <Link
-                            href={`/find-human?category=${weakCategory}&entryId=${entryId}`}
+                            href={`/find-human?category=${weakCategory}&entryId=${entryId}&lang=${currentLanguageCode}`}
                             className="block rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]"
                           >
                             <span className="font-semibold">AI sometimes gets this wrong.</span>{" "}
@@ -769,8 +883,8 @@ export function ConversationClient({
                         <Link
                           href={
                             weakCategory
-                              ? `/find-human?category=${weakCategory}&entryId=${entryId}`
-                              : `/find-human?entryId=${entryId}`
+                              ? `/find-human?category=${weakCategory}&entryId=${entryId}&lang=${currentLanguageCode}`
+                              : `/find-human?entryId=${entryId}&lang=${currentLanguageCode}`
                           }
                           className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                         >
@@ -855,9 +969,11 @@ export function ConversationClient({
             <button
               type="button"
               aria-label="Use microphone"
+              onClick={handleMicInput}
+              disabled={!micSupported}
               className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22]"
             >
-              Mic
+              {isListening ? "Stop" : "Mic"}
             </button>
             <button
               type="submit"
@@ -979,7 +1095,11 @@ export function ConversationClient({
         </div>
       ) : null}
 
-      <CrisisFooter entryId={entryId} />
+      <CrisisFooter
+        entryId={entryId}
+        languageCode={currentLanguageCode}
+        regionScope={regionScope}
+      />
     </main>
   );
 }

@@ -1,7 +1,9 @@
 import referralsData from "../data/referrals.json";
 import type { ConversationEntryId, WeakCategory } from "./chat-types";
+import type { RegionScope } from "./geo";
 
 type ReferralCategory = WeakCategory | "all";
+type ReferralRegion = "king" | "fallback";
 
 export type ReferralResource = {
   id: string;
@@ -11,6 +13,7 @@ export type ReferralResource = {
   secondaryPhone?: string;
   website: string;
   categories: ReferralCategory[];
+  regions: ReferralRegion[];
 };
 
 const referrals = referralsData as ReferralResource[];
@@ -50,21 +53,39 @@ export function getWeakCategoryLabel(category: WeakCategory): string {
   }
 }
 
-export function getReferralsForCategory(category?: null | WeakCategory) {
+export function getReferralsForCategory({
+  category,
+  regionScope,
+}: {
+  category?: null | WeakCategory;
+  regionScope: RegionScope;
+}) {
+  const regionReferrals = referrals.filter((resource) =>
+    resource.regions.includes(regionScope),
+  );
+
   if (!category || category === "none") {
-    return referrals;
+    return regionReferrals;
   }
 
-  return referrals.filter(
+  return regionReferrals.filter(
     (resource) =>
       resource.categories.includes("all") || resource.categories.includes(category),
   );
 }
 
-export function getBackHrefForReferrals(entryId?: null | string) {
+export function getBackHrefForReferrals({
+  entryId,
+  languageCode,
+}: {
+  entryId?: null | string;
+  languageCode?: null | string;
+}) {
   if (!entryId) {
-    return "/";
+    return languageCode ? `/?lang=${languageCode}` : "/";
   }
 
-  return `/conversation/${entryId as ConversationEntryId}`;
+  return languageCode
+    ? `/conversation/${entryId as ConversationEntryId}?lang=${languageCode}`
+    : `/conversation/${entryId as ConversationEntryId}`;
 }
