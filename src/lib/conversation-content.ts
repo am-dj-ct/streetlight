@@ -7,6 +7,10 @@ import am from "../data/conversation-content/am.json";
 import zh from "../data/conversation-content/zh.json";
 import type { ConversationEntryId } from "./chat-types";
 import type { SupportedLanguageCode } from "./languages";
+import {
+  buildLanguageDocumentMap,
+  type LocaleDocumentMeta,
+} from "./locale-documents";
 
 type ConversationContentEntry = {
   label: string;
@@ -15,11 +19,7 @@ type ConversationContentEntry = {
 };
 
 type ConversationContentDocument = {
-  meta?: {
-    translated: boolean;
-    languageCode: SupportedLanguageCode;
-    inherits?: SupportedLanguageCode;
-  };
+  meta?: LocaleDocumentMeta;
   buttons: Partial<Record<ConversationEntryId, Partial<ConversationContentEntry>>>;
 };
 
@@ -27,7 +27,7 @@ function asConversationContentDocument(value: unknown): ConversationContentDocum
   return value as ConversationContentDocument;
 }
 
-const contentDocuments: Record<SupportedLanguageCode, ConversationContentDocument> = {
+const contentDocuments = buildLanguageDocumentMap({
   en: asConversationContentDocument(en),
   es: asConversationContentDocument(es),
   vi: asConversationContentDocument(vi),
@@ -35,7 +35,7 @@ const contentDocuments: Record<SupportedLanguageCode, ConversationContentDocumen
   ru: asConversationContentDocument(ru),
   am: asConversationContentDocument(am),
   zh: asConversationContentDocument(zh),
-};
+});
 
 export function getConversationContentEntry(
   entryId: ConversationEntryId,

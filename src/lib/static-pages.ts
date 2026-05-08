@@ -6,6 +6,7 @@ import ru from "../data/static-pages/ru.json";
 import am from "../data/static-pages/am.json";
 import zh from "../data/static-pages/zh.json";
 import type { SupportedLanguageCode } from "./languages";
+import { buildLanguageDocumentMap } from "./locale-documents";
 
 type StaticPageSection = {
   heading: string;
@@ -29,7 +30,7 @@ function asStaticPagesDocument(value: unknown): StaticPagesDocument {
   return value as StaticPagesDocument;
 }
 
-const documents: Record<SupportedLanguageCode, StaticPagesDocument> = {
+const documents = buildLanguageDocumentMap({
   en: asStaticPagesDocument(en),
   es: asStaticPagesDocument(es),
   vi: asStaticPagesDocument(vi),
@@ -37,7 +38,7 @@ const documents: Record<SupportedLanguageCode, StaticPagesDocument> = {
   ru: asStaticPagesDocument(ru),
   am: asStaticPagesDocument(am),
   zh: asStaticPagesDocument(zh),
-};
+});
 
 export function getStaticPageContent(
   pageKey: StaticPageKey,

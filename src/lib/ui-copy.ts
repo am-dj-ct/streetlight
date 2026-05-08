@@ -6,15 +6,15 @@ import so from "../data/ui-copy/so.json";
 import ru from "../data/ui-copy/ru.json";
 import am from "../data/ui-copy/am.json";
 import zh from "../data/ui-copy/zh.json";
+import {
+  buildLanguageDocumentMap,
+  type LocaleDocumentMeta,
+} from "./locale-documents";
 
 export type UiCopy = typeof en.strings;
 
 type LocaleCopyDocument = {
-  meta: {
-    translated: boolean;
-    languageCode: SupportedLanguageCode;
-    inherits?: SupportedLanguageCode;
-  };
+  meta: LocaleDocumentMeta;
   strings: Partial<UiCopy>;
 };
 
@@ -22,7 +22,7 @@ function asLocaleCopyDocument(value: unknown): LocaleCopyDocument {
   return value as LocaleCopyDocument;
 }
 
-const localeDocuments: Record<SupportedLanguageCode, LocaleCopyDocument> = {
+const localeDocuments = buildLanguageDocumentMap({
   en: asLocaleCopyDocument(en),
   es: asLocaleCopyDocument(es),
   vi: asLocaleCopyDocument(vi),
@@ -30,7 +30,7 @@ const localeDocuments: Record<SupportedLanguageCode, LocaleCopyDocument> = {
   ru: asLocaleCopyDocument(ru),
   am: asLocaleCopyDocument(am),
   zh: asLocaleCopyDocument(zh),
-};
+});
 
 export function getUiCopy(languageCode: SupportedLanguageCode): UiCopy {
   const localeDocument = localeDocuments[languageCode];
