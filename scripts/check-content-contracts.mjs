@@ -88,11 +88,13 @@ const [
   buttonsSource,
   promptsSource,
   englishConversationContentRaw,
+  englishStaticPagesRaw,
 ] = await Promise.all([
   readFile(path.join(cwd, "src/lib/chat-types.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/buttons.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/system-prompts.ts"), "utf8"),
   readFile(path.join(cwd, "src/data/conversation-content/en.json"), "utf8"),
+  readFile(path.join(cwd, "src/data/static-pages/en.json"), "utf8"),
 ]);
 
 const conversationEntryIds = extractArrayEntries(
@@ -103,7 +105,10 @@ const promptButtonIds = extractIdsFromArrayBlock(buttonsSource, "promptButtons")
 const alternateActionIds = extractIdsFromArrayBlock(buttonsSource, "alternateActions");
 const promptIds = extractObjectKeys(promptsSource, "entryPrompts");
 const englishConversationContent = JSON.parse(englishConversationContentRaw);
+const englishStaticPages = JSON.parse(englishStaticPagesRaw);
 const contentIds = Object.keys(englishConversationContent.buttons ?? {});
+const staticPageKeys = Object.keys(englishStaticPages.pages ?? {});
+const expectedStaticPageKeys = ["about", "privacy"];
 
 assertNoDuplicates("conversationEntryIds", conversationEntryIds);
 assertNoDuplicates("promptButtons", promptButtonIds);
@@ -122,6 +127,7 @@ assertSameSet(
   conversationEntryIds,
   contentIds,
 );
+assertSameSet("static page keys", expectedStaticPageKeys, staticPageKeys);
 
 for (const entryId of conversationEntryIds) {
   const content = englishConversationContent.buttons?.[entryId];
@@ -154,6 +160,64 @@ for (const entryId of conversationEntryIds) {
   }
 }
 
+for (const pageKey of expectedStaticPageKeys) {
+  const page = englishStaticPages.pages?.[pageKey];
+
+  if (!page || typeof page !== "object") {
+    fail(`static-pages is missing page "${pageKey}".`);
+  }
+
+  if (typeof page.title !== "string" || page.title.trim().length === 0) {
+    fail(`static-pages "${pageKey}" is missing a non-empty title.`);
+  }
+
+  if (
+    typeof page.lastUpdated !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(page.lastUpdated)
+  ) {
+    fail(`static-pages "${pageKey}" must include a YYYY-MM-DD lastUpdated value.`);
+  }
+
+  if (!Array.isArray(page.sections) || page.sections.length === 0) {
+    fail(`static-pages "${pageKey}" must include at least one section.`);
+  }
+
+  for (const [index, section] of page.sections.entries()) {
+    const sectionLabel = `static-pages "${pageKey}" section ${index + 1}`;
+
+    if (!section || typeof section !== "object") {
+      fail(`${sectionLabel} must be an object.`);
+    }
+
+    if (typeof section.heading !== "string" || section.heading.trim().length === 0) {
+      fail(`${sectionLabel} is missing a non-empty heading.`);
+    }
+
+    const paragraphs = Array.isArray(section.paragraphs) ? section.paragraphs : [];
+    const bullets = Array.isArray(section.bullets) ? section.bullets : [];
+
+    if (paragraphs.length === 0 && bullets.length === 0) {
+      fail(`${sectionLabel} must include paragraphs or bullets.`);
+    }
+
+    const invalidParagraph = paragraphs.find(
+      (paragraph) => typeof paragraph !== "string" || paragraph.trim().length === 0,
+    );
+
+    if (invalidParagraph !== undefined) {
+      fail(`${sectionLabel} contains a blank paragraph.`);
+    }
+
+    const invalidBullet = bullets.find(
+      (bullet) => typeof bullet !== "string" || bullet.trim().length === 0,
+    );
+
+    if (invalidBullet !== undefined) {
+      fail(`${sectionLabel} contains a blank bullet.`);
+    }
+  }
+}
+
 console.log(
-  `Content contracts ok (${conversationEntryIds.length} conversation entries, ${promptButtonIds.length} prompt buttons, ${alternateActionIds.length} alternate actions).`,
+  `Content contracts ok (${conversationEntryIds.length} conversation entries, ${promptButtonIds.length} prompt buttons, ${alternateActionIds.length} alternate actions, ${staticPageKeys.length} static pages).`,
 );
