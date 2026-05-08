@@ -28,12 +28,82 @@ function stripMarkdownForSpeech(text: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/^>\s+/gm, "")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/^\s*[-*]\s+/gm, "")
     .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/[“”]/g, "\"")
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+—\s+/g, ". ")
     .replace(/\n{2,}/g, ". ")
     .replace(/\n/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+function getSpeechLanguage(label: string): string {
+  switch (label) {
+    case "Español":
+      return "es-US";
+    case "Tiếng Việt":
+      return "vi-VN";
+    case "Soomaali":
+      return "so-SO";
+    case "Русский":
+      return "ru-RU";
+    case "አማርኛ":
+      return "am-ET";
+    case "中文":
+      return "zh-CN";
+    case "English":
+    default:
+      return "en-US";
+  }
+}
+
+function chooseBestVoice(voices: SpeechSynthesisVoice[], language: string) {
+  const matchingVoices = voices.filter((voice) =>
+    voice.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase()),
+  );
+  const pool = matchingVoices.length > 0 ? matchingVoices : voices;
+
+  const preferredNamesByLanguage: Record<string, string[]> = {
+    en: [
+      "Samantha",
+      "Ava",
+      "Allison",
+      "Susan",
+      "Karen",
+      "Moira",
+      "Fiona",
+      "Tessa",
+      "Google US English",
+      "Microsoft Aria",
+      "Microsoft Jenny",
+      "Alex",
+      "Daniel",
+    ],
+    es: ["Paulina", "Monica", "Jorge", "Google español", "Microsoft Dalia", "Microsoft Alvaro"],
+    vi: ["Linh", "Google tiếng Việt"],
+    ru: ["Milena", "Yuri", "Google русский"],
+    zh: ["Ting-Ting", "Sin-ji", "Mei-Jia", "Google 普通话（中国大陆）"],
+  };
+
+  const preferredNames = preferredNamesByLanguage[language.slice(0, 2).toLowerCase()] ?? [];
+
+  for (const preferredName of preferredNames) {
+    const match = pool.find((voice) => voice.name.includes(preferredName));
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return (
+    pool.find((voice) => voice.localService) ??
+    pool.find((voice) => !/compact|classic|old/i.test(voice.name)) ??
+    pool[0]
+  );
 }
 
 function appendToMessage(
@@ -136,8 +206,21 @@ export function ConversationClient({
     }
 
     window.speechSynthesis.cancel();
+    const language = getSpeechLanguage(currentLanguageLabel);
+    const availableVoices = window.speechSynthesis.getVoices();
 
     const utterance = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
+    utterance.lang = language;
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    const preferredVoice = chooseBestVoice(availableVoices, language);
+
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
     utteranceRef.current = utterance;
     utterance.onend = () => {
       utteranceRef.current = null;
