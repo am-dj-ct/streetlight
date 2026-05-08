@@ -35,7 +35,9 @@ const problemOptions: readonly ReportOption[] = [
 
 type ReportProblemFormProps = {
   chatMode: "live-model" | "mock-local";
+  commitSha: null | string;
   copy: UiCopy;
+  deployEnv: string;
   entryId?: string;
   initialArea?: string;
   languageCode: SupportedLanguageCode;
@@ -48,7 +50,9 @@ function isWhereOption(value: string | undefined): value is string {
 
 export function ReportProblemForm({
   chatMode,
+  commitSha,
   copy,
+  deployEnv,
   entryId,
   initialArea,
   languageCode,
@@ -74,6 +78,8 @@ export function ReportProblemForm({
       "",
       `Where this happened: ${where}`,
       `Chat mode: ${chatMode}`,
+      `Deploy environment: ${deployEnv}`,
+      `Commit SHA: ${commitSha ?? "local-dev"}`,
       `Resource scope: ${regionScope}`,
       `Conversation language: ${conversationLanguage}`,
     ];
@@ -108,9 +114,11 @@ export function ReportProblemForm({
     return lines.join("\n");
   }, [
     chatMode,
+    commitSha,
     conversationLanguage,
     copy,
     details,
+    deployEnv,
     entryId,
     goal,
     regionScope,
@@ -153,6 +161,12 @@ export function ReportProblemForm({
         </p>
         <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
           Current chat mode: {chatMode}
+        </p>
+        <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+          Current deploy environment: {deployEnv}
+        </p>
+        <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+          Current commit: {commitSha ?? "local-dev"}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
           Current resource scope: {regionScope}

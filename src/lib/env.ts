@@ -103,3 +103,11 @@ export function isDevMockChatEnabled(): boolean {
 export function isProductionMockMisconfigured(): boolean {
   return readOptionalEnv("VERCEL_ENV") === "production" && isDevMockChatEnabled();
 }
+
+export function getDeployEnvironment(): string {
+  return readOptionalEnv("VERCEL_ENV") ?? "local";
+}
+
+export function getDeployCommitSha(): null | string {
+  return readOptionalEnv("VERCEL_GIT_COMMIT_SHA");
+}
