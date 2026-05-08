@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { classifierPrompt, parseWeakCategory } from "../../../lib/classifier-prompt";
 import { getAnthropicApiKey, getClassifierModel, getMainModel } from "../../../lib/env";
+import { checkPerIpRateLimit } from "../../../lib/rate-limit";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import type { ChatRequestBody, ClientChatMessage } from "../../../lib/chat-types";
 
@@ -54,6 +55,20 @@ export async function POST(request: Request) {
   let model = process.env.MAIN_MODEL ?? "missing";
 
   try {
+    const rateLimit = await checkPerIpRateLimit(request);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many messages today. Please try again tomorrow." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.resetInSeconds),
+          },
+        },
+      );
+    }
+
     const anthropic = new Anthropic({
       apiKey: getAnthropicApiKey(),
     });
@@ -189,9 +204,11 @@ export async function POST(request: Request) {
 
     const responseTimeMs = Date.now() - requestStartedAt;
     const apiError = error instanceof Anthropic.APIError ? error : null;
+    const errorMessage = error instanceof Error ? error.message : "";
+    const isRateLimitError = errorMessage.includes("@vercel/kv");
 
     console.error({
-      code: "anthropic_request_setup_failed",
+      code: isRateLimitError ? "rate_limit_check_failed" : "anthropic_request_setup_failed",
       errorType: apiError?.name ?? "UnknownError",
       status: apiError?.status ?? 500,
       model,

@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-07
-**Last meaningful change:** 2026-05-07 (classifier pass and inline weak-category note landed; rate-limit and KV still pending)
+**Last meaningful change:** 2026-05-07 (KV-backed per-IP rate limit landed; Turnstile and spend tracking still pending)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -336,9 +336,10 @@ Every hop a user message takes from the moment they tap send to the moment a res
 
 **Implementation note as of 2026-05-07:** The current codebase implements a
 subset of this target flow: browser memory state, backend `/api/chat`, the
-main Anthropic Messages API call, the Haiku classifier pass, and the inline
-weak-category UI note. Turnstile validation, KV-backed rate limiting, and the
-full metadata-log schema are not landed yet and must be completed before
+main Anthropic Messages API call, the Haiku classifier pass, the inline
+weak-category UI note, and KV-backed per-IP rate limiting. Turnstile
+validation, daily spend tracking, kill-switch state, and the full
+metadata-log schema are not landed yet and must be completed before
 partner-facing use.
 
 ### User Action: Tap Send
@@ -523,9 +524,12 @@ These rules are enforced by the codebase and any future Claude Code session. Vio
 
 **Current code state as of 2026-05-07:** The `/api/chat` route follows the
 no-content-logging rules. It writes structured error metadata for the main
-model and classifier calls, plus a minimal classifier success record
-(`category`, pinned models, classifier response time). The full per-turn
-metadata schema described in Hop 7 is still not landed.
+model, classifier, and rate-limit paths, plus a minimal classifier success
+record (`category`, pinned models, classifier response time). The rate-limit
+check uses Vercel KV when `KV_REST_API_URL`, `KV_REST_API_TOKEN`, and
+`HASHED_IP_SALT` are present; local development without those env vars
+intentionally fails open so the app remains usable on the operator's machine.
+The full per-turn metadata schema described in Hop 7 is still not landed.
 
 ### Geo-Awareness
 
