@@ -14,6 +14,10 @@ export type CrisisResource = {
 
 const validRegionScopes: readonly RegionScope[] = ["king", "fallback"];
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function isCrisisResource(value: unknown): value is CrisisResource {
   if (!value || typeof value !== "object") {
     return false;
@@ -22,13 +26,14 @@ function isCrisisResource(value: unknown): value is CrisisResource {
   const candidate = value as Partial<CrisisResource>;
 
   return (
-    typeof candidate.id === "string" &&
-    typeof candidate.label === "string" &&
-    typeof candidate.lastVerified === "string" &&
-    typeof candidate.phone === "string" &&
-    typeof candidate.sourceName === "string" &&
-    typeof candidate.url === "string" &&
+    isNonEmptyString(candidate.id) &&
+    isNonEmptyString(candidate.label) &&
+    isNonEmptyString(candidate.lastVerified) &&
+    isNonEmptyString(candidate.phone) &&
+    isNonEmptyString(candidate.sourceName) &&
+    isNonEmptyString(candidate.url) &&
     Array.isArray(candidate.regions) &&
+    candidate.regions.length > 0 &&
     candidate.regions.every((region) => isOneOf(validRegionScopes, region))
   );
 }

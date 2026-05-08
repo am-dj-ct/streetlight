@@ -37,6 +37,10 @@ const validReferralCategories: readonly ReferralCategory[] = [
 ];
 const validReferralRegions: readonly ReferralRegion[] = ["king", "fallback"];
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function isReferralResource(value: unknown): value is ReferralResource {
   if (!value || typeof value !== "object") {
     return false;
@@ -45,19 +49,21 @@ function isReferralResource(value: unknown): value is ReferralResource {
   const candidate = value as Partial<ReferralResource>;
 
   return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    typeof candidate.description === "string" &&
-    typeof candidate.lastVerified === "string" &&
-    (candidate.phone === undefined || typeof candidate.phone === "string") &&
+    isNonEmptyString(candidate.id) &&
+    isNonEmptyString(candidate.name) &&
+    isNonEmptyString(candidate.description) &&
+    isNonEmptyString(candidate.lastVerified) &&
+    (candidate.phone === undefined || isNonEmptyString(candidate.phone)) &&
     (candidate.secondaryPhone === undefined ||
-      typeof candidate.secondaryPhone === "string") &&
-    typeof candidate.sourceName === "string" &&
-    typeof candidate.website === "string" &&
+      isNonEmptyString(candidate.secondaryPhone)) &&
+    isNonEmptyString(candidate.sourceName) &&
+    isNonEmptyString(candidate.website) &&
     Array.isArray(candidate.categories) &&
+    candidate.categories.length > 0 &&
     candidate.categories.every((category) => isOneOf(validReferralCategories, category)) &&
     !candidate.categories.includes("none") &&
     Array.isArray(candidate.regions) &&
+    candidate.regions.length > 0 &&
     candidate.regions.every((region) => isOneOf(validReferralRegions, region))
   );
 }
