@@ -11,6 +11,7 @@ import {
   buildLanguageDocumentMap,
   type LocaleDocumentMeta,
 } from "./locale-documents";
+import { isPlainRecord } from "./plain-record";
 
 type ConversationContentEntry = {
   label: string;
@@ -24,17 +25,17 @@ type ConversationContentDocument = {
 };
 
 function asConversationContentDocument(value: unknown): ConversationContentDocument {
-  if (!value || typeof value !== "object") {
+  if (!isPlainRecord(value)) {
     throw new Error("Conversation content document must be an object.");
   }
 
   const candidate = value as Partial<ConversationContentDocument>;
 
-  if (!candidate.buttons || typeof candidate.buttons !== "object") {
+  if (!isPlainRecord(candidate.buttons)) {
     throw new Error("Conversation content document must include a buttons object.");
   }
 
-  if (candidate.meta !== undefined && typeof candidate.meta !== "object") {
+  if (candidate.meta !== undefined && !isPlainRecord(candidate.meta)) {
     throw new Error("Conversation content meta must be an object when present.");
   }
 

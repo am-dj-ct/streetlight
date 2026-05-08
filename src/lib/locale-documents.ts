@@ -1,4 +1,5 @@
 import type { SupportedLanguageCode } from "./languages";
+import { isPlainRecord } from "./plain-record";
 
 type SupportedLanguageDocumentMap<TDocument> = Record<
   SupportedLanguageCode,
@@ -15,7 +16,7 @@ function validateLocaleDocument(
   languageCode: SupportedLanguageCode,
   document: { meta?: Partial<LocaleDocumentMeta> } | null | undefined,
 ) {
-  if (!document || typeof document !== "object") {
+  if (!isPlainRecord(document)) {
     throw new Error(`Locale document "${languageCode}" must be an object.`);
   }
 
@@ -25,7 +26,7 @@ function validateLocaleDocument(
 
   const { meta } = document;
 
-  if (!meta || typeof meta !== "object") {
+  if (!isPlainRecord(meta)) {
     throw new Error(`Locale document "${languageCode}" meta must be an object.`);
   }
 

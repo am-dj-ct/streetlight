@@ -10,6 +10,7 @@ import {
   buildLanguageDocumentMap,
   type LocaleDocumentMeta,
 } from "./locale-documents";
+import { isPlainRecord } from "./plain-record";
 
 export type UiCopy = typeof en.strings;
 
@@ -19,17 +20,17 @@ type LocaleCopyDocument = {
 };
 
 function asLocaleCopyDocument(value: unknown): LocaleCopyDocument {
-  if (!value || typeof value !== "object") {
+  if (!isPlainRecord(value)) {
     throw new Error("UI copy document must be an object.");
   }
 
   const candidate = value as Partial<LocaleCopyDocument>;
 
-  if (!candidate.meta || typeof candidate.meta !== "object") {
+  if (!isPlainRecord(candidate.meta)) {
     throw new Error("UI copy document must include a meta object.");
   }
 
-  if (!candidate.strings || typeof candidate.strings !== "object") {
+  if (!isPlainRecord(candidate.strings)) {
     throw new Error("UI copy document must include a strings object.");
   }
 

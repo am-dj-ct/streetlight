@@ -7,6 +7,7 @@ import am from "../data/static-pages/am.json";
 import zh from "../data/static-pages/zh.json";
 import type { SupportedLanguageCode } from "./languages";
 import { buildLanguageDocumentMap } from "./locale-documents";
+import { isPlainRecord } from "./plain-record";
 
 type StaticPageSection = {
   heading: string;
@@ -27,13 +28,13 @@ type StaticPagesDocument = {
 };
 
 function asStaticPagesDocument(value: unknown): StaticPagesDocument {
-  if (!value || typeof value !== "object") {
+  if (!isPlainRecord(value)) {
     throw new Error("Static pages document must be an object.");
   }
 
   const candidate = value as Partial<StaticPagesDocument>;
 
-  if (!candidate.pages || typeof candidate.pages !== "object") {
+  if (!isPlainRecord(candidate.pages)) {
     throw new Error("Static pages document must include a pages object.");
   }
 
