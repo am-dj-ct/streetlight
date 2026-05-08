@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
+import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -127,54 +128,26 @@ async function checkPages() {
 }
 
 async function checkLanguagePersistence() {
-  const languageResponse = await fetch(new URL("/?lang=es", baseUrl), {
-    headers: {
-      Accept: "text/html",
-    },
-  });
+  const snapshot = await getLanguagePersistenceSnapshot({ baseUrl, fail });
 
-  if (!languageResponse.ok) {
-    fail(`HTTP ${languageResponse.status} from /?lang=es.`);
-  }
-
-  const languageCookie = languageResponse.headers
-    .get("set-cookie")
-    ?.split(";")[0]
-    ?.trim();
-  const languageContentHeader = languageResponse.headers.get("content-language");
-
-  if (languageCookie !== "access_tool_lang=es") {
+  if (snapshot.languageCookie !== "access_tool_lang=es") {
     fail("Expected Spanish language cookie was not set.");
   }
 
-  if (languageContentHeader !== "es") {
+  if (snapshot.homeContentLanguage !== "es") {
     fail("Expected Spanish Content-Language header on /?lang=es.");
   }
 
-  const persistedResponse = await fetch(new URL("/privacy", baseUrl), {
-    headers: {
-      Accept: "text/html",
-      Cookie: languageCookie,
-    },
-  });
-
-  if (!persistedResponse.ok) {
-    fail(`HTTP ${persistedResponse.status} from /privacy with persisted language cookie.`);
-  }
-
-  const persistedHtml = await persistedResponse.text();
-  const persistedContentHeader = persistedResponse.headers.get("content-language");
-
-  if (!persistedHtml.includes('<html lang="es">')) {
+  if (!snapshot.privacyHtml?.includes('<html lang="es">')) {
     fail("Expected persisted Spanish html lang on /privacy.");
   }
 
-  if (persistedContentHeader !== "es") {
+  if (snapshot.privacyContentLanguage !== "es") {
     fail("Expected persisted Spanish Content-Language header on /privacy.");
   }
 
   if (
-    !persistedHtml.includes(
+    !snapshot.privacyHtml?.includes(
       "This page is still showing the English version while human translation is being added.",
     )
   ) {

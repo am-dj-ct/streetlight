@@ -1,8 +1,8 @@
 import {
   defaultBaseUrl,
-  extractHtmlLang,
   getHealth,
 } from "./lib/access-tool-http.mjs";
+import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 
 const baseUrl = defaultBaseUrl;
 const sampleSourcePath = "/conversation/understand-letter-or-form?lang=en";
@@ -14,8 +14,6 @@ const reportEndpoint = new URL(
   `/report-problem?lang=en&area=conversation&entryId=understand-letter-or-form&source=${encodeURIComponent(sampleSourcePath)}`,
   baseUrl,
 ).toString();
-const spanishHomeEndpoint = new URL("/?lang=es", baseUrl).toString();
-const privacyEndpoint = new URL("/privacy", baseUrl).toString();
 
 function fail(message) {
   throw new Error(message);
@@ -41,12 +39,6 @@ const referralsResponse = await fetch(referralsEndpoint, {
     Accept: "text/html",
   },
 });
-const spanishHomeResponse = await fetch(spanishHomeEndpoint, {
-  headers: {
-    Accept: "text/html",
-  },
-});
-
 if (!reportResponse.ok) {
   fail(`HTTP ${reportResponse.status} from /report-problem.`);
 }
@@ -55,29 +47,9 @@ if (!referralsResponse.ok) {
   fail(`HTTP ${referralsResponse.status} from /find-human.`);
 }
 
-if (!spanishHomeResponse.ok) {
-  fail(`HTTP ${spanishHomeResponse.status} from /?lang=es.`);
-}
-
 const reportHtml = await reportResponse.text();
 const referralsHtml = await referralsResponse.text();
-const spanishHomeHtml = await spanishHomeResponse.text();
-const persistedLanguageCookie = spanishHomeResponse.headers
-  .get("set-cookie")
-  ?.split(";")[0]
-  ?.trim();
-const persistedPrivacyResponse = await fetch(privacyEndpoint, {
-  headers: {
-    Accept: "text/html",
-    ...(persistedLanguageCookie ? { Cookie: persistedLanguageCookie } : {}),
-  },
-});
-
-if (!persistedPrivacyResponse.ok) {
-  fail(`HTTP ${persistedPrivacyResponse.status} from /privacy with persisted language cookie.`);
-}
-
-const persistedPrivacyHtml = await persistedPrivacyResponse.text();
+const languageSnapshot = await getLanguagePersistenceSnapshot({ baseUrl, fail });
 const reportChatMode = extractValue(reportHtml, "Current chat mode");
 const reportDeployEnv = extractValue(reportHtml, "Current deploy environment");
 const reportCommit = extractValue(reportHtml, "Current commit");
@@ -90,8 +62,9 @@ const referralsCheckedThrough = extractValue(
 );
 const referralsTopSource = extractValue(referralsHtml, "Source");
 const referralsTopVerified = extractValue(referralsHtml, "Verified");
-const spanishHomeHtmlLang = extractHtmlLang(spanishHomeHtml);
-const persistedPrivacyHtmlLang = extractHtmlLang(persistedPrivacyHtml);
+const spanishHomeHtmlLang = languageSnapshot.homeLang;
+const persistedLanguageCookie = languageSnapshot.languageCookie;
+const persistedPrivacyHtmlLang = languageSnapshot.privacyLang;
 
 console.log("Access Tool local diagnostics");
 console.log("");

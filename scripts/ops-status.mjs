@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { defaultBaseUrl, getHealth as fetchHealth } from "./lib/access-tool-http.mjs";
+import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 
 const baseUrl = defaultBaseUrl;
 const envLocalPath = new URL("../.env.local", import.meta.url);
@@ -114,41 +115,12 @@ async function getEnvSnapshot() {
 }
 
 async function getLanguageSnapshot() {
-  const languageResponse = await fetch(new URL("/?lang=es", baseUrl), {
-    headers: {
-      Accept: "text/html",
-    },
-  });
-
-  if (!languageResponse.ok) {
-    fail(`HTTP ${languageResponse.status} from /?lang=es.`);
-  }
-
-  const languageCookie = languageResponse.headers
-    .get("set-cookie")
-    ?.split(";")[0]
-    ?.trim();
-  const homeHtml = await languageResponse.text();
-  const homeLang = homeHtml.match(/<html lang="([^"]+)"/i)?.[1] ?? null;
-
-  const privacyResponse = await fetch(new URL("/privacy", baseUrl), {
-    headers: {
-      Accept: "text/html",
-      ...(languageCookie ? { Cookie: languageCookie } : {}),
-    },
-  });
-
-  if (!privacyResponse.ok) {
-    fail(`HTTP ${privacyResponse.status} from /privacy with persisted language cookie.`);
-  }
-
-  const privacyHtml = await privacyResponse.text();
-  const privacyLang = privacyHtml.match(/<html lang="([^"]+)"/i)?.[1] ?? null;
+  const snapshot = await getLanguagePersistenceSnapshot({ baseUrl, fail });
 
   return {
-    homeLang: homeLang ?? "(missing)",
-    languageCookie: languageCookie ?? "(missing)",
-    privacyLang: privacyLang ?? "(missing)",
+    homeLang: snapshot.homeLang ?? "(missing)",
+    languageCookie: snapshot.languageCookie ?? "(missing)",
+    privacyLang: snapshot.privacyLang ?? "(missing)",
   };
 }
 
