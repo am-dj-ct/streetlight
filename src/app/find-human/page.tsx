@@ -184,6 +184,7 @@ export default async function FindHumanPage({
       </div>
 
       <CrisisFooter
+        area="find-human"
         entryId={entryId}
         languageCode={languageCode}
         regionScope={regionScope}

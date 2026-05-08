@@ -6,6 +6,7 @@ import type { RegionScope } from "../lib/geo";
 import type { LanguageOption, SupportedLanguageCode } from "../lib/languages";
 
 type InfoPageShellProps = {
+  area?: string;
   currentLanguage: LanguageOption;
   regionScope: RegionScope;
   title: string;
@@ -15,6 +16,7 @@ type InfoPageShellProps = {
 };
 
 export function InfoPageShell({
+  area,
   currentLanguage,
   regionScope,
   title,
@@ -61,7 +63,11 @@ export function InfoPageShell({
         <section className="flex-1 space-y-6 pb-4">{children}</section>
       </div>
 
-      <CrisisFooter languageCode={currentLanguage.code} regionScope={regionScope} />
+      <CrisisFooter
+        area={area}
+        languageCode={currentLanguage.code}
+        regionScope={regionScope}
+      />
     </main>
   );
 }

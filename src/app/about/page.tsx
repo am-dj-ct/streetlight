@@ -39,6 +39,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
 
   return (
     <InfoPageShell
+      area="about"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
       title={page.title}

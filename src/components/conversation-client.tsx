@@ -1287,6 +1287,7 @@ export function ConversationClient({
       ) : null}
 
       <CrisisFooter
+        area="conversation"
         entryId={entryId}
         languageCode={currentLanguageCode}
         regionScope={regionScope}

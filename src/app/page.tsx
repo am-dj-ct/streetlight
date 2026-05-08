@@ -89,7 +89,11 @@ export default async function Home({ searchParams }: HomePageProps) {
         </section>
 
       </div>
-      <CrisisFooter languageCode={currentLanguage.code} regionScope={regionScope} />
+      <CrisisFooter
+        area="main-screen"
+        languageCode={currentLanguage.code}
+        regionScope={regionScope}
+      />
     </main>
   );
 }

@@ -5,10 +5,12 @@ import type { RegionScope } from "../lib/geo";
 import { getUiCopy } from "../lib/ui-copy";
 
 export function CrisisFooter({
+  area,
   entryId,
   languageCode = "en",
   regionScope = "king",
 }: {
+  area?: string;
   entryId?: string;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;
@@ -18,9 +20,18 @@ export function CrisisFooter({
   const findHumanHref = entryId
     ? `/find-human?entryId=${encodeURIComponent(entryId)}&lang=${languageCode}`
     : `/find-human?lang=${languageCode}`;
-  const reportProblemHref = entryId
-    ? `/report-problem?lang=${languageCode}&area=conversation&entryId=${encodeURIComponent(entryId)}`
-    : `/report-problem?lang=${languageCode}`;
+  const reportProblemParams = new URLSearchParams();
+  reportProblemParams.set("lang", languageCode);
+
+  if (area) {
+    reportProblemParams.set("area", area);
+  }
+
+  if (entryId) {
+    reportProblemParams.set("entryId", entryId);
+  }
+
+  const reportProblemHref = `/report-problem?${reportProblemParams.toString()}`;
 
   return (
     <footer

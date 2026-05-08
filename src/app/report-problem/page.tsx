@@ -50,6 +50,7 @@ export default async function ReportProblemPage({
 
   return (
     <InfoPageShell
+      area="other"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
       title={copy.reportPageTitle}

@@ -39,6 +39,7 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
 
   return (
     <InfoPageShell
+      area="privacy"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
       title={page.title}
