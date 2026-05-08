@@ -18,8 +18,8 @@
     "smoke": "node scripts/smoke.mjs",
     "smoke:quick": "SMOKE_CASE_LIMIT=2 node scripts/smoke.mjs",
     "regression:prompts": "node scripts/regression.mjs",
-    "regression:quick": "PROMPT_CASE_LIMIT=3 node scripts/regression.mjs",
-    "verify:quick": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run validate:data && npm run smoke:quick",
+    "regression:quick": "ALLOW_MOCK_REGRESSION=true PROMPT_CASE_LIMIT=3 node scripts/regression.mjs",
+    "verify:quick": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run validate:data && npm run smoke:quick && npm run regression:quick",
     "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run validate:data && npm run smoke && npm run regression:prompts"
   },
   "dependencies": {

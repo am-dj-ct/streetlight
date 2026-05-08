@@ -66,9 +66,11 @@ this. Code stays public on GitHub regardless.
   sample
 - `npm run regression:prompts` — runs the starter synthetic prompt set in
   `tests/prompts/`
-- `npm run regression:quick` — cheaper prompt check with a smaller synthetic
-  sample
-- `npm run verify:quick` — lower-cost local check for active setup work
+- `npm run regression:quick` — cheaper prompt plumbing check; in mock mode it
+  verifies streaming/classifier wiring without pretending to validate live
+  model behavior
+- `npm run verify:quick` — lower-cost local check for active setup work, now
+  including the quick regression plumbing pass
 - `npm run verify` — runs the local pre-launch verification stack
 
 `npm run dev:mock` is for zero-cost local UI work. `npm run dev:live` is the

@@ -180,6 +180,7 @@ async function runCase(testCase) {
   }
 
   if (
+    chatMode !== "mock-local" &&
     testCase.expectedClassifier &&
     result.classifierCategory !== testCase.expectedClassifier
   ) {
@@ -201,7 +202,7 @@ const chatMode = await getChatMode();
 
 if (chatMode === "mock-local" && !allowMockRegression) {
   fail(
-    "Prompt regression is disabled in mock-local mode because it does not validate live model behavior. Turn off DEV_MOCK_CHAT or rerun with ALLOW_MOCK_REGRESSION=true if you only want a plumbing check.",
+    "Prompt regression is disabled in mock-local mode because it does not validate live model behavior. Turn off DEV_MOCK_CHAT or use npm run regression:quick if you only want a plumbing check.",
   );
 }
 
@@ -212,7 +213,9 @@ if (cases.length === 0) {
   fail("No regression cases matched the current filter/limit.");
 }
 
-console.log(`Regression chat mode: ${chatMode}`);
+console.log(
+  `Regression chat mode: ${chatMode}${chatMode === "mock-local" ? " (plumbing-only)" : ""}`,
+);
 console.log(`Running ${cases.length} regression case(s).`);
 
 for (const testCase of cases) {

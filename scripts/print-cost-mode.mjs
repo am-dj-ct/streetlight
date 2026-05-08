@@ -73,4 +73,6 @@ console.log("- npm run smoke:quick");
 console.log("- npm run regression:quick");
 console.log("- npm run verify:quick");
 console.log("");
+console.log("In mock mode, regression:quick is plumbing-only and avoids live-model validation.");
+console.log("");
 console.log("Note: full prompt regression still expects live-model mode.");
