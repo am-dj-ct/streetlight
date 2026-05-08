@@ -391,6 +391,36 @@ async function checkUnsafeReportProblemSource() {
   }
 }
 
+async function checkBlankChatMessage() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-blank-message",
+          role: "user",
+          text: "   \n   ",
+        },
+      ],
+    }),
+  });
+
+  if (response.status !== 400) {
+    fail(`Expected 400 from /api/chat for blank message content, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "No messages to send.") {
+    fail("Unexpected blank-message response body from /api/chat.");
+  }
+}
+
 const health = await getHealth({
   baseUrl,
   fail,
@@ -409,6 +439,8 @@ await checkInvalidTurnstileToken();
 console.log("Invalid turnstileToken handling ok (/api/chat rejects bad token shapes).");
 await checkUnsafeReportProblemSource();
 console.log("Unsafe source handling ok (/report-problem ignores external source links).");
+await checkBlankChatMessage();
+console.log("Blank message handling ok (/api/chat rejects all-whitespace messages).");
 
 const smokeCases = await loadCases();
 const results = [];
