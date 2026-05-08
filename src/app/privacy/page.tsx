@@ -42,6 +42,7 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
       area="privacy"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
+      sourcePath={`/privacy?lang=${languageCode}`}
       title={page.title}
       lastUpdated={page.lastUpdated}
       getLanguageHref={(nextLanguageCode) => `/privacy?lang=${nextLanguageCode}`}

@@ -9,6 +9,7 @@ type InfoPageShellProps = {
   area?: string;
   currentLanguage: LanguageOption;
   regionScope: RegionScope;
+  sourcePath?: string;
   title: string;
   lastUpdated: string;
   getLanguageHref: (languageCode: SupportedLanguageCode) => string;
@@ -19,6 +20,7 @@ export function InfoPageShell({
   area,
   currentLanguage,
   regionScope,
+  sourcePath,
   title,
   lastUpdated,
   getLanguageHref,
@@ -67,6 +69,7 @@ export function InfoPageShell({
         area={area}
         languageCode={currentLanguage.code}
         regionScope={regionScope}
+        sourcePath={sourcePath}
       />
     </main>
   );

@@ -188,6 +188,20 @@ export default async function FindHumanPage({
         entryId={entryId}
         languageCode={languageCode}
         regionScope={regionScope}
+        sourcePath={(() => {
+          const params = new URLSearchParams();
+
+          if (category) {
+            params.set("category", category);
+          }
+
+          if (entryId) {
+            params.set("entryId", entryId);
+          }
+
+          params.set("lang", languageCode);
+          return `/find-human?${params.toString()}`;
+        })()}
       />
     </main>
   );

@@ -9,11 +9,13 @@ export function CrisisFooter({
   entryId,
   languageCode = "en",
   regionScope = "king",
+  sourcePath,
 }: {
   area?: string;
   entryId?: string;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;
+  sourcePath?: string;
 }) {
   const copy = getUiCopy(languageCode);
   const crisisResources = getCrisisResources(regionScope);
@@ -29,6 +31,10 @@ export function CrisisFooter({
 
   if (entryId) {
     reportProblemParams.set("entryId", entryId);
+  }
+
+  if (sourcePath) {
+    reportProblemParams.set("source", sourcePath);
   }
 
   const reportProblemHref = `/report-problem?${reportProblemParams.toString()}`;

@@ -42,6 +42,7 @@ type ReportProblemFormProps = {
   initialArea?: string;
   languageCode: SupportedLanguageCode;
   regionScope: RegionScope;
+  sourcePath?: string;
 };
 
 function isWhereOption(value: string | undefined): value is string {
@@ -57,6 +58,7 @@ export function ReportProblemForm({
   initialArea,
   languageCode,
   regionScope,
+  sourcePath,
 }: ReportProblemFormProps) {
   const [where, setWhere] = useState(
     isWhereOption(initialArea) ? initialArea : "conversation",
@@ -81,6 +83,7 @@ export function ReportProblemForm({
       `Deploy environment: ${deployEnv}`,
       `Commit SHA: ${commitSha ?? "local-dev"}`,
       `Resource scope: ${regionScope}`,
+      `Source route: ${sourcePath ?? "not supplied"}`,
       `Conversation language: ${conversationLanguage}`,
     ];
 
@@ -124,6 +127,7 @@ export function ReportProblemForm({
     regionScope,
     reply,
     selectedProblemLabels,
+    sourcePath,
     where,
   ]);
 
@@ -170,6 +174,9 @@ export function ReportProblemForm({
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
           Current resource scope: {regionScope}
+        </p>
+        <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+          Source route: {sourcePath ?? "not supplied"}
         </p>
         <p className="pt-3 text-[15px] leading-6 text-[#5f6d64]">
           {copy.reportPagePrivacyWarning}

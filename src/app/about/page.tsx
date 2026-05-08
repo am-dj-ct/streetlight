@@ -42,6 +42,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
       area="about"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
+      sourcePath={`/about?lang=${languageCode}`}
       title={page.title}
       lastUpdated={page.lastUpdated}
       getLanguageHref={(nextLanguageCode) => `/about?lang=${nextLanguageCode}`}

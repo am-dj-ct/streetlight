@@ -26,6 +26,7 @@ type ReportProblemPageProps = {
     area?: string;
     entryId?: string;
     lang?: string;
+    source?: string;
   }>;
 };
 
@@ -33,7 +34,7 @@ export default async function ReportProblemPage({
   searchParams,
 }: ReportProblemPageProps) {
   const requestHeaders = await headers();
-  const { area, entryId, lang } = await searchParams;
+  const { area, entryId, lang, source } = await searchParams;
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
@@ -53,10 +54,11 @@ export default async function ReportProblemPage({
       area="other"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
+      sourcePath={source}
       title={copy.reportPageTitle}
       lastUpdated="2026-05-08"
       getLanguageHref={(nextLanguageCode) =>
-        `/report-problem?lang=${nextLanguageCode}${area ? `&area=${encodeURIComponent(area)}` : ""}${entryId ? `&entryId=${encodeURIComponent(entryId)}` : ""}`
+        `/report-problem?lang=${nextLanguageCode}${area ? `&area=${encodeURIComponent(area)}` : ""}${entryId ? `&entryId=${encodeURIComponent(entryId)}` : ""}${source ? `&source=${encodeURIComponent(source)}` : ""}`
       }
     >
       <ReportProblemForm
@@ -68,6 +70,7 @@ export default async function ReportProblemPage({
         initialArea={area}
         languageCode={languageCode}
         regionScope={regionScope}
+        sourcePath={source}
       />
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
         <p>

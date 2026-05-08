@@ -1291,6 +1291,7 @@ export function ConversationClient({
         entryId={entryId}
         languageCode={currentLanguageCode}
         regionScope={regionScope}
+        sourcePath={`/conversation/${entryId}?lang=${currentLanguageCode}`}
       />
     </main>
   );

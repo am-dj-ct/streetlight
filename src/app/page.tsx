@@ -93,6 +93,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         area="main-screen"
         languageCode={currentLanguage.code}
         regionScope={regionScope}
+        sourcePath={`/?lang=${currentLanguage.code}`}
       />
     </main>
   );
