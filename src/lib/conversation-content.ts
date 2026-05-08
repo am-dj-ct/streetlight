@@ -24,7 +24,21 @@ type ConversationContentDocument = {
 };
 
 function asConversationContentDocument(value: unknown): ConversationContentDocument {
-  return value as ConversationContentDocument;
+  if (!value || typeof value !== "object") {
+    throw new Error("Conversation content document must be an object.");
+  }
+
+  const candidate = value as Partial<ConversationContentDocument>;
+
+  if (!candidate.buttons || typeof candidate.buttons !== "object") {
+    throw new Error("Conversation content document must include a buttons object.");
+  }
+
+  if (candidate.meta !== undefined && typeof candidate.meta !== "object") {
+    throw new Error("Conversation content meta must be an object when present.");
+  }
+
+  return candidate as ConversationContentDocument;
 }
 
 const contentDocuments = buildLanguageDocumentMap({

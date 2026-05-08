@@ -15,6 +15,17 @@ type TurnstileSiteverifyResponse = {
   success: boolean;
 };
 
+function isTurnstileSiteverifyResponse(
+  value: unknown,
+): value is TurnstileSiteverifyResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<TurnstileSiteverifyResponse>;
+  return typeof candidate.success === "boolean";
+}
+
 export async function validateTurnstileToken({
   request,
   token,
@@ -58,8 +69,8 @@ export async function validateTurnstileToken({
     };
   }
 
-  const data = ((await response.json().catch(() => null)) ??
-    null) as null | TurnstileSiteverifyResponse;
+  const rawData = await response.json().catch(() => null);
+  const data = isTurnstileSiteverifyResponse(rawData) ? rawData : null;
 
   if (data?.success) {
     return {

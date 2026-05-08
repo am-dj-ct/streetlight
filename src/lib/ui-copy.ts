@@ -19,7 +19,21 @@ type LocaleCopyDocument = {
 };
 
 function asLocaleCopyDocument(value: unknown): LocaleCopyDocument {
-  return value as LocaleCopyDocument;
+  if (!value || typeof value !== "object") {
+    throw new Error("UI copy document must be an object.");
+  }
+
+  const candidate = value as Partial<LocaleCopyDocument>;
+
+  if (!candidate.meta || typeof candidate.meta !== "object") {
+    throw new Error("UI copy document must include a meta object.");
+  }
+
+  if (!candidate.strings || typeof candidate.strings !== "object") {
+    throw new Error("UI copy document must include a strings object.");
+  }
+
+  return candidate as LocaleCopyDocument;
 }
 
 const localeDocuments = buildLanguageDocumentMap({

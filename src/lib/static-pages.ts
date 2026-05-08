@@ -27,7 +27,17 @@ type StaticPagesDocument = {
 };
 
 function asStaticPagesDocument(value: unknown): StaticPagesDocument {
-  return value as StaticPagesDocument;
+  if (!value || typeof value !== "object") {
+    throw new Error("Static pages document must be an object.");
+  }
+
+  const candidate = value as Partial<StaticPagesDocument>;
+
+  if (!candidate.pages || typeof candidate.pages !== "object") {
+    throw new Error("Static pages document must include a pages object.");
+  }
+
+  return candidate as StaticPagesDocument;
 }
 
 const documents = buildLanguageDocumentMap({
