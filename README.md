@@ -58,6 +58,11 @@ this. Code stays public on GitHub regardless.
   `tests/prompts/`
 - `npm run verify` — runs the local pre-launch verification stack
 
+## Utility routes
+
+- `/healthz` — simple no-store JSON health check for local smoke checks and
+  future monitoring
+
 ## License
 
 TBD — MIT or Apache-2.0. Picked before public launch.
