@@ -15,6 +15,14 @@ function readOptionalEnv(name: string): null | string {
 function readOptionalBooleanEnv(name: string): boolean {
   const value = readOptionalEnv(name);
 
+  if (!value) {
+    return false;
+  }
+
+  if (value !== "true" && value !== "false") {
+    throw new Error(`Invalid boolean environment variable: ${name}`);
+  }
+
   return value === "true";
 }
 
