@@ -68,6 +68,16 @@ if (
   fail("print-resource-status output did not include the expected sections.");
 }
 
+const diagnosticsOutput = runNodeScript("scripts/print-local-diagnostics.mjs", []);
+
+if (
+  !diagnosticsOutput.includes("Access Tool local diagnostics") ||
+  !diagnosticsOutput.includes("Report page snapshot") ||
+  !diagnosticsOutput.includes("Referrals page snapshot")
+) {
+  fail("print-local-diagnostics output did not include the expected sections.");
+}
+
 const opsStatusOutput = runNodeScript("scripts/ops-status.mjs", []);
 
 if (
