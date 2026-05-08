@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "translated": true,
+    "languageCode": "en"
+  },
   "buttons": {
     "understand-letter-or-form": {
       "label": "Understand a letter or form",

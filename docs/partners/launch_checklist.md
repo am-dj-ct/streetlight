@@ -15,6 +15,7 @@ Use this before any named partner starts sending real people to the tool.
 ## Operations checks
 
 - `npm run verify` passes locally.
+- `npm run check:launch` passes.
 - `OPERATIONAL_RUNBOOK.md` exists and has real screenshots.
 - Bus-factor contact info is filled in.
 - Soft pause tested once.

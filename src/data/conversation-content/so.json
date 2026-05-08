@@ -1,3 +1,8 @@
 {
+  "meta": {
+    "translated": false,
+    "languageCode": "so",
+    "inherits": "en"
+  },
   "buttons": {}
 }

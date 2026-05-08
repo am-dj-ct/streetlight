@@ -15,6 +15,11 @@ type ConversationContentEntry = {
 };
 
 type ConversationContentDocument = {
+  meta?: {
+    translated: boolean;
+    languageCode: SupportedLanguageCode;
+    inherits?: SupportedLanguageCode;
+  };
   buttons: Partial<Record<ConversationEntryId, Partial<ConversationContentEntry>>>;
 };
 

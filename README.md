@@ -50,6 +50,8 @@ this. Code stays public on GitHub regardless.
 - `npm run lint`
 - `npm run build`
 - `npm run check:locales`
+- `npm run check:launch` — static soft-launch readiness check for docs,
+  placeholders, translations, and env contract
 - `npm run build:translation-worklist`
 - `npm run validate:data`
 - `npm run smoke` — runs a small synthetic end-to-end chat check against

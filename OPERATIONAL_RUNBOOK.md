@@ -10,6 +10,13 @@ Before launch:
 - Add the bus-factor person's current contact info.
 - Practice this twice solo and once with the bus-factor person.
 
+## Fill this in before launch
+
+- Live URL: `ADD-LIVE-URL-HERE`
+- Bus-factor person: `[ADD-NAME]`
+- Best phone or text: `[ADD-PHONE]`
+- Backup email: `[ADD-EMAIL]`
+
 ---
 
 ## Page 1: Fast decision tree
