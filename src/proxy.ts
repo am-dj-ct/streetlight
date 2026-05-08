@@ -6,6 +6,28 @@ import {
   languageHeaderName,
 } from "./lib/languages";
 
+function isDocumentRequest(request: NextRequest) {
+  return request.headers.get("accept")?.includes("text/html") === true;
+}
+
+function appendVaryHeader(headers: Headers, value: string) {
+  const current = headers.get("Vary");
+
+  if (!current) {
+    headers.set("Vary", value);
+    return;
+  }
+
+  const entries = new Set(
+    current
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  );
+  entries.add(value);
+  headers.set("Vary", Array.from(entries).join(", "));
+}
+
 function renderHardPausePage(languageCode: string) {
   return `<!doctype html>
 <html lang="${languageCode}">
@@ -133,8 +155,12 @@ export function proxy(request: NextRequest) {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
+        "Content-Language": resolvedLanguageCode,
       },
     });
+
+    appendVaryHeader(response.headers, "Accept-Language");
+    appendVaryHeader(response.headers, "Cookie");
 
     if (
       isSupportedLanguageCode(requestedLanguageCode) &&
@@ -158,6 +184,10 @@ export function proxy(request: NextRequest) {
       headers: requestHeaders,
     },
   });
+
+  if (isDocumentRequest(request)) {
+    response.headers.set("Content-Language", resolvedLanguageCode);
+  }
 
   if (
     isSupportedLanguageCode(requestedLanguageCode) &&

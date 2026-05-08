@@ -167,9 +167,14 @@ async function checkLanguagePersistence() {
     .get("set-cookie")
     ?.split(";")[0]
     ?.trim();
+  const languageContentHeader = languageResponse.headers.get("content-language");
 
   if (languageCookie !== "access_tool_lang=es") {
     fail("Expected Spanish language cookie was not set.");
+  }
+
+  if (languageContentHeader !== "es") {
+    fail("Expected Spanish Content-Language header on /?lang=es.");
   }
 
   const persistedResponse = await fetch(new URL("/privacy", baseUrl), {
@@ -184,9 +189,14 @@ async function checkLanguagePersistence() {
   }
 
   const persistedHtml = await persistedResponse.text();
+  const persistedContentHeader = persistedResponse.headers.get("content-language");
 
   if (!persistedHtml.includes('<html lang="es">')) {
     fail("Expected persisted Spanish html lang on /privacy.");
+  }
+
+  if (persistedContentHeader !== "es") {
+    fail("Expected persisted Spanish Content-Language header on /privacy.");
   }
 
   if (
