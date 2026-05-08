@@ -106,7 +106,8 @@ while mock mode is active.
 
 ## License
 
-TBD — MIT or Apache-2.0. Picked before public launch.
+No open-source license has been selected yet. Choose MIT or Apache-2.0 before
+public launch.
 
 ## Contact
 
