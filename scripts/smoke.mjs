@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
+import { getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -424,88 +425,52 @@ async function expectInvalidChatRequestShape(body, label) {
 
 async function checkUnsafeReportProblemSource() {
   const unsafeSource = encodeURIComponent("https://evil.example/phish");
-  const response = await fetch(
-    new URL(`/report-problem?lang=en&source=${unsafeSource}`, baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: `/report-problem?lang=en&source=${unsafeSource}`,
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /report-problem with unsafe source.`);
-  }
-
-  const html = await response.text();
-
-  if (html.includes('href="https://evil.example/phish"')) {
+  if (snapshot.html.includes('href="https://evil.example/phish"')) {
     fail("Unsafe external source link rendered on /report-problem.");
   }
 }
 
 async function checkDisallowedInternalReportProblemSource() {
   const disallowedSource = encodeURIComponent("/api/chat?lang=en");
-  const response = await fetch(
-    new URL(`/report-problem?lang=en&source=${disallowedSource}`, baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: `/report-problem?lang=en&source=${disallowedSource}`,
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /report-problem with disallowed internal source.`);
-  }
-
-  const html = await response.text();
-
-  if (html.includes("Source route:<!-- --> <!-- -->/api/chat?lang=en")) {
+  if (snapshot.sourceRoute !== "not supplied") {
     fail("Disallowed internal source path rendered on /report-problem.");
   }
 }
 
 async function checkMalformedInternalReportProblemSource() {
   const malformedSource = encodeURIComponent("//evil.example/path");
-  const response = await fetch(
-    new URL(`/report-problem?lang=en&source=${malformedSource}`, baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: `/report-problem?lang=en&source=${malformedSource}`,
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /report-problem with malformed internal source.`);
-  }
-
-  const html = await response.text();
-
-  if (html.includes("Source route:<!-- --> <!-- -->//evil.example/path")) {
+  if (snapshot.sourceRoute !== "not supplied") {
     fail("Malformed internal source path rendered on /report-problem.");
   }
 }
 
 async function checkIncompleteConversationReportProblemSource() {
   const incompleteSource = encodeURIComponent("/conversation");
-  const response = await fetch(
-    new URL(`/report-problem?lang=en&source=${incompleteSource}`, baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: `/report-problem?lang=en&source=${incompleteSource}`,
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /report-problem with incomplete conversation source.`);
-  }
-
-  const html = await response.text();
-
-  if (html.includes("Source route:<!-- --> <!-- -->/conversation")) {
+  if (snapshot.sourceRoute !== "not supplied") {
     fail("Incomplete conversation source path rendered on /report-problem.");
   }
 }
@@ -635,22 +600,13 @@ async function checkAssistantOnlyMessages() {
 }
 
 async function checkInvalidReportProblemEntryId() {
-  const response = await fetch(
-    new URL("/report-problem?lang=en&entryId=not-a-real-entry", baseUrl),
-    {
-      headers: {
-        Accept: "text/html",
-      },
-    },
-  );
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: "/report-problem?lang=en&entryId=not-a-real-entry",
+  });
 
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /report-problem with invalid entryId.`);
-  }
-
-  const html = await response.text();
-
-  if (html.includes("Entry button:<!-- -->")) {
+  if (snapshot.entryButton !== null) {
     fail("Invalid report-problem entryId still rendered an entry-button label.");
   }
 }

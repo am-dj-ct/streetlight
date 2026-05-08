@@ -1,7 +1,12 @@
+function stripScriptTags(html) {
+  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+}
+
 export function extractLabeledValue(html, label) {
+  const visibleHtml = stripScriptTags(html);
   const normalizedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`${normalizedLabel}:\\s*(?:<!-- -->\\s*)*([^<]+)`, "i");
-  const match = html.match(pattern);
+  const match = visibleHtml.match(pattern);
   return match?.[1]?.trim() ?? null;
 }
 
