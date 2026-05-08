@@ -91,3 +91,39 @@ export type ChatErrorBody = {
   error: string;
   assistantNotice?: string;
 };
+
+export function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ChatStreamEvent>;
+
+  if (candidate.type === "delta") {
+    return typeof candidate.text === "string";
+  }
+
+  if (candidate.type === "classifier") {
+    return isWeakCategory(candidate.category);
+  }
+
+  if (candidate.type === "error") {
+    return typeof candidate.error === "string";
+  }
+
+  return false;
+}
+
+export function isChatErrorBody(value: unknown): value is ChatErrorBody {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ChatErrorBody>;
+
+  return (
+    typeof candidate.error === "string" &&
+    (candidate.assistantNotice === undefined ||
+      typeof candidate.assistantNotice === "string")
+  );
+}

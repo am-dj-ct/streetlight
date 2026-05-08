@@ -12,6 +12,7 @@ import type { ChatMode } from "../lib/runtime-state";
 import { buildMailtoHref } from "../lib/support";
 import {
   getLanguageOption,
+  isSupportedLanguageCode,
   languageOptions,
   type SupportedLanguageCode,
 } from "../lib/languages";
@@ -287,7 +288,11 @@ export function ReportProblemForm({
           <select
             value={conversationLanguage}
             onChange={(event) =>
-              setConversationLanguage(event.target.value as SupportedLanguageCode)
+              setConversationLanguage((currentLanguage) =>
+                isSupportedLanguageCode(event.target.value)
+                  ? event.target.value
+                  : currentLanguage,
+              )
             }
             className="min-h-12 w-full rounded-[16px] border border-[#b7c7bd] bg-white px-3 text-[16px] leading-6 text-[#1f2923] outline-none"
           >

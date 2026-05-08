@@ -22,6 +22,10 @@ import type {
   ConversationEntryId,
   WeakCategory,
 } from "../lib/chat-types";
+import {
+  isChatErrorBody,
+  isChatStreamEvent,
+} from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
 import {
   getSpeechLocaleForLanguageCode,
@@ -779,7 +783,10 @@ export function ConversationClient({
         });
 
         if (!response.ok) {
-          const errorBody = (await response.json().catch(() => null)) as ChatErrorBody | null;
+          const rawErrorBody = await response.json().catch(() => null);
+          const errorBody: ChatErrorBody | null = isChatErrorBody(rawErrorBody)
+            ? rawErrorBody
+            : null;
 
           if (errorBody?.assistantNotice) {
             setMessages([
@@ -836,7 +843,13 @@ export function ConversationClient({
               return;
             }
 
-            const event = JSON.parse(payload) as ChatStreamEvent;
+            const rawEvent = JSON.parse(payload) as unknown;
+
+            if (!isChatStreamEvent(rawEvent)) {
+              continue;
+            }
+
+            const event: ChatStreamEvent = rawEvent;
 
             if (event.type === "error") {
               if (!receivedAnyText) {
