@@ -10,10 +10,21 @@ export type ConversationEntryId =
   | "type-your-own"
   | "talk-instead";
 
+export type WeakCategory =
+  | "legal_procedure"
+  | "medical_dosing"
+  | "benefits_eligibility"
+  | "immigration"
+  | "drug_interactions"
+  | "specific_deadlines"
+  | "specific_dollar_amounts"
+  | "none";
+
 export type ClientChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  weakCategory?: WeakCategory;
 };
 
 export type ChatRequestBody = {
@@ -26,6 +37,10 @@ export type ChatStreamEvent =
   | {
       type: "delta";
       text: string;
+    }
+  | {
+      type: "classifier";
+      category: WeakCategory;
     }
   | {
       type: "error";

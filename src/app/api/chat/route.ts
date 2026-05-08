@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import { getAnthropicApiKey, getMainModel } from "../../../lib/env";
+import { classifierPrompt, parseWeakCategory } from "../../../lib/classifier-prompt";
+import { getAnthropicApiKey, getClassifierModel, getMainModel } from "../../../lib/env";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import type { ChatRequestBody, ClientChatMessage } from "../../../lib/chat-types";
 
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
       apiKey: getAnthropicApiKey(),
     });
     model = getMainModel();
+    const classifierModel = getClassifierModel();
     const stream = anthropic.messages.stream({
       model,
       max_tokens: 900,
@@ -68,6 +70,7 @@ export async function POST(request: Request) {
     const readable = new ReadableStream({
       async start(controller) {
         let sentAnyText = false;
+        let responseText = "";
 
         try {
           for await (const event of stream) {
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
             }
 
             sentAnyText = true;
+            responseText += event.delta.text;
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ type: "delta", text: event.delta.text })}\n\n`),
             );
@@ -87,6 +91,53 @@ export async function POST(request: Request) {
                 `data: ${JSON.stringify({ type: "error", error: "The model returned no text." })}\n\n`,
               ),
             );
+          } else {
+            try {
+              const classifierStartedAt = Date.now();
+              const classifierResponse = await anthropic.messages.create({
+                model: classifierModel,
+                max_tokens: 20,
+                system: classifierPrompt,
+                messages: [
+                  {
+                    role: "user",
+                    content: responseText,
+                  },
+                ],
+              });
+              const classifierText = classifierResponse.content
+                .filter((block) => block.type === "text")
+                .map((block) => block.text)
+                .join(" ")
+                .trim();
+              const category = parseWeakCategory(classifierText);
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "classifier", category })}\n\n`,
+                ),
+              );
+
+              console.info({
+                code: "weak_category_classified",
+                category,
+                modelMain: model,
+                modelClassifier: classifierModel,
+                classifierResponseTimeMs: Date.now() - classifierStartedAt,
+              });
+            } catch (error: unknown) {
+              const responseTimeMs = Date.now() - requestStartedAt;
+              const apiError = error instanceof Anthropic.APIError ? error : null;
+
+              console.error({
+                code: "anthropic_classifier_failed",
+                errorType: apiError?.name ?? "UnknownError",
+                status: apiError?.status ?? 500,
+                modelMain: model,
+                modelClassifier: classifierModel,
+                responseTimeMs,
+              });
+            }
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));

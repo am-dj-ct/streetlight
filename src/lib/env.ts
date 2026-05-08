@@ -15,3 +15,7 @@ export function getAnthropicApiKey(): string {
 export function getMainModel(): string {
   return readEnv("MAIN_MODEL");
 }
+
+export function getClassifierModel(): string {
+  return readEnv("CLASSIFIER_MODEL");
+}

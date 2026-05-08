@@ -10,6 +10,7 @@ import type {
   ChatStreamEvent,
   ClientChatMessage,
   ConversationEntryId,
+  WeakCategory,
 } from "../lib/chat-types";
 
 type ConversationClientProps = {
@@ -130,6 +131,45 @@ function appendToMessage(
       text: replace ? chunk : `${message.text}${chunk}`,
     };
   });
+}
+
+function setMessageWeakCategory(
+  messages: ClientChatMessage[],
+  messageId: string,
+  weakCategory: WeakCategory,
+): ClientChatMessage[] {
+  return messages.map((message) => {
+    if (message.id !== messageId) {
+      return message;
+    }
+
+    return {
+      ...message,
+      weakCategory,
+    };
+  });
+}
+
+function getWeakCategoryLabel(category: WeakCategory): string {
+  switch (category) {
+    case "legal_procedure":
+      return "legal procedure";
+    case "medical_dosing":
+      return "medical dosing";
+    case "benefits_eligibility":
+      return "benefits eligibility";
+    case "immigration":
+      return "immigration";
+    case "drug_interactions":
+      return "drug interactions";
+    case "specific_deadlines":
+      return "specific deadlines";
+    case "specific_dollar_amounts":
+      return "specific dollar amounts";
+    case "none":
+    default:
+      return "";
+  }
 }
 
 export function ConversationClient({
@@ -325,6 +365,7 @@ export function ConversationClient({
       id: pendingAssistantId,
       role: "assistant",
       text: "",
+      weakCategory: "none",
     };
     const nextMessages = [...messages, nextUserMessage];
 
@@ -413,6 +454,13 @@ export function ConversationClient({
               setMessages((currentMessages) =>
                 appendToMessage(currentMessages, pendingAssistantId, event.text, replace),
               );
+              continue;
+            }
+
+            if (event.type === "classifier") {
+              setMessages((currentMessages) =>
+                setMessageWeakCategory(currentMessages, pendingAssistantId, event.category),
+              );
             }
           }
 
@@ -456,6 +504,10 @@ export function ConversationClient({
             {messages.map((message) => {
               const isAssistant = message.role === "assistant";
               const isEmptyAssistant = isAssistant && message.text.length === 0;
+              const weakCategory =
+                isAssistant && message.weakCategory && message.weakCategory !== "none"
+                  ? message.weakCategory
+                  : null;
 
               return (
                 <div
@@ -495,7 +547,19 @@ export function ConversationClient({
                     </article>
 
                     {isAssistant && !isEmptyAssistant ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-3 space-y-3">
+                        {weakCategory ? (
+                          <div className="rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]">
+                            <span className="font-semibold">AI sometimes gets this wrong.</span>{" "}
+                            Worth verifying with a person who does{" "}
+                            <span className="font-semibold">
+                              {getWeakCategoryLabel(weakCategory)}
+                            </span>
+                            .
+                          </div>
+                        ) : null}
+
+                        <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => handlePlayAloud(message.id, message.text)}
@@ -518,6 +582,7 @@ export function ConversationClient({
                         >
                           Find a human for this
                         </Link>
+                        </div>
                       </div>
                     ) : null}
                   </div>

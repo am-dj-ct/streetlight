@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-07
-**Last meaningful change:** 2026-05-07 (initial Anthropic chat route, pre-classifier and pre-rate-limit)
+**Last meaningful change:** 2026-05-07 (classifier pass and inline weak-category note landed; rate-limit and KV still pending)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -335,10 +335,11 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 Every hop a user message takes from the moment they tap send to the moment a response renders. Text-only, paste-able into other chats.
 
 **Implementation note as of 2026-05-07:** The current codebase implements a
-subset of this target flow: browser memory state, backend `/api/chat`, and
-the main Anthropic Messages API call. Turnstile validation, KV-backed rate
-limiting, classifier pass, and metadata log writes are not landed yet and
-must be completed before partner-facing use.
+subset of this target flow: browser memory state, backend `/api/chat`, the
+main Anthropic Messages API call, the Haiku classifier pass, and the inline
+weak-category UI note. Turnstile validation, KV-backed rate limiting, and the
+full metadata-log schema are not landed yet and must be completed before
+partner-facing use.
 
 ### User Action: Tap Send
 
@@ -520,9 +521,11 @@ These rules are enforced by the codebase and any future Claude Code session. Vio
 7. **No Log Drain configured.** Pinned in writing so a future session does not add Logflare or Axiom casually.
 8. **No Vercel Analytics, Speed Insights, or Web Analytics.** All would inject client-side scripts capturing page views, user agents, geographic data, and in some configs custom event payloads.
 
-**Current code state as of 2026-05-07:** The first `/api/chat` route follows
-the no-content-logging rules and only writes structured error metadata. The
-success-path metadata log described in Hop 7 is not landed yet.
+**Current code state as of 2026-05-07:** The `/api/chat` route follows the
+no-content-logging rules. It writes structured error metadata for the main
+model and classifier calls, plus a minimal classifier success record
+(`category`, pinned models, classifier response time). The full per-turn
+metadata schema described in Hop 7 is still not landed.
 
 ### Geo-Awareness
 
@@ -716,6 +719,8 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 | Secret | Purpose | Storage | Rotation |
 |---|---|---|---|
 | Anthropic API key | Main + classifier API calls | Vercel env var | Annual, or on suspected compromise |
+| `MAIN_MODEL` | Pins main model snapshot | Vercel env var | On deliberate model upgrade |
+| `CLASSIFIER_MODEL` | Pins classifier snapshot | Vercel env var | On deliberate model upgrade |
 | Turnstile secret | CAPTCHA validation | Vercel env var | Annual, or on suspected compromise |
 | Hashed-IP salt | One-way hashing for rate limit | Vercel env var | **Quarterly**, or on suspected compromise |
 | Vercel KV credentials | Auto-managed by Vercel | Vercel internal | Auto |
