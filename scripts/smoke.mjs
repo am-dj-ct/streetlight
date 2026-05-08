@@ -295,6 +295,26 @@ async function checkInvalidChatEntryId() {
   );
 }
 
+async function checkInvalidJsonBody() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: "{this-is:not-json",
+  });
+
+  if (response.status !== 400) {
+    fail(`Expected 400 from /api/chat for invalid JSON body, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid JSON body.") {
+    fail("Unexpected invalid-JSON response body from /api/chat.");
+  }
+}
+
 async function checkInvalidChatLanguage() {
   await expectInvalidChatRequestShape(
     {
@@ -424,6 +444,17 @@ async function checkBlankChatMessage() {
   }
 }
 
+async function checkEmptyMessagesArray() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [],
+    },
+    "empty messages array",
+  );
+}
+
 async function checkMissingMessagesArray() {
   await expectInvalidChatRequestShape(
     {
@@ -542,6 +573,8 @@ await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
 await checkLanguagePersistence();
 console.log("Language persistence ok (query -> cookie -> later request).");
+await checkInvalidJsonBody();
+console.log("Invalid JSON handling ok (/api/chat rejects malformed JSON bodies).");
 await checkInvalidChatEntryId();
 console.log("Invalid entryId handling ok (/api/chat rejects bad entry ids).");
 await checkInvalidChatLanguage();
@@ -554,6 +587,8 @@ await checkDisallowedInternalReportProblemSource();
 console.log("Disallowed internal source handling ok (/report-problem ignores unsafe app paths).");
 await checkBlankChatMessage();
 console.log("Blank message handling ok (/api/chat rejects all-whitespace messages).");
+await checkEmptyMessagesArray();
+console.log("Empty messages handling ok (/api/chat rejects empty arrays).");
 await checkMissingMessagesArray();
 console.log("Malformed messages handling ok (/api/chat rejects non-array messages).");
 await checkInvalidMessageTextShape();
