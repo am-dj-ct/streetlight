@@ -60,7 +60,15 @@ this. Code stays public on GitHub regardless.
   mode is active
 - `npm run diagnostics:local` — prints the current local server mode and the
   report-page metadata snapshot
+- `npm run ops:status` — prints the local health, deploy metadata, model mode,
+  and any launch-doc placeholders still hanging around
 - `npm run build:translation-worklist`
+- `npm run incident:new -- --slug short-name --severity Sev-2` — scaffolds a
+  public Sev-1/Sev-2 incident write-up from `incidents/TEMPLATE.md`
+- `npm run incident:sev3 -- --what "..." --action "..." --outcome "..."` —
+  appends a structured Sev-3 note to `incidents/log.md`
+- add `--dry-run true` to either incident command if you want a preview without
+  writing files
 - `npm run validate:data`
 - `npm run smoke` — checks key pages plus a small synthetic end-to-end chat
   flow against `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`

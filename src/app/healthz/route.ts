@@ -10,7 +10,7 @@ export function GET() {
   return NextResponse.json(
     {
       chatMode: isDevMockChatEnabled() ? "mock-local" : "live-model",
-      commitSha: getDeployCommitSha(),
+      commitSha: getDeployCommitSha() ?? "local-dev",
       deployEnv: getDeployEnvironment(),
       deployConfigOk: !isProductionMockMisconfigured(),
       ok: true,

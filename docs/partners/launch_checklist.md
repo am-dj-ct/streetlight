@@ -16,6 +16,8 @@ Use this before any named partner starts sending real people to the tool.
 
 - `npm run verify` passes locally.
 - `npm run diagnostics:local` shows the expected local mode before testing.
+- `npm run ops:status` shows the expected local mode and only the known
+  pre-launch doc placeholders.
 - `npm run check:launch` passes.
 - `OPERATIONAL_RUNBOOK.md` exists and has real screenshots.
 - `DEV_MOCK_CHAT` is unset or `false` in the Vercel production environment.

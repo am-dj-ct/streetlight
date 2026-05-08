@@ -11,6 +11,7 @@ Before launch:
 - Practice this twice solo and once with the bus-factor person.
 - Confirm `DEV_MOCK_CHAT` is unset or `false` in the Vercel production
   environment.
+- Run `npm run ops:status` locally and save the output somewhere easy to find.
 
 ## Fill this in before launch
 
@@ -213,6 +214,7 @@ Do this in order:
 Reference:
 
 - `docs/data_architecture.md` → `Key Rotation and Secret Management`
+- `npm run incident:new -- --slug short-name --severity Sev-1`
 
 ---
 
@@ -222,6 +224,8 @@ If something weird happens, open:
 
 - `incidents/log.md` for Sev-3 notes
 - `incidents/YYYY-MM-DD-shortname.md` for Sev-1 or Sev-2 write-ups
+- `npm run incident:sev3 -- --what "..." --action "..." --outcome "..."`
+  if you want the log entry scaffolded for you
 
 Minimum notes to capture immediately:
 

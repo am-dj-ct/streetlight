@@ -31,3 +31,9 @@ Partners → users → public.
 ## Status
 
 No incidents. Tool is pre-launch.
+
+## Helpful commands
+
+- `npm run incident:new -- --slug short-name --severity Sev-2`
+- `npm run incident:new -- --slug short-name --severity Sev-1 --dry-run true`
+- `npm run incident:sev3 -- --what "..." --action "..." --outcome "..."`
