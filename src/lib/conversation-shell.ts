@@ -1,7 +1,6 @@
 import { promptButtons, type AlternateAction, alternateActions } from "./buttons";
 import type { PromptButtonId } from "./buttons";
-
-export type ConversationEntryId = PromptButtonId | AlternateAction["id"];
+import type { ConversationEntryId } from "./chat-types";
 
 export type ConversationSeed = {
   id: ConversationEntryId;

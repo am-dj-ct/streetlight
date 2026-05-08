@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-07
-**Last meaningful change:** 2026-05-07 (initial draft)
+**Last meaningful change:** 2026-05-07 (initial Anthropic chat route, pre-classifier and pre-rate-limit)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -334,6 +334,12 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 
 Every hop a user message takes from the moment they tap send to the moment a response renders. Text-only, paste-able into other chats.
 
+**Implementation note as of 2026-05-07:** The current codebase implements a
+subset of this target flow: browser memory state, backend `/api/chat`, and
+the main Anthropic Messages API call. Turnstile validation, KV-backed rate
+limiting, classifier pass, and metadata log writes are not landed yet and
+must be completed before partner-facing use.
+
 ### User Action: Tap Send
 
 User has typed (or dictated via Web Speech API → text in browser) a message in the conversation screen. Button selection from the landing page is in the conversation's system prompt context. Conversation history is held in browser memory (React state) — not persisted server-side.
@@ -513,6 +519,10 @@ These rules are enforced by the codebase and any future Claude Code session. Vio
 6. **No third-party error reporters.** No Sentry, Datadog, LogRocket, Bugsnag. All default to capturing request/response in their auto-instrumentation.
 7. **No Log Drain configured.** Pinned in writing so a future session does not add Logflare or Axiom casually.
 8. **No Vercel Analytics, Speed Insights, or Web Analytics.** All would inject client-side scripts capturing page views, user agents, geographic data, and in some configs custom event payloads.
+
+**Current code state as of 2026-05-07:** The first `/api/chat` route follows
+the no-content-logging rules and only writes structured error metadata. The
+success-path metadata log described in Hop 7 is not landed yet.
 
 ### Geo-Awareness
 
