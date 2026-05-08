@@ -27,7 +27,11 @@ function readOptionalNumberEnv(name: string): null | number {
 
   const parsed = Number(value);
 
-  return Number.isFinite(parsed) ? parsed : null;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid non-negative numeric environment variable: ${name}`);
+  }
+
+  return parsed;
 }
 
 export function getAnthropicApiKey(): string {
