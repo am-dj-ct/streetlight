@@ -73,6 +73,17 @@ export function ReportProblemForm({
   const selectedProblemLabels = selectedProblems.map(
     (value) => problemOptions.find((option) => option.value === value)?.copyKey ?? "reportWrongOther",
   );
+  const reportSubject = useMemo(() => {
+    const parts = ["Access Tool problem report", where];
+
+    if (entryId) {
+      parts.push(entryId);
+    }
+
+    parts.push(chatMode);
+
+    return parts.join(" - ");
+  }, [chatMode, entryId, where]);
 
   const reportBody = useMemo(() => {
     const lines = [
@@ -134,10 +145,10 @@ export function ReportProblemForm({
   const mailtoHref = useMemo(
     () =>
       buildMailtoHref({
-        subject: "Access Tool problem report",
+        subject: reportSubject,
         body: reportBody,
       }),
-    [reportBody],
+    [reportBody, reportSubject],
   );
 
   function toggleProblem(problem: string) {
