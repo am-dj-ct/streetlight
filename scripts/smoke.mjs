@@ -368,6 +368,14 @@ async function checkInvalidJsonBody() {
   }
 }
 
+async function checkNullJsonBody() {
+  await expectInvalidChatRequestShape(null, "null JSON body");
+}
+
+async function checkStringJsonBody() {
+  await expectInvalidChatRequestShape("hello", "string JSON body");
+}
+
 async function checkInvalidChatLanguage() {
   await expectInvalidChatRequestShape(
     {
@@ -599,6 +607,55 @@ async function checkAssistantOnlyMessages() {
   );
 }
 
+async function checkTrailingAssistantMessages() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "leading-user",
+          role: "user",
+          text: "Please help.",
+        },
+        {
+          id: "trailing-assistant",
+          role: "assistant",
+          text: "Previously generated text.",
+        },
+      ],
+    },
+    "trailing assistant messages",
+  );
+}
+
+async function checkBlankTrailingUserAfterAssistant() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "leading-user",
+          role: "user",
+          text: "Please help.",
+        },
+        {
+          id: "middle-assistant",
+          role: "assistant",
+          text: "Previously generated text.",
+        },
+        {
+          id: "blank-trailing-user",
+          role: "user",
+          text: "   \n",
+        },
+      ],
+    },
+    "blank trailing user after assistant",
+  );
+}
+
 async function checkInvalidReportProblemEntryId() {
   const snapshot = await getReportProblemSnapshot({
     baseUrl,
@@ -689,6 +746,10 @@ await checkLanguagePersistence();
 console.log("Language persistence ok (query -> cookie -> later request).");
 await checkInvalidJsonBody();
 console.log("Invalid JSON handling ok (/api/chat rejects malformed JSON bodies).");
+await checkNullJsonBody();
+console.log("Null JSON handling ok (/api/chat rejects null bodies).");
+await checkStringJsonBody();
+console.log("String JSON handling ok (/api/chat rejects non-object JSON bodies).");
 await checkInvalidChatEntryId();
 console.log("Invalid entryId handling ok (/api/chat rejects bad entry ids).");
 await checkInvalidChatLanguage();
@@ -717,6 +778,10 @@ await checkBlankMessageId();
 console.log("Malformed message id handling ok (/api/chat rejects blank ids).");
 await checkAssistantOnlyMessages();
 console.log("Assistant-only message handling ok (/api/chat requires a real user turn).");
+await checkTrailingAssistantMessages();
+console.log("Trailing assistant handling ok (/api/chat rejects payloads that end on assistant text).");
+await checkBlankTrailingUserAfterAssistant();
+console.log("Blank trailing user handling ok (/api/chat rejects payloads whose last real turn is assistant text).");
 await checkInvalidReportProblemEntryId();
 console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
 await checkInvalidFindHumanCategory();
