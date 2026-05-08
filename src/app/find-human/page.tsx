@@ -55,7 +55,7 @@ export default async function FindHumanPage({
           <div className="flex items-center justify-between">
             <Link
               href={backHref}
-              aria-label="Go back"
+              aria-label={copy.backLabel}
               className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22]"
             >
               <span aria-hidden="true">{"<"}</span>

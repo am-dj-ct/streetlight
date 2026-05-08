@@ -1,7 +1,10 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ConversationClient } from "../../../components/conversation-client";
-import { getConversationSeed, conversationSeeds } from "../../../lib/conversation-shell";
+import {
+  conversationSeeds,
+  getLocalizedConversationSeed,
+} from "../../../lib/conversation-shell";
 import { getRegionScope } from "../../../lib/geo";
 import {
   getLanguageOption,
@@ -32,16 +35,16 @@ export default async function ConversationPage({
   const requestHeaders = await headers();
   const { entryId } = await params;
   const { lang } = await searchParams;
-  const seed = getConversationSeed(entryId);
+  const languageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode: lang,
+  });
+  const seed = getLocalizedConversationSeed(entryId, languageCode);
 
   if (!seed) {
     notFound();
   }
 
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
-    requestedLanguageCode: lang,
-  });
   const currentLanguage = getLanguageOption(languageCode);
   const regionScope = getRegionScope({
     countryHeader: requestHeaders.get("x-vercel-ip-country"),

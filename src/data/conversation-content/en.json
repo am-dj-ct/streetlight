@@ -1,0 +1,94 @@
+{
+  "buttons": {
+    "understand-letter-or-form": {
+      "label": "Understand a letter or form",
+      "assistantMessage": "Paste the letter or form here, or tell me what it says and what part feels confusing. I can help you read it in plain language.",
+      "suggestions": [
+        "Tell me what this is asking for",
+        "Show me the deadline or next step",
+        "Help me answer it"
+      ]
+    },
+    "write-something": {
+      "label": "Write something",
+      "assistantMessage": "Tell me who it's for, what you need to say, and how direct or polite you want it to sound. I can help you draft it.",
+      "suggestions": [
+        "Write a text message",
+        "Write an email",
+        "Help me say this clearly"
+      ]
+    },
+    "think-it-through": {
+      "label": "Think it through (listen and ask questions)",
+      "assistantMessage": "Tell me what's going on. I can listen, ask a few questions, and help you sort out what matters first.",
+      "suggestions": [
+        "Ask me questions one at a time",
+        "Help me sort this out",
+        "Help me make a plan"
+      ]
+    },
+    "figure-out-next": {
+      "label": "Figure out what to do next",
+      "assistantMessage": "Tell me the situation and where you're stuck. I can help you narrow it down to the smallest useful next step.",
+      "suggestions": [
+        "Help me choose what to do first",
+        "Give me the smallest next step",
+        "I have too many problems at once"
+      ]
+    },
+    "explain-like-new": {
+      "label": "Explain something like I'm new to it",
+      "assistantMessage": "Tell me what you want explained. I will keep it simple and clear without talking down to you.",
+      "suggestions": [
+        "Explain this in simple words",
+        "Explain the main idea first",
+        "Tell me what this means for me"
+      ]
+    },
+    "prepare-for-hard": {
+      "label": "Prepare for something hard",
+      "assistantMessage": "Tell me what the hard thing is. We can work on what to say, what to bring, or what to expect.",
+      "suggestions": [
+        "Help me prepare what to say",
+        "Make a short plan with me",
+        "What should I bring or ask"
+      ]
+    },
+    "am-i-being-unreasonable": {
+      "label": "Am I being unreasonable",
+      "assistantMessage": "Tell me what happened and what you're asking for. I'll be direct with you, even if the answer is uncomfortable.",
+      "suggestions": [
+        "Tell me straight",
+        "What am I missing here",
+        "How would this sound to someone else"
+      ]
+    },
+    "embarrassed-to-ask": {
+      "label": "Something I'm embarrassed to ask",
+      "assistantMessage": "Ask it the way it comes to you. I won't make it weird or judge you.",
+      "suggestions": [
+        "I don't know how to ask this",
+        "I feel dumb asking this",
+        "Please explain without judging me"
+      ]
+    },
+    "type-your-own": {
+      "label": "Type your own",
+      "assistantMessage": "Type whatever you want help with. A question, a letter, a situation, or just a few words is enough to start.",
+      "suggestions": [
+        "Help me explain my situation",
+        "Help me write something",
+        "Help me figure out what to do next"
+      ]
+    },
+    "talk-instead": {
+      "label": "Talk instead",
+      "assistantMessage": "You can use the mic when it's available. For now, type a few words and I can still help you get started.",
+      "suggestions": [
+        "I want to say this out loud",
+        "Help me start with one sentence",
+        "Ask me one question first"
+      ]
+    }
+  }
+}

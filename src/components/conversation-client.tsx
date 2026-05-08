@@ -270,49 +270,15 @@ export function ConversationClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [speechSupported] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      "speechSynthesis" in window &&
-      "SpeechSynthesisUtterance" in window,
-  );
-  const [micSupported] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
-  );
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [micSupported, setMicSupported] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceUri, setSelectedVoiceUri] = useState(
-    () =>
-      (typeof window !== "undefined" &&
-        window.localStorage.getItem("access-tool-voice-uri")) ||
-      "",
-  );
-  const [speechRate, setSpeechRate] = useState(() => {
-    if (typeof window === "undefined") {
-      return 0.92;
-    }
-
-    const savedSpeechRate = Number(
-      window.localStorage.getItem("access-tool-speech-rate") ?? "0.92",
-    );
-
-    return !Number.isNaN(savedSpeechRate) &&
-      savedSpeechRate >= 0.7 &&
-      savedSpeechRate <= 1.1
-      ? savedSpeechRate
-      : 0.92;
-  });
+  const [selectedVoiceUri, setSelectedVoiceUri] = useState("");
+  const [speechRate, setSpeechRate] = useState(0.92);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
-  const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.localStorage.getItem("access-tool-save-warning-seen") === "true";
-  });
+  const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -339,9 +305,30 @@ export function ConversationClient({
     composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
   }, [draft]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
+    }
+
+    setSpeechSupported(
+      "speechSynthesis" in window && "SpeechSynthesisUtterance" in window,
+    );
+    setMicSupported(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition));
+    setSelectedVoiceUri(window.localStorage.getItem("access-tool-voice-uri") || "");
+    setHasSeenSaveWarning(
+      window.localStorage.getItem("access-tool-save-warning-seen") === "true",
+    );
+
+    const savedSpeechRate = Number(
+      window.localStorage.getItem("access-tool-speech-rate") ?? "0.92",
+    );
+    if (
+      !Number.isNaN(savedSpeechRate) &&
+      savedSpeechRate >= 0.7 &&
+      savedSpeechRate <= 1.1
+    ) {
+      setSpeechRate(savedSpeechRate);
     }
 
     let loadVoices: (() => void) | null = null;
@@ -374,6 +361,7 @@ export function ConversationClient({
       setSpeakingMessageId(null);
     };
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -801,7 +789,7 @@ export function ConversationClient({
         <header className="flex items-center justify-between pb-3">
           <Link
             href={`/?lang=${currentLanguageCode}`}
-            aria-label="Go back"
+            aria-label={copy.backLabel}
             className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22]"
           >
             <span aria-hidden="true">{"<"}</span>
@@ -954,7 +942,7 @@ export function ConversationClient({
             </button>
             <button
               type="button"
-              aria-label="How saving works"
+              aria-label={copy.saveExplainLabel}
               onClick={() => setShowSaveModal(true)}
               className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#b7c7bd] bg-white px-3 text-[15px] font-semibold text-[#1d2a22]"
             >
@@ -970,7 +958,7 @@ export function ConversationClient({
             }}
           >
             <label className="flex-1" htmlFor="conversation-input">
-              <span className="sr-only">Type a message</span>
+              <span className="sr-only">{copy.composerAssistiveLabel}</span>
               <textarea
                 ref={composerRef}
                 id="conversation-input"
@@ -984,7 +972,7 @@ export function ConversationClient({
             </label>
             <button
               type="button"
-              aria-label="Use microphone"
+              aria-label={copy.micAssistiveLabel}
               onClick={handleMicInput}
               disabled={!micSupported}
               className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22]"
@@ -993,7 +981,7 @@ export function ConversationClient({
             </button>
             <button
               type="submit"
-              aria-label="Send message"
+              aria-label={copy.sendAssistiveLabel}
               disabled={isStreaming || draft.trim().length === 0}
               className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] bg-[#1f5f43] text-[20px] font-semibold text-white disabled:opacity-60"
             >
@@ -1009,7 +997,7 @@ export function ConversationClient({
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-[18px] font-semibold text-[#1f2923]">Voice</h2>
+                <h2 className="text-[18px] font-semibold text-[#1f2923]">{copy.voiceTitle}</h2>
                 <p className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
               </div>
               <button

@@ -1,3 +1,6 @@
+import { getConversationContentEntry } from "./conversation-content";
+import type { SupportedLanguageCode } from "./languages";
+
 export type PromptButtonId =
   | "understand-letter-or-form"
   | "write-something"
@@ -63,6 +66,22 @@ export const promptButtons: readonly PromptButton[] = [
 ];
 
 export const alternateActions: readonly AlternateAction[] = [
-  { id: "type-your-own", label: "Type your own" },
-  { id: "talk-instead", label: "Talk instead" },
+  { id: "type-your-own", label: getConversationContentEntry("type-your-own", "en").label },
+  { id: "talk-instead", label: getConversationContentEntry("talk-instead", "en").label },
 ];
+
+export function getPromptButtons(languageCode: SupportedLanguageCode): readonly PromptButton[] {
+  return promptButtons.map((button) => ({
+    ...button,
+    label: getConversationContentEntry(button.id, languageCode).label,
+  }));
+}
+
+export function getAlternateActions(
+  languageCode: SupportedLanguageCode,
+): readonly AlternateAction[] {
+  return alternateActions.map((action) => ({
+    ...action,
+    label: getConversationContentEntry(action.id, languageCode).label,
+  }));
+}

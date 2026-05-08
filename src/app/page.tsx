@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { CrisisFooter } from "../components/crisis-footer";
-import { alternateActions, promptButtons } from "../lib/buttons";
+import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getRegionScope } from "../lib/geo";
 import {
   getLanguageOption,
@@ -24,6 +24,8 @@ export default async function Home({ searchParams }: HomePageProps) {
     requestedLanguageCode: lang,
   });
   const currentLanguage = getLanguageOption(languageCode);
+  const promptButtons = getPromptButtons(currentLanguage.code);
+  const alternateActions = getAlternateActions(currentLanguage.code);
   const regionScope = getRegionScope({
     countryHeader: requestHeaders.get("x-vercel-ip-country"),
     regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
@@ -35,7 +37,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4">
         <nav
-          aria-label="Choose language"
+          aria-label={copy.chooseLanguageLabel}
           className="flex flex-wrap items-center gap-x-1 gap-y-1 pb-4 text-[15px] leading-6 text-[#314036]"
         >
           {languageOptions.map((language, i) => (
