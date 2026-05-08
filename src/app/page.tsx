@@ -1,65 +1,75 @@
-import Image from "next/image";
+import { promptButtons } from "../lib/buttons";
+import { languageOptions } from "../lib/languages";
+
+const alternateActions = ["Type your own", "Talk instead"] as const;
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4">
+        <nav
+          aria-label="Choose language"
+          className="-mx-1 flex flex-wrap gap-1 pb-3"
+        >
+          {languageOptions.map((language) => (
+            <button
+              key={language.code}
+              type="button"
+              className="min-h-10 shrink-0 rounded-lg border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036]"
+            >
+              {language.label}
+            </button>
+          ))}
+        </nav>
+
+        <section className="flex-1 pb-4">
+          <h1 className="pt-2 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
+            <span className="block">What do you need?</span>
+            <span className="block">Pick one to start.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+
+          <div className="mt-5 flex flex-col gap-2.5">
+            {promptButtons.map((button) => (
+              <button
+                key={button.id}
+                type="button"
+                className="min-h-16 w-full rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+              >
+                {button.label}
+              </button>
+            ))}
+
+            <div className="my-1 h-px bg-[#dbe2dc]" aria-hidden="true" />
+
+            {alternateActions.map((label) => (
+              <button
+                key={label}
+                type="button"
+                className="min-h-16 w-full rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+      </div>
+
+      <footer
+        id="crisis-resources"
+        className="shrink-0 border-t border-[#cbd6cf] bg-[#edf3ef] px-4 py-3 text-[14px] leading-5 text-[#25342b]"
+      >
+        <div className="mx-auto flex max-w-md flex-wrap items-center gap-x-3 gap-y-1">
+          <strong className="font-semibold">Crisis help:</strong>
+          <span>Call or text 988</span>
+          <span>Call 911 for danger now</span>
+          {/* TODO: Replace with maintained King County crisis numbers JSON. */}
+          <span>King County crisis numbers coming soon</span>
+          <button type="button" className="font-semibold underline">
+            Find a human
+          </button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </footer>
+    </main>
   );
 }
