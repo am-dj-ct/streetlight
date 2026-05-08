@@ -1,5 +1,10 @@
-const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
-const healthEndpoint = new URL("/healthz", baseUrl).toString();
+import {
+  defaultBaseUrl,
+  extractHtmlLang,
+  getHealth,
+} from "./lib/access-tool-http.mjs";
+
+const baseUrl = defaultBaseUrl;
 const sampleSourcePath = "/conversation/understand-letter-or-form?lang=en";
 const referralsEndpoint = new URL(
   "/find-human?entryId=understand-letter-or-form&lang=en",
@@ -23,26 +28,7 @@ function extractValue(html, label) {
   return match?.[1]?.trim() ?? null;
 }
 
-function extractHtmlLang(html) {
-  const match = html.match(/<html lang="([^"]+)"/i);
-  return match?.[1] ?? null;
-}
-
-const healthResponse = await fetch(healthEndpoint, {
-  headers: {
-    Accept: "application/json",
-  },
-});
-
-if (!healthResponse.ok) {
-  fail(`HTTP ${healthResponse.status} from /healthz.`);
-}
-
-const health = await healthResponse.json().catch(() => null);
-
-if (!health || health.ok !== true || health.service !== "access-tool") {
-  fail("Unexpected /healthz response body.");
-}
+const health = await getHealth({ baseUrl, fail });
 
 const reportResponse = await fetch(reportEndpoint, {
   headers: {

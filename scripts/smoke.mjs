@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
 
 const cwd = process.cwd();
-const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
+const baseUrl = defaultBaseUrl;
 const endpoint = new URL("/api/chat", baseUrl).toString();
-const healthEndpoint = new URL("/healthz", baseUrl).toString();
 const casesPath = path.join(cwd, "tests/prompts/smoke-cases.json");
 const smokeCaseLimit = Number.parseInt(process.env.SMOKE_CASE_LIMIT ?? "", 10);
 const smokeCaseFilter = (process.env.SMOKE_CASE_FILTER ?? "").trim().toLowerCase();
@@ -94,32 +94,6 @@ async function loadCases() {
   }
 
   return filteredCases;
-}
-
-async function checkHealth() {
-  const response = await fetch(healthEndpoint, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /healthz.`);
-  }
-
-  const body = await response.json().catch(() => null);
-
-  if (
-    !body ||
-    body.ok !== true ||
-    body.service !== "access-tool" ||
-    (body.chatMode !== "live-model" && body.chatMode !== "mock-local") ||
-    body.deployConfigOk !== true
-  ) {
-    fail("Unexpected /healthz response body.");
-  }
-
-  return body.chatMode;
 }
 
 async function checkPages() {
@@ -322,8 +296,12 @@ async function runCase(testCase) {
   };
 }
 
-const chatMode = await checkHealth();
-console.log(`Health check ok (/healthz, chatMode=${chatMode}).`);
+const health = await getHealth({
+  baseUrl,
+  fail,
+  requireDeployConfigOk: true,
+});
+console.log(`Health check ok (/healthz, chatMode=${health.chatMode}).`);
 await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
 await checkLanguagePersistence();

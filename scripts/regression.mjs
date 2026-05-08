@@ -1,10 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
 
 const cwd = process.cwd();
-const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
+const baseUrl = defaultBaseUrl;
 const endpoint = new URL("/api/chat", baseUrl).toString();
-const healthEndpoint = new URL("/healthz", baseUrl).toString();
 const fixturesRoot = path.join(cwd, "tests/prompts");
 const promptCaseLimit = Number.parseInt(process.env.PROMPT_CASE_LIMIT ?? "", 10);
 const promptCaseFilter = (process.env.PROMPT_CASE_FILTER ?? "").trim().toLowerCase();
@@ -54,31 +54,6 @@ async function loadCases() {
   }
 
   return filteredCases;
-}
-
-async function getChatMode() {
-  const response = await fetch(healthEndpoint, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /healthz.`);
-  }
-
-  const body = await response.json().catch(() => null);
-
-  if (
-    !body ||
-    body.ok !== true ||
-    body.service !== "access-tool" ||
-    (body.chatMode !== "live-model" && body.chatMode !== "mock-local")
-  ) {
-    fail("Unexpected /healthz response body.");
-  }
-
-  return body.chatMode;
 }
 
 async function readSse(response) {
@@ -198,7 +173,7 @@ async function runCase(testCase) {
   };
 }
 
-const chatMode = await getChatMode();
+const { chatMode } = await getHealth({ baseUrl, fail });
 
 if (chatMode === "mock-local" && !allowMockRegression) {
   fail(

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
+import { defaultBaseUrl, getHealth as fetchHealth } from "./lib/access-tool-http.mjs";
 
-const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
+const baseUrl = defaultBaseUrl;
 const envLocalPath = new URL("../.env.local", import.meta.url);
 const localeDirectories = [
   "src/data/ui-copy",
@@ -92,24 +93,6 @@ function getMissingKeys(baseValue, compareValue, prefix = "") {
 
     return compareEntry === undefined ? [nextKey] : [];
   });
-}
-
-async function getHealth() {
-  const response = await fetch(new URL("/healthz", baseUrl), {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    fail(`HTTP ${response.status} from /healthz.`);
-  }
-
-  const payload = await response.json();
-
-  if (!payload?.ok || payload.service !== "access-tool") {
-    fail("Unexpected /healthz response body.");
-  }
-
-  return payload;
 }
 
 async function getEnvSnapshot() {
@@ -270,7 +253,7 @@ const [
   resourceFreshnessSummary,
   translationSummary,
 ] = await Promise.all([
-  getHealth(),
+  fetchHealth({ baseUrl, fail }),
   getEnvSnapshot(),
   getLanguageSnapshot(),
   getPlaceholderSummary(),
