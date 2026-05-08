@@ -157,6 +157,32 @@ function appendToMessage(
   });
 }
 
+function formatConversationForExport(messages: ClientChatMessage[]) {
+  const body = messages
+    .filter((message) => message.text.trim().length > 0)
+    .map((message) => {
+      const speaker = message.role === "assistant" ? "Access Tool" : "You";
+      return `${speaker}:\n${message.text.trim()}`;
+    })
+    .join("\n\n");
+
+  return `Access Tool conversation\n\n${body}\n`;
+}
+
+function makeExportFilename() {
+  const now = new Date();
+  const timestamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+  ].join("");
+
+  return `access-tool-${timestamp}.txt`;
+}
+
 function setMessageWeakCategory(
   messages: ClientChatMessage[],
   messageId: string,
@@ -227,6 +253,14 @@ export function ConversationClient({
   });
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem("access-tool-save-warning-seen") === "true";
+  });
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
@@ -365,6 +399,65 @@ export function ConversationClient({
     }
 
     window.turnstile.reset(turnstileWidgetIdRef.current);
+  }
+
+  function markSaveWarningSeen() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem("access-tool-save-warning-seen", "true");
+    setHasSeenSaveWarning(true);
+  }
+
+  function downloadConversation() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const fileContents = formatConversationForExport(messages);
+    const blob = new Blob([fileContents], { type: "text/plain;charset=utf-8" });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+
+    anchor.href = objectUrl;
+    anchor.download = makeExportFilename();
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  function emailConversationToSelf() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const subject = encodeURIComponent("Access Tool conversation");
+    const body = encodeURIComponent(formatConversationForExport(messages));
+
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  function handleSavePress() {
+    if (hasSeenSaveWarning) {
+      downloadConversation();
+      return;
+    }
+
+    setShowSaveModal(true);
+  }
+
+  function handleSaveHere() {
+    markSaveWarningSeen();
+    setShowSaveModal(false);
+    downloadConversation();
+  }
+
+  function handleEmailToSelf() {
+    markSaveWarningSeen();
+    setShowSaveModal(false);
+    emailConversationToSelf();
   }
 
   function handlePlayAloud(messageId: string, text: string) {
@@ -721,6 +814,24 @@ export function ConversationClient({
         </section>
 
         <section className="shrink-0 border-t border-[#d4ddd6] py-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSavePress}
+              className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+            >
+              Save · stays on this phone
+            </button>
+            <button
+              type="button"
+              aria-label="How saving works"
+              onClick={() => setShowSaveModal(true)}
+              className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#b7c7bd] bg-white px-3 text-[15px] font-semibold text-[#1d2a22]"
+            >
+              ?
+            </button>
+          </div>
+
           <form
             className="flex items-end gap-2"
             onSubmit={(event) => {
@@ -815,6 +926,54 @@ export function ConversationClient({
                   This browser is only exposing one voice for this language.
                 </p>
               ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showSaveModal ? (
+        <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
+          <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
+            <h2 className="text-[20px] font-semibold text-[#1f2923]">
+              Save this conversation?
+            </h2>
+            <div className="pt-4 space-y-4 text-[16px] leading-7 text-[#3c4b42]">
+              <p>
+                This will save a copy on this phone. If someone else uses this
+                phone, they could see it.
+              </p>
+              <p>
+                If this is your phone and only you use it: probably fine.
+              </p>
+              <p>
+                If this is a shared phone, library computer, or borrowed phone:
+                don&apos;t save here. You can email it to yourself instead.
+              </p>
+            </div>
+
+            <div className="pt-5 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleSaveHere}
+                className="min-h-12 rounded-[16px] bg-[#1f5f43] px-4 text-[16px] font-semibold text-white"
+              >
+                Save here
+              </button>
+              <button
+                type="button"
+                onClick={handleEmailToSelf}
+                className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
+              >
+                Send it to myself instead
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="min-h-12 rounded-[16px] border border-[#e1e8e2] bg-[#f7f8f4] px-4 text-[16px] font-medium text-[#47564d]"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
