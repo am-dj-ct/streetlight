@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 const cwd = process.cwd();
+const summaryOnly = process.argv.includes("--summary");
 
 async function readJson(filePath) {
   const contents = await readFile(filePath, "utf8");
@@ -43,6 +44,7 @@ async function reportDirectory(relativeDir, baseFileName) {
   const baseDocument = await readJson(path.join(directoryPath, baseFileName));
   let totalMissing = 0;
   let incompleteFiles = 0;
+  const incompleteSummaries = [];
 
   console.log(`\n[${relativeDir}]`);
 
@@ -55,16 +57,19 @@ async function reportDirectory(relativeDir, baseFileName) {
       continue;
     }
 
-    console.log(
-      `${fileName}: ${missing.length === 0 ? "complete" : `${missing.length} missing`}`,
-    );
+    const fileSummary =
+      missing.length === 0 ? "complete" : `${missing.length} missing`;
+    console.log(`${fileName}: ${fileSummary}`);
 
     if (missing.length > 0) {
       incompleteFiles += 1;
       totalMissing += missing.length;
+      incompleteSummaries.push(`${fileName} (${missing.length})`);
 
-      for (const key of missing) {
-        console.log(`  - ${key}`);
+      if (!summaryOnly) {
+        for (const key of missing) {
+          console.log(`  - ${key}`);
+        }
       }
     }
   }
@@ -72,6 +77,10 @@ async function reportDirectory(relativeDir, baseFileName) {
   console.log(
     `Summary: ${incompleteFiles} incomplete file(s), ${totalMissing} missing key(s)`,
   );
+
+  if (summaryOnly && incompleteSummaries.length > 0) {
+    console.log(`Incomplete files: ${incompleteSummaries.join(", ")}`);
+  }
 }
 
 await reportDirectory("src/data/ui-copy", "en.json");

@@ -75,11 +75,13 @@ Run:
 
 ```bash
 npm run check:locales
+npm run check:locales:summary
 npm run build:translation-worklist
 ```
 
 The script reports missing keys by directory and ends each section with a
-summary count.
+summary count. The `:summary` variant keeps the totals but skips the full
+per-key dump, which is nicer for routine verification runs.
 The worklist command writes `docs/translation_worklist.md`, grouped by
 language.
 

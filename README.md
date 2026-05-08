@@ -52,6 +52,8 @@ this. Code stays public on GitHub regardless.
 - `npm run dev:live` — runs the app against the configured live model path
 - `npm run build`
 - `npm run check:locales`
+- `npm run check:locales:summary` — quieter locale-gap summary for routine
+  verification loops
 - `npm run check:launch` — static soft-launch readiness check for docs,
   placeholders, translations, and env contract
 - `npm run check:ops` — dry-run validation for the incident and ops helper
