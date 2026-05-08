@@ -180,6 +180,7 @@ async function checkResourceFreshness(failures) {
 
 function checkSafetyGuardrails(failures) {
   const scripts = [
+    "scripts/check-env-shape.mjs",
     "scripts/check-forbidden-integrations.mjs",
     "scripts/check-no-tracked-secrets.mjs",
   ];
