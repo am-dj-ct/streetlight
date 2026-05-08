@@ -33,6 +33,7 @@ const problemOptions: readonly ReportOption[] = [
 ];
 
 type ReportProblemFormProps = {
+  chatMode: "live-model" | "mock-local";
   copy: UiCopy;
   entryId?: string;
   initialArea?: string;
@@ -44,6 +45,7 @@ function isWhereOption(value: string | undefined): value is string {
 }
 
 export function ReportProblemForm({
+  chatMode,
   copy,
   entryId,
   initialArea,
@@ -68,6 +70,7 @@ export function ReportProblemForm({
       "Access Tool problem report",
       "",
       `Where this happened: ${where}`,
+      `Chat mode: ${chatMode}`,
       `Conversation language: ${conversationLanguage}`,
     ];
 
@@ -100,6 +103,7 @@ export function ReportProblemForm({
 
     return lines.join("\n");
   }, [
+    chatMode,
     conversationLanguage,
     copy,
     details,
@@ -141,6 +145,9 @@ export function ReportProblemForm({
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)]">
         <p className="text-[17px] leading-7 text-[#334139]">
           {copy.reportPageIntro}
+        </p>
+        <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
+          Current chat mode: {chatMode}
         </p>
         <p className="pt-3 text-[15px] leading-6 text-[#5f6d64]">
           {copy.reportPagePrivacyWarning}

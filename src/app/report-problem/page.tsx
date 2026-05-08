@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
 import { ReportProblemForm } from "../../components/report-problem-form";
+import { isDevMockChatEnabled } from "../../lib/env";
 import { getRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
@@ -35,6 +36,7 @@ export default async function ReportProblemPage({
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);
+  const chatMode = isDevMockChatEnabled() ? "mock-local" : "live-model";
   const regionScope = getRegionScope({
     countryHeader: requestHeaders.get("x-vercel-ip-country"),
     regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
@@ -51,6 +53,7 @@ export default async function ReportProblemPage({
       }
     >
       <ReportProblemForm
+        chatMode={chatMode}
         copy={copy}
         entryId={entryId}
         initialArea={area}
