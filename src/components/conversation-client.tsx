@@ -253,6 +253,7 @@ export function ConversationClient({
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const dictationBaseDraftRef = useRef("");
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
       id: "assistant-seed",
@@ -583,6 +584,7 @@ export function ConversationClient({
     }
 
     recognitionRef.current?.stop();
+    dictationBaseDraftRef.current = draft.trimEnd();
 
     const recognition = new Recognition();
     recognition.lang = getSpeechLanguage(currentLanguageLabel);
@@ -602,7 +604,7 @@ export function ConversationClient({
           return currentDraft;
         }
 
-        const base = currentDraft.trimEnd();
+        const base = dictationBaseDraftRef.current;
 
         return base ? `${base} ${trimmedTranscript}` : trimmedTranscript;
       });
@@ -610,10 +612,12 @@ export function ConversationClient({
     recognition.onerror = () => {
       setIsListening(false);
       recognitionRef.current = null;
+      dictationBaseDraftRef.current = "";
     };
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
+      dictationBaseDraftRef.current = "";
     };
 
     recognitionRef.current = recognition;
@@ -626,6 +630,11 @@ export function ConversationClient({
 
     if (!trimmed || isStreaming) {
       return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
     }
 
     if (turnstileSiteKey && !turnstileToken) {

@@ -10,6 +10,7 @@ import {
   getBackHrefForReferrals,
   getReferralsForCategory,
   getWeakCategoryLabel,
+  isReferralSpecificToCategory,
   isWeakCategory,
 } from "../../lib/referrals";
 
@@ -91,9 +92,16 @@ export default async function FindHumanPage({
               key={resource.id}
               className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)]"
             >
-              <h2 className="text-[18px] font-semibold leading-6 text-[#1f2923]">
-                {resource.name}
-              </h2>
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-[18px] font-semibold leading-6 text-[#1f2923]">
+                  {resource.name}
+                </h2>
+                {isReferralSpecificToCategory(resource, category) ? (
+                  <span className="shrink-0 rounded-full bg-[#edf3ef] px-3 py-1 text-[12px] font-semibold text-[#2d5c45]">
+                    Best fit
+                  </span>
+                ) : null}
+              </div>
               <p className="pt-2 text-[15px] leading-6 text-[#47564d]">
                 {resource.description}
               </p>

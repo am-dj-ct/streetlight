@@ -18,6 +18,17 @@ export type ReferralResource = {
 
 const referrals = referralsData as ReferralResource[];
 
+function isSpecificCategoryMatch(
+  resource: ReferralResource,
+  category?: null | WeakCategory,
+) {
+  return Boolean(
+    category &&
+      category !== "none" &&
+      resource.categories.includes(category),
+  );
+}
+
 export function isWeakCategory(value: string): value is WeakCategory {
   return [
     "legal_procedure",
@@ -68,10 +79,24 @@ export function getReferralsForCategory({
     return regionReferrals;
   }
 
-  return regionReferrals.filter(
+  return regionReferrals
+    .filter(
     (resource) =>
       resource.categories.includes("all") || resource.categories.includes(category),
-  );
+    )
+    .sort((left, right) => {
+      const leftSpecific = isSpecificCategoryMatch(left, category) ? 1 : 0;
+      const rightSpecific = isSpecificCategoryMatch(right, category) ? 1 : 0;
+
+      return rightSpecific - leftSpecific;
+    });
+}
+
+export function isReferralSpecificToCategory(
+  resource: ReferralResource,
+  category?: null | WeakCategory,
+) {
+  return isSpecificCategoryMatch(resource, category);
 }
 
 export function getBackHrefForReferrals({
