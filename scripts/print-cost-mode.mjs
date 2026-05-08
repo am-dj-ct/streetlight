@@ -68,6 +68,7 @@ if (devMockChat) {
 console.log("");
 console.log("Cheaper local commands:");
 console.log("- npm run dev:mock");
+console.log("- npm run dev:live (when you want real model checks again)");
 console.log("- npm run smoke:quick");
 console.log("- npm run regression:quick");
 console.log("- npm run verify:quick");

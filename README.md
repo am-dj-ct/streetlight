@@ -49,6 +49,7 @@ this. Code stays public on GitHub regardless.
 
 - `npm run lint`
 - `npm run dev:mock` — runs the app with zero-cost local mock chat replies
+- `npm run dev:live` — runs the app against the configured live model path
 - `npm run build`
 - `npm run check:locales`
 - `npm run check:launch` — static soft-launch readiness check for docs,
@@ -70,9 +71,10 @@ this. Code stays public on GitHub regardless.
 - `npm run verify:quick` — lower-cost local check for active setup work
 - `npm run verify` — runs the local pre-launch verification stack
 
-`npm run dev:mock` is for zero-cost local UI work. Full prompt regression
-still expects live model replies, so `npm run regression:prompts` will stop
-with a clear message while mock mode is active.
+`npm run dev:mock` is for zero-cost local UI work. `npm run dev:live` is the
+easy way back to real model calls. Full prompt regression still expects live
+model replies, so `npm run regression:prompts` will stop with a clear message
+while mock mode is active.
 
 ## Utility routes
 
