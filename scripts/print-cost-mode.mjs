@@ -71,3 +71,5 @@ console.log("- npm run dev:mock");
 console.log("- npm run smoke:quick");
 console.log("- npm run regression:quick");
 console.log("- npm run verify:quick");
+console.log("");
+console.log("Note: full prompt regression still expects live-model mode.");

@@ -4,9 +4,11 @@ import path from "node:path";
 const cwd = process.cwd();
 const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const endpoint = new URL("/api/chat", baseUrl).toString();
+const healthEndpoint = new URL("/healthz", baseUrl).toString();
 const fixturesRoot = path.join(cwd, "tests/prompts");
 const promptCaseLimit = Number.parseInt(process.env.PROMPT_CASE_LIMIT ?? "", 10);
 const promptCaseFilter = (process.env.PROMPT_CASE_FILTER ?? "").trim().toLowerCase();
+const allowMockRegression = process.env.ALLOW_MOCK_REGRESSION === "true";
 
 const refusalPattern =
   /\b(i can't help with that|i cannot help with that|i can't assist with that|i cannot assist with that)\b/i;
@@ -52,6 +54,31 @@ async function loadCases() {
   }
 
   return filteredCases;
+}
+
+async function getChatMode() {
+  const response = await fetch(healthEndpoint, {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /healthz.`);
+  }
+
+  const body = await response.json().catch(() => null);
+
+  if (
+    !body ||
+    body.ok !== true ||
+    body.service !== "access-tool" ||
+    (body.chatMode !== "live-model" && body.chatMode !== "mock-local")
+  ) {
+    fail("Unexpected /healthz response body.");
+  }
+
+  return body.chatMode;
 }
 
 async function readSse(response) {
@@ -170,6 +197,14 @@ async function runCase(testCase) {
   };
 }
 
+const chatMode = await getChatMode();
+
+if (chatMode === "mock-local" && !allowMockRegression) {
+  fail(
+    "Prompt regression is disabled in mock-local mode because it does not validate live model behavior. Turn off DEV_MOCK_CHAT or rerun with ALLOW_MOCK_REGRESSION=true if you only want a plumbing check.",
+  );
+}
+
 const cases = await loadCases();
 const results = [];
 
@@ -177,6 +212,7 @@ if (cases.length === 0) {
   fail("No regression cases matched the current filter/limit.");
 }
 
+console.log(`Regression chat mode: ${chatMode}`);
 console.log(`Running ${cases.length} regression case(s).`);
 
 for (const testCase of cases) {

@@ -67,9 +67,16 @@ async function checkHealth() {
 
   const body = await response.json().catch(() => null);
 
-  if (!body || body.ok !== true || body.service !== "access-tool") {
+  if (
+    !body ||
+    body.ok !== true ||
+    body.service !== "access-tool" ||
+    (body.chatMode !== "live-model" && body.chatMode !== "mock-local")
+  ) {
     fail("Unexpected /healthz response body.");
   }
+
+  return body.chatMode;
 }
 
 async function checkPages() {
@@ -206,8 +213,8 @@ async function runCase(testCase) {
   };
 }
 
-await checkHealth();
-console.log("Health check ok (/healthz).");
+const chatMode = await checkHealth();
+console.log(`Health check ok (/healthz, chatMode=${chatMode}).`);
 await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
 

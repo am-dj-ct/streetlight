@@ -70,6 +70,10 @@ this. Code stays public on GitHub regardless.
 - `npm run verify:quick` — lower-cost local check for active setup work
 - `npm run verify` — runs the local pre-launch verification stack
 
+`npm run dev:mock` is for zero-cost local UI work. Full prompt regression
+still expects live model replies, so `npm run regression:prompts` will stop
+with a clear message while mock mode is active.
+
 ## Utility routes
 
 - `/healthz` — simple no-store JSON health check for local smoke checks and
