@@ -570,6 +570,22 @@ async function checkInvalidMessageTextShape() {
   );
 }
 
+async function checkMissingMessageText() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-missing-text",
+          role: "user",
+        },
+      ],
+    },
+    "missing message text",
+  );
+}
+
 async function checkInvalidMessageRole() {
   await expectInvalidChatRequestShape(
     {
@@ -587,6 +603,22 @@ async function checkInvalidMessageRole() {
   );
 }
 
+async function checkMissingMessageRole() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-missing-role",
+          text: "hello",
+        },
+      ],
+    },
+    "missing message role",
+  );
+}
+
 async function checkBlankMessageId() {
   await expectInvalidChatRequestShape(
     {
@@ -601,6 +633,33 @@ async function checkBlankMessageId() {
       ],
     },
     "blank message id",
+  );
+}
+
+async function checkMissingMessageId() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          role: "user",
+          text: "hello",
+        },
+      ],
+    },
+    "missing message id",
+  );
+}
+
+async function checkNonObjectMessageItem() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: ["hello"],
+    },
+    "non-object message item",
   );
 }
 
@@ -767,10 +826,18 @@ await checkMissingMessagesArray();
 console.log("Malformed messages handling ok (/api/chat rejects non-array messages).");
 await checkInvalidMessageTextShape();
 console.log("Malformed message text handling ok (/api/chat rejects non-string text).");
+await checkMissingMessageText();
+console.log("Missing message text handling ok (/api/chat rejects messages without text).");
 await checkInvalidMessageRole();
 console.log("Malformed message role handling ok (/api/chat rejects invalid roles).");
+await checkMissingMessageRole();
+console.log("Missing message role handling ok (/api/chat rejects messages without roles).");
 await checkBlankMessageId();
 console.log("Malformed message id handling ok (/api/chat rejects blank ids).");
+await checkMissingMessageId();
+console.log("Missing message id handling ok (/api/chat rejects messages without ids).");
+await checkNonObjectMessageItem();
+console.log("Non-object message item handling ok (/api/chat rejects primitive array items).");
 await checkAssistantOnlyMessages();
 console.log("Assistant-only message handling ok (/api/chat requires a real user turn).");
 await checkTrailingAssistantMessages();
