@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
+import { defaultBaseUrl, extractHtmlLang, getHealth } from "./lib/access-tool-http.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 import { getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 
@@ -13,19 +13,19 @@ const smokeCaseFilter = (process.env.SMOKE_CASE_FILTER ?? "").trim().toLowerCase
 const pageChecks = [
   {
     expectedText: "What do you need?",
-    extraExpectedText: ['<html lang="en">'],
+    expectedHtmlLang: "en",
     path: "/",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=main-screen&amp;source=%2F%3Flang%3Den",
   },
   {
     expectedText: "Full UI translation is still being added for this language.",
-    extraExpectedText: ['<html lang="es">'],
+    expectedHtmlLang: "es",
     path: "/?lang=es",
     reportLinkSnippet: "/report-problem?lang=es&amp;area=main-screen&amp;source=%2F%3Flang%3Des",
   },
   {
     expectedText: "What do you need?",
-    extraExpectedText: ['<html lang="en">'],
+    expectedHtmlLang: "en",
     path: "/?lang=not-a-real-language",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=main-screen&amp;source=%2F%3Flang%3Den",
   },
@@ -37,7 +37,7 @@ const pageChecks = [
   },
   {
     expectedText: "Paste the letter or form here",
-    extraExpectedText: ['<html lang="en">'],
+    expectedHtmlLang: "en",
     path: "/conversation/understand-letter-or-form?lang=not-a-real-language",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=conversation&amp;entryId=understand-letter-or-form&amp;source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",
@@ -56,9 +56,9 @@ const pageChecks = [
   {
     expectedText: "Find a human",
     extraExpectedText: [
-      '<html lang="en">',
       'href="/conversation/understand-letter-or-form?lang=en"',
     ],
+    expectedHtmlLang: "en",
     path: "/find-human?entryId=understand-letter-or-form&lang=not-a-real-language",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
@@ -98,7 +98,7 @@ const pageChecks = [
   },
   {
     expectedText: "About",
-    extraExpectedText: ['<html lang="en">'],
+    expectedHtmlLang: "en",
     path: "/about?lang=not-a-real-language",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=about&amp;source=%2Fabout%3Flang%3Den",
@@ -111,7 +111,7 @@ const pageChecks = [
   },
   {
     expectedText: "Privacy",
-    extraExpectedText: ['<html lang="en">'],
+    expectedHtmlLang: "en",
     path: "/privacy?lang=not-a-real-language",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=privacy&amp;source=%2Fprivacy%3Flang%3Den",
@@ -123,7 +123,7 @@ const pageChecks = [
   },
   {
     expectedText: "Report a problem",
-    extraExpectedText: ['<html lang="en">'],
+    expectedHtmlLang: "en",
     path: "/report-problem?lang=not-a-real-language",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=other",
   },
@@ -177,6 +177,10 @@ async function checkPages() {
       fail(`Expected text not found on ${page.path}.`);
     }
 
+    if (page.expectedHtmlLang && extractHtmlLang(html) !== page.expectedHtmlLang) {
+      fail(`Unexpected html lang on ${page.path}.`);
+    }
+
     for (const extraExpectedText of page.extraExpectedText ?? []) {
       if (!html.includes(extraExpectedText)) {
         fail(`Expected extra text not found on ${page.path}: ${extraExpectedText}`);
@@ -200,7 +204,7 @@ async function checkLanguagePersistence() {
     fail("Expected Spanish Content-Language header on /?lang=es.");
   }
 
-  if (!snapshot.privacyHtml?.includes('<html lang="es">')) {
+  if (extractHtmlLang(snapshot.privacyHtml ?? "") !== "es") {
     fail("Expected persisted Spanish html lang on /privacy.");
   }
 
