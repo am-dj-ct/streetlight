@@ -67,3 +67,4 @@ async function reportDirectory(relativeDir, baseFileName) {
 
 await reportDirectory("src/data/ui-copy", "en.json");
 await reportDirectory("src/data/conversation-content", "en.json");
+await reportDirectory("src/data/static-pages", "en.json");

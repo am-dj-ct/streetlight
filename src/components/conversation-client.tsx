@@ -1104,6 +1104,14 @@ export function ConversationClient({
               <p>{copy.saveBodyOne}</p>
               <p>{copy.saveBodyTwo}</p>
               <p>{copy.saveBodyThree}</p>
+              <p>
+                <Link
+                  href={`/privacy?lang=${currentLanguageCode}`}
+                  className="font-semibold underline"
+                >
+                  {copy.savePrivacyLink}
+                </Link>
+              </p>
             </div>
 
             <div className="pt-5 flex flex-col gap-2">

@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "translated": true,
+    "languageCode": "en"
+  },
+  "pages": {
+    "privacy": {
+      "title": "Privacy",
+      "lastUpdated": "2026-05-07",
+      "sections": [
+        {
+          "heading": "What we save: nothing about your conversation.",
+          "paragraphs": [
+            "Your messages and the answers you get are not saved on our servers. We don't keep them. We don't read them later. We don't sell them. We don't use them to train AI."
+          ]
+        },
+        {
+          "heading": "What we do save: numbers, not words.",
+          "paragraphs": [
+            "We save things like: how long it took to answer, which button you tapped, what language you used, what kind of question it was. We don't save what you typed or what the answer said.",
+            "We save these to make sure the tool works and to know if something is broken."
+          ]
+        },
+        {
+          "heading": "How we know it's not you.",
+          "paragraphs": [
+            "We don't ask for your name. We don't ask for your email. We don't ask for your phone number. We don't have an account system. There's no way for us to know who you are.",
+            "We do see the internet address your phone is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address."
+          ]
+        },
+        {
+          "heading": "Where your messages go.",
+          "paragraphs": [
+            "When you send a message, it goes to a company called Anthropic. They make the AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.",
+            "We picked Anthropic because their rules about your data are stricter than most companies that make AI."
+          ]
+        },
+        {
+          "heading": "If you save a conversation on your phone.",
+          "paragraphs": [
+            "You can save a conversation if you want. If you do, it stays on your phone, not on our servers. If someone else uses your phone, they could see it. If you're using a borrowed phone or a library computer, don't save here. You can email it to yourself instead."
+          ]
+        },
+        {
+          "heading": "What we don't do.",
+          "paragraphs": [],
+          "bullets": [
+            "We don't have ads.",
+            "We don't sell anything.",
+            "We don't share your data with anyone.",
+            "We don't have an account or login.",
+            "We don't track you across the internet.",
+            "We don't know who you are."
+          ]
+        },
+        {
+          "heading": "Crisis numbers and resources.",
+          "paragraphs": [
+            "The crisis numbers and resource lists are public. We don't track who taps them. We don't know who called."
+          ]
+        },
+        {
+          "heading": "If something goes wrong.",
+          "paragraphs": [
+            "If you think the tool gave you bad information, you can tell us through the link at the bottom of every screen. You don't have to give us your name. You don't have to give us the conversation. Just tell us what happened in your own words."
+          ]
+        },
+        {
+          "heading": "Who built this.",
+          "paragraphs": [
+            "This tool is built and run by one person in Seattle. It's free. It's not a company. It's not a research project. Nobody is making money from it. If it ever stops being free, it has stopped being this tool."
+          ]
+        }
+      ]
+    },
+    "about": {
+      "title": "About",
+      "lastUpdated": "2026-05-08",
+      "sections": [
+        {
+          "heading": "What this is.",
+          "paragraphs": [
+            "Access Tool is a free public mobile-web AI tool for people dealing with housing insecurity, poverty, or other serious stress.",
+            "It is meant to help with real tasks: understanding a letter, writing something hard, figuring out what to do next, or talking something through."
+          ]
+        },
+        {
+          "heading": "What it is not.",
+          "paragraphs": [
+            "It is not a lawyer, a clinician, a case manager, or a service directory. It does not replace a human who knows your situation.",
+            "The referral list is maintained by hand. The AI itself is not making up who to call."
+          ]
+        },
+        {
+          "heading": "How it works.",
+          "paragraphs": [
+            "The site is built with a few different AI steps behind the scenes. The main conversation uses Anthropic models. A second smaller pass checks whether the answer falls into a category AI is known to get wrong, like legal procedure or benefits eligibility.",
+            "Different models may be used at different times to keep the tool working within a small public-interest budget."
+          ]
+        },
+        {
+          "heading": "Voice and language.",
+          "paragraphs": [
+            "The tool is text-first. Mic input and read-aloud are there as helpers, but pure voice use is still a gap in V1.",
+            "The chat can work in multiple languages. Full UI translation is still being added carefully by humans, not generated automatically."
+          ]
+        },
+        {
+          "heading": "Who runs it.",
+          "paragraphs": [
+            "This tool is built and maintained by one person in Seattle.",
+            "If you're depending on it, know that it might not be here forever. The code is open-source so the project can be forked or continued if needed."
+          ]
+        },
+        {
+          "heading": "What matters most.",
+          "paragraphs": [
+            "The point is to make a very good AI tool available to people who usually do not get one.",
+            "It stays free, has no login, and tries to keep the privacy story as simple and honest as possible."
+          ]
+        }
+      ]
+    }
+  }
+}
