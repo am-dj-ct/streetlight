@@ -26,6 +26,14 @@ const allowedSourcePathnames = [
   "/report-problem",
 ] as const;
 
+function makeInternalAppPath(value: string): InternalAppPath {
+  if (!value.startsWith("/")) {
+    throw new Error(`Internal app path must start with "/": ${value}`);
+  }
+
+  return value as InternalAppPath;
+}
+
 export function sanitizeInternalSourcePath(
   sourcePath?: null | string,
 ): InternalAppPath | null {
@@ -45,14 +53,16 @@ export function sanitizeInternalSourcePath(
       return null;
     }
 
-    return `${normalized.pathname}${normalized.search}${normalized.hash}` as InternalAppPath;
+    return makeInternalAppPath(
+      `${normalized.pathname}${normalized.search}${normalized.hash}`,
+    );
   } catch {
     return null;
   }
 }
 
 export function buildHomeHref(languageCode: SupportedLanguageCode) {
-  return `/?lang=${languageCode}` as InternalAppPath;
+  return makeInternalAppPath(`/?lang=${languageCode}`);
 }
 
 export function buildConversationHref({
@@ -62,15 +72,15 @@ export function buildConversationHref({
   entryId: ConversationEntryId;
   languageCode: SupportedLanguageCode;
 }) {
-  return `/conversation/${entryId}?lang=${languageCode}` as InternalAppPath;
+  return makeInternalAppPath(`/conversation/${entryId}?lang=${languageCode}`);
 }
 
 export function buildAboutHref(languageCode: SupportedLanguageCode) {
-  return `/about?lang=${languageCode}` as InternalAppPath;
+  return makeInternalAppPath(`/about?lang=${languageCode}`);
 }
 
 export function buildPrivacyHref(languageCode: SupportedLanguageCode) {
-  return `/privacy?lang=${languageCode}` as InternalAppPath;
+  return makeInternalAppPath(`/privacy?lang=${languageCode}`);
 }
 
 export function buildFindHumanHref({
@@ -90,7 +100,7 @@ export function buildFindHumanHref({
 
   params.set("lang", languageCode);
 
-  return `/find-human?${params.toString()}` as InternalAppPath;
+  return makeInternalAppPath(`/find-human?${params.toString()}`);
 }
 
 export function buildReportProblemHref({
@@ -115,5 +125,5 @@ export function buildReportProblemHref({
     params.set("source", safeSourcePath);
   }
 
-  return `/report-problem?${params.toString()}` as InternalAppPath;
+  return makeInternalAppPath(`/report-problem?${params.toString()}`);
 }
