@@ -58,6 +58,8 @@ this. Code stays public on GitHub regardless.
   translation worklist is current
 - `npm run cost:status` — shows the local model pair and whether cheap local
   mode is active
+- `npm run diagnostics:local` — prints the current local server mode and the
+  report-page metadata snapshot
 - `npm run build:translation-worklist`
 - `npm run validate:data`
 - `npm run smoke` — checks key pages plus a small synthetic end-to-end chat
