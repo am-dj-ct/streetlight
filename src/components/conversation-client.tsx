@@ -25,6 +25,7 @@ export function ConversationClient({
   initialSuggestions,
 }: ConversationClientProps) {
   const threadRef = useRef<HTMLElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
       id: "assistant-seed",
@@ -46,6 +47,17 @@ export function ConversationClient({
 
     thread.scrollTop = thread.scrollHeight;
   }, [messages, errorMessage, isPending]);
+
+  useEffect(() => {
+    const composer = composerRef.current;
+
+    if (!composer) {
+      return;
+    }
+
+    composer.style.height = "0px";
+    composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
+  }, [draft]);
 
   function sendMessage(text: string) {
     const trimmed = text.trim();
@@ -216,14 +228,15 @@ export function ConversationClient({
           >
             <label className="flex-1" htmlFor="conversation-input">
               <span className="sr-only">Type a message</span>
-              <input
+              <textarea
+                ref={composerRef}
                 id="conversation-input"
-                type="text"
                 autoFocus
+                rows={1}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Type here"
-                className="min-h-14 w-full rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] text-[#1f2923] outline-none placeholder:text-[#7c8a82]"
+                className="max-h-40 min-h-14 w-full resize-none overflow-y-auto rounded-[18px] border border-[#b7c7bd] bg-white px-4 py-[15px] text-[17px] leading-6 text-[#1f2923] outline-none placeholder:text-[#7c8a82]"
               />
             </label>
             <button
