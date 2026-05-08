@@ -204,7 +204,7 @@ Do this in order:
 5. Confirm env vars are updated in Vercel.
 6. Wait for redeploy.
 7. Run the smoke check:
-   - `/healthz` returns `{"ok":true,"service":"access-tool","chatMode":"live-model","deployConfigOk":true}`
+   - `/healthz` returns `{"ok":true,"service":"access-tool","chatMode":"live-model","deployEnv":"production","deployConfigOk":true,...}`
    - landing page loads
    - conversation page loads
    - sending a message works

@@ -15,9 +15,11 @@ Use this before any named partner starts sending real people to the tool.
 ## Operations checks
 
 - `npm run verify` passes locally.
+- `npm run diagnostics:local` shows the expected local mode before testing.
 - `npm run check:launch` passes.
 - `OPERATIONAL_RUNBOOK.md` exists and has real screenshots.
 - `DEV_MOCK_CHAT` is unset or `false` in the Vercel production environment.
+- Live `/healthz` shows `chatMode=live-model`, `deployEnv=production`, and `deployConfigOk=true`.
 - Bus-factor contact info is filled in.
 - Soft pause tested once.
 - Hard pause tested once.
