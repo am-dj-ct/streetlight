@@ -1,7 +1,7 @@
 [
   {
     "name": "deadline-letter",
-    "text": "I got a letter saying I need to send proof by Friday or my benefits may stop. Tell me what it is asking for.",
+    "text": "My letter says: 'To keep your food benefits, send proof of income by Friday or your benefits may stop.' Tell me what it is asking for.",
     "expectedClassifier": "benefits_eligibility"
   }
 ]
