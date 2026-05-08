@@ -103,7 +103,7 @@ if (
   !opsStatusOutput.includes("Content contracts: Content contracts ok") ||
   !opsStatusOutput.includes("Safety checks: forbidden integrations and tracked secrets ok")
 ) {
-  fail("ops-status output did not include the expected content-contract summary.");
+  fail("ops-status output did not include the expected status summaries.");
 }
 
 console.log("Ops helper checks passed.");
