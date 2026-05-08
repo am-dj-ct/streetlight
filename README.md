@@ -26,6 +26,8 @@ when the build is ready.
 - [Data and Privacy Architecture](docs/data_architecture.md) — how it's
   built, what it logs (and doesn't), and the threat model.
 - [What this tool will not do](docs/forbidden.md) — the "no" list.
+- [Translation handoff](docs/translation_handoff.md) — where human
+  translation work lives and how to audit completeness.
 
 ## Project structure
 
@@ -39,4 +41,4 @@ TBD — MIT or Apache-2.0. Picked before public launch.
 
 ## Contact
 
-Bug reports and partner feedback channel TBD before launch.
+Bug reports currently go to `jesse.c.dunn@outlook.com`.
