@@ -108,10 +108,22 @@ export async function checkPerIpRateLimit(
   const now = new Date();
   const resetInSeconds = getSecondsUntilUtcMidnight(now);
   const key = `rate-limit:${getUtcDateKey(now)}:${hashIp(ip)}`;
-  const count = await kv.incr(key);
+  let count: number;
+
+  try {
+    count = await kv.incr(key);
+  } catch {
+    return {
+      allowed: true,
+      limit: MAX_TURNS_PER_DAY,
+      remaining: MAX_TURNS_PER_DAY,
+      resetInSeconds,
+      reason: "disabled",
+    };
+  }
 
   if (count === 1) {
-    await kv.expire(key, resetInSeconds);
+    await kv.expire(key, resetInSeconds).catch(() => undefined);
   }
 
   if (count > MAX_TURNS_PER_DAY) {

@@ -93,7 +93,9 @@ export async function checkDailySpendCap(): Promise<SpendLimitResult> {
   }
 
   const key = `daily-spend:${getUtcDateKey(now)}`;
-  const currentSpendUsd = Number((await kv.get<string | number>(key)) ?? 0);
+  const currentSpendUsd = Number(
+    (await kv.get<string | number>(key).catch(() => 0)) ?? 0,
+  );
 
   if (currentSpendUsd >= limitUsd) {
     return {
@@ -157,10 +159,16 @@ export async function recordDailySpendUsd({
   const now = new Date();
   const key = `daily-spend:${getUtcDateKey(now)}`;
   const resetInSeconds = getSecondsUntilUtcMidnight(now);
-  const nextValue = await kv.incrbyfloat(key, totalCostUsd);
+  let nextValue: number;
+
+  try {
+    nextValue = await kv.incrbyfloat(key, totalCostUsd);
+  } catch {
+    return null;
+  }
 
   if (totalCostUsd > 0 && nextValue === totalCostUsd) {
-    await kv.expire(key, resetInSeconds);
+    await kv.expire(key, resetInSeconds).catch(() => undefined);
   }
 
   return {
