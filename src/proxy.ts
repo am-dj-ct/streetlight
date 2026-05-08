@@ -146,6 +146,7 @@ function renderHardPausePage(languageCode: string) {
 }
 
 export function proxy(request: NextRequest) {
+  const documentRequest = isDocumentRequest(request);
   const requestedLanguageCode = request.nextUrl.searchParams.get("lang");
   const storedLanguageCode = request.cookies.get(languageCookieName)?.value;
   const resolvedLanguageCode = isSupportedLanguageCode(requestedLanguageCode)
@@ -181,6 +182,10 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
+  if (!documentRequest) {
+    return NextResponse.next();
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(languageHeaderName, resolvedLanguageCode);
 
@@ -190,9 +195,7 @@ export function proxy(request: NextRequest) {
     },
   });
 
-  if (isDocumentRequest(request)) {
-    response.headers.set("Content-Language", resolvedLanguageCode);
-  }
+  response.headers.set("Content-Language", resolvedLanguageCode);
 
   if (
     isSupportedLanguageCode(requestedLanguageCode) &&
