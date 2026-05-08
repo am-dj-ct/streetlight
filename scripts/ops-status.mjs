@@ -2,6 +2,11 @@ import { readFile } from "node:fs/promises";
 
 const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const envLocalPath = new URL("../.env.local", import.meta.url);
+const localeDirectories = [
+  "src/data/ui-copy",
+  "src/data/conversation-content",
+  "src/data/static-pages",
+];
 const launchFiles = [
   "README.md",
   "OPERATIONAL_RUNBOOK.md",
@@ -60,6 +65,35 @@ function parseIsoDate(value, label) {
   return parsed;
 }
 
+function flattenObject(obj, prefix = "") {
+  return Object.entries(obj).flatMap(([key, value]) => {
+    const nextKey = prefix ? `${prefix}.${key}` : key;
+
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return flattenObject(value, nextKey);
+    }
+
+    return [nextKey];
+  });
+}
+
+function getMissingKeys(baseValue, compareValue, prefix = "") {
+  return Object.entries(baseValue).flatMap(([key, value]) => {
+    const nextKey = prefix ? `${prefix}.${key}` : key;
+    const compareEntry = compareValue?.[key];
+
+    if (Array.isArray(value)) {
+      return Array.isArray(compareEntry) && compareEntry.length > 0 ? [] : [nextKey];
+    }
+
+    if (value && typeof value === "object") {
+      return getMissingKeys(value, compareEntry ?? {}, nextKey);
+    }
+
+    return compareEntry === undefined ? [nextKey] : [];
+  });
+}
+
 async function getHealth() {
   const response = await fetch(new URL("/healthz", baseUrl), {
     cache: "no-store",
@@ -94,6 +128,45 @@ async function getEnvSnapshot() {
       classifierModel: "missing .env.local",
     };
   }
+}
+
+async function getLanguageSnapshot() {
+  const languageResponse = await fetch(new URL("/?lang=es", baseUrl), {
+    headers: {
+      Accept: "text/html",
+    },
+  });
+
+  if (!languageResponse.ok) {
+    fail(`HTTP ${languageResponse.status} from /?lang=es.`);
+  }
+
+  const languageCookie = languageResponse.headers
+    .get("set-cookie")
+    ?.split(";")[0]
+    ?.trim();
+  const homeHtml = await languageResponse.text();
+  const homeLang = homeHtml.match(/<html lang="([^"]+)"/i)?.[1] ?? null;
+
+  const privacyResponse = await fetch(new URL("/privacy", baseUrl), {
+    headers: {
+      Accept: "text/html",
+      ...(languageCookie ? { Cookie: languageCookie } : {}),
+    },
+  });
+
+  if (!privacyResponse.ok) {
+    fail(`HTTP ${privacyResponse.status} from /privacy with persisted language cookie.`);
+  }
+
+  const privacyHtml = await privacyResponse.text();
+  const privacyLang = privacyHtml.match(/<html lang="([^"]+)"/i)?.[1] ?? null;
+
+  return {
+    homeLang: homeLang ?? "(missing)",
+    languageCookie: languageCookie ?? "(missing)",
+    privacyLang: privacyLang ?? "(missing)",
+  };
 }
 
 async function getPlaceholderSummary() {
@@ -156,11 +229,53 @@ async function getResourceFreshnessSummary() {
   return summaries;
 }
 
-const [health, envSnapshot, placeholderSummary, resourceFreshnessSummary] = await Promise.all([
+async function getTranslationSummary() {
+  const localeFiles = ["es", "vi", "so", "ru", "am", "zh"];
+  const summaries = [];
+
+  for (const languageCode of localeFiles) {
+    const sectionSummaries = [];
+
+    for (const relativeDir of localeDirectories) {
+      const baseDocument = JSON.parse(
+        await readFile(new URL(`../${relativeDir}/en.json`, import.meta.url), "utf8"),
+      );
+      const localeDocument = JSON.parse(
+        await readFile(new URL(`../${relativeDir}/${languageCode}.json`, import.meta.url), "utf8"),
+      );
+      const missingKeys = getMissingKeys(baseDocument, localeDocument);
+      const baseKeys = flattenObject(baseDocument).length;
+
+      if (missingKeys.length > 0 || localeDocument.meta?.translated === false) {
+        sectionSummaries.push(
+          `${relativeDir} (${missingKeys.length} missing, translated=${localeDocument.meta?.translated === true ? "true" : "false"}, ${baseKeys} baseline keys)`,
+        );
+      }
+    }
+
+    summaries.push({
+      languageCode,
+      sections: sectionSummaries,
+    });
+  }
+
+  return summaries;
+}
+
+const [
+  health,
+  envSnapshot,
+  languageSnapshot,
+  placeholderSummary,
+  resourceFreshnessSummary,
+  translationSummary,
+] = await Promise.all([
   getHealth(),
   getEnvSnapshot(),
+  getLanguageSnapshot(),
   getPlaceholderSummary(),
   getResourceFreshnessSummary(),
+  getTranslationSummary(),
 ]);
 
 console.log("Access Tool ops status");
@@ -177,12 +292,32 @@ console.log(`- DEV_MOCK_CHAT: ${envSnapshot.devMockChat}`);
 console.log(`- MAIN_MODEL: ${envSnapshot.mainModel}`);
 console.log(`- CLASSIFIER_MODEL: ${envSnapshot.classifierModel}`);
 console.log("");
+console.log("Language snapshot");
+console.log(`- /?lang=es html lang: ${languageSnapshot.homeLang}`);
+console.log(`- language cookie: ${languageSnapshot.languageCookie}`);
+console.log(`- /privacy with cookie html lang: ${languageSnapshot.privacyLang}`);
+console.log("");
 console.log("Resource freshness");
 
 for (const summary of resourceFreshnessSummary) {
   console.log(
     `- ${summary.label}: ${summary.staleCount}/${summary.total} stale over ${staleAfterDays} days; oldest ${summary.oldestId} at ${summary.oldestAgeInDays} day(s)`,
   );
+}
+
+console.log("");
+const incompleteTranslations = translationSummary.filter(
+  (summary) => summary.sections.length > 0,
+);
+
+if (incompleteTranslations.length === 0) {
+  console.log("Translation readiness: all supported language files complete");
+} else {
+  console.log(`Translation readiness: ${incompleteTranslations.length} language(s) still incomplete`);
+
+  for (const summary of incompleteTranslations) {
+    console.log(`- ${summary.languageCode}: ${summary.sections.join("; ")}`);
+  }
 }
 
 console.log("");
