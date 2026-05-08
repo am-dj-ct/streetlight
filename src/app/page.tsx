@@ -9,6 +9,7 @@ import { getRegionScope } from "../lib/geo";
 import {
   getLanguageOption,
   getPreferredLanguageCode,
+  languageHeaderName,
 } from "../lib/languages";
 import { defaultDescription } from "../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
@@ -27,6 +28,7 @@ export async function generateMetadata({
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
 
@@ -41,6 +43,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const currentLanguage = getLanguageOption(languageCode);
   const promptButtons = getPromptButtons(currentLanguage.code);

@@ -11,6 +11,7 @@ import { getRegionScope } from "../../../lib/geo";
 import {
   getLanguageOption,
   getPreferredLanguageCode,
+  languageHeaderName,
 } from "../../../lib/languages";
 import { makeTitle } from "../../../lib/site-metadata";
 import { getUiCopy } from "../../../lib/ui-copy";
@@ -40,6 +41,7 @@ export async function generateMetadata({
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
   const seed = getLocalizedConversationSeed(entryId, languageCode);
@@ -62,6 +64,7 @@ export default async function ConversationPage({
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const seed = getLocalizedConversationSeed(entryId, languageCode);
 

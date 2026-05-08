@@ -6,6 +6,7 @@ import { getRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
   getPreferredLanguageCode,
+  languageHeaderName,
 } from "../../lib/languages";
 import { getStaticPageContent } from "../../lib/static-pages";
 import { makeTitle } from "../../lib/site-metadata";
@@ -25,6 +26,7 @@ export async function generateMetadata({
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
   const page = getStaticPageContent("about", languageCode);
@@ -41,6 +43,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
   const languageCode = getPreferredLanguageCode({
     acceptLanguageHeader: requestHeaders.get("accept-language"),
     requestedLanguageCode: lang,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);

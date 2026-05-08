@@ -13,6 +13,8 @@ export type LanguageOption = {
 };
 
 export const defaultLanguageCode: SupportedLanguageCode = "en";
+export const languageCookieName = "access_tool_lang";
+export const languageHeaderName = "x-access-tool-lang";
 
 export const languageOptions: readonly LanguageOption[] = [
   { code: "en", label: "English" },
@@ -39,12 +41,18 @@ export function getLanguageOption(code: SupportedLanguageCode): LanguageOption {
 export function getPreferredLanguageCode({
   acceptLanguageHeader,
   requestedLanguageCode,
+  storedLanguageCode,
 }: {
   acceptLanguageHeader?: null | string;
   requestedLanguageCode?: null | string;
+  storedLanguageCode?: null | string;
 }): SupportedLanguageCode {
   if (isSupportedLanguageCode(requestedLanguageCode)) {
     return requestedLanguageCode;
+  }
+
+  if (isSupportedLanguageCode(storedLanguageCode)) {
+    return storedLanguageCode;
   }
 
   const headerValues = (acceptLanguageHeader ?? "")

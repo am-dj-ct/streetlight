@@ -1,7 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import {
+  defaultLanguageCode,
+  isSupportedLanguageCode,
+  languageCookieName,
+  languageHeaderName,
+} from "./lib/languages";
 
-const hardPausePage = `<!doctype html>
-<html lang="en">
+function renderHardPausePage(languageCode: string) {
+  return `<!doctype html>
+<html lang="${languageCode}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -109,19 +116,61 @@ const hardPausePage = `<!doctype html>
     </main>
   </body>
 </html>`;
+}
 
-export function proxy() {
+export function proxy(request: NextRequest) {
+  const requestedLanguageCode = request.nextUrl.searchParams.get("lang");
+  const storedLanguageCode = request.cookies.get(languageCookieName)?.value;
+  const resolvedLanguageCode = isSupportedLanguageCode(requestedLanguageCode)
+    ? requestedLanguageCode
+    : isSupportedLanguageCode(storedLanguageCode)
+      ? storedLanguageCode
+      : defaultLanguageCode;
+
   if (process.env.HARD_PAUSE_ENABLED === "true") {
-    return new NextResponse(hardPausePage, {
+    const response = new NextResponse(renderHardPausePage(resolvedLanguageCode), {
       status: 503,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
       },
     });
+
+    if (
+      isSupportedLanguageCode(requestedLanguageCode) &&
+      requestedLanguageCode !== storedLanguageCode
+    ) {
+      response.cookies.set(languageCookieName, requestedLanguageCode, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
+
+    return response;
   }
 
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(languageHeaderName, resolvedLanguageCode);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  if (
+    isSupportedLanguageCode(requestedLanguageCode) &&
+    requestedLanguageCode !== storedLanguageCode
+  ) {
+    response.cookies.set(languageCookieName, requestedLanguageCode, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+
+  return response;
 }
 
 export const config = {

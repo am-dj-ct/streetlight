@@ -11,8 +11,15 @@ const smokeCaseFilter = (process.env.SMOKE_CASE_FILTER ?? "").trim().toLowerCase
 const pageChecks = [
   {
     expectedText: "What do you need?",
+    extraExpectedText: ['<html lang="en">'],
     path: "/",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=main-screen&amp;source=%2F%3Flang%3Den",
+  },
+  {
+    expectedText: "Full UI translation is still being added for this language.",
+    extraExpectedText: ['<html lang="es">'],
+    path: "/?lang=es",
+    reportLinkSnippet: "/report-problem?lang=es&amp;area=main-screen&amp;source=%2F%3Flang%3Des",
   },
   {
     expectedText: "Paste the letter or form here",
