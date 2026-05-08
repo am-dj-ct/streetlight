@@ -37,6 +37,14 @@ This is a one-person, one-year commitment with a graceful sunset path if no
 institutional home is found by year-end. The about page is honest about
 this. Code stays public on GitHub regardless.
 
+## Useful commands
+
+- `npm run lint`
+- `npm run build`
+- `npm run check:locales`
+- `npm run smoke` — runs a small synthetic end-to-end chat check against
+  `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
+
 ## License
 
 TBD — MIT or Apache-2.0. Picked before public launch.

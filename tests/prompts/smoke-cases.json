@@ -1,0 +1,20 @@
+[
+  {
+    "name": "understand-letter",
+    "entryId": "understand-letter-or-form",
+    "language": "en",
+    "text": "I got a letter about a housing appointment next week and I do not understand what it wants me to bring."
+  },
+  {
+    "name": "write-something",
+    "entryId": "write-something",
+    "language": "en",
+    "text": "Help me write a short text to a case manager saying I may be 10 minutes late."
+  },
+  {
+    "name": "benefits-deadline",
+    "entryId": "figure-out-next",
+    "language": "en",
+    "text": "My food benefits letter says I need to send proof by next Tuesday or they may stop. What should I do first?"
+  }
+]
