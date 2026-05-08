@@ -1,5 +1,8 @@
 import referralsData from "../data/referrals.json";
-import type { ConversationEntryId, WeakCategory } from "./chat-types";
+import {
+  isConversationEntryId,
+  type WeakCategory,
+} from "./chat-types";
 import type { RegionScope } from "./geo";
 import type { SupportedLanguageCode } from "./languages";
 import { buildConversationHref, buildHomeHref } from "./routes";
@@ -125,14 +128,14 @@ export function getBackHrefForReferrals({
   entryId?: null | string;
   languageCode?: null | SupportedLanguageCode;
 }) {
-  if (!entryId) {
+  if (!isConversationEntryId(entryId)) {
     return languageCode ? buildHomeHref(languageCode) : "/";
   }
 
   return languageCode
     ? buildConversationHref({
-        entryId: entryId as ConversationEntryId,
+        entryId,
         languageCode,
       })
-    : `/conversation/${entryId as ConversationEntryId}`;
+    : `/conversation/${entryId}`;
 }

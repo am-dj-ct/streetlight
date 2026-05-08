@@ -10,6 +10,25 @@ export type ConversationEntryId =
   | "type-your-own"
   | "talk-instead";
 
+export const conversationEntryIds: readonly ConversationEntryId[] = [
+  "understand-letter-or-form",
+  "write-something",
+  "think-it-through",
+  "figure-out-next",
+  "explain-like-new",
+  "prepare-for-hard",
+  "am-i-being-unreasonable",
+  "embarrassed-to-ask",
+  "type-your-own",
+  "talk-instead",
+];
+
+export function isConversationEntryId(
+  value: null | string | undefined,
+): value is ConversationEntryId {
+  return conversationEntryIds.includes(value as ConversationEntryId);
+}
+
 export type WeakCategory =
   | "legal_procedure"
   | "medical_dosing"
