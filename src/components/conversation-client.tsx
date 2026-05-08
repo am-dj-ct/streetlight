@@ -394,10 +394,23 @@ export function ConversationClient({
         if (!response.ok) {
           const errorBody = (await response.json().catch(() => null)) as ChatErrorBody | null;
 
-          setMessages(nextMessages);
-          setErrorMessage(
-            errorBody?.error ?? "The response did not come through. Please try again.",
-          );
+          if (errorBody?.assistantNotice) {
+            setMessages([
+              ...nextMessages,
+              {
+                id: pendingAssistantId,
+                role: "assistant",
+                text: errorBody.assistantNotice,
+                weakCategory: "none",
+              },
+            ]);
+            setErrorMessage(null);
+          } else {
+            setMessages(nextMessages);
+            setErrorMessage(
+              errorBody?.error ?? "The response did not come through. Please try again.",
+            );
+          }
           return;
         }
 

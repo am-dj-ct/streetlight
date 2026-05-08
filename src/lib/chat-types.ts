@@ -49,4 +49,5 @@ export type ChatStreamEvent =
 
 export type ChatErrorBody = {
   error: string;
+  assistantNotice?: string;
 };

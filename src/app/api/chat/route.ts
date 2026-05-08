@@ -1,8 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { classifierPrompt, parseWeakCategory } from "../../../lib/classifier-prompt";
-import { getAnthropicApiKey, getClassifierModel, getMainModel } from "../../../lib/env";
+import {
+  getAnthropicApiKey,
+  getClassifierModel,
+  getMainModel,
+  isSoftPauseEnabled,
+} from "../../../lib/env";
 import { checkPerIpRateLimit } from "../../../lib/rate-limit";
+import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import type { ChatRequestBody, ClientChatMessage } from "../../../lib/chat-types";
 
@@ -55,6 +61,17 @@ export async function POST(request: Request) {
   let model = process.env.MAIN_MODEL ?? "missing";
 
   try {
+    if (isSoftPauseEnabled()) {
+      return NextResponse.json(
+        {
+          error: "The tool is paused right now. Please try again later today.",
+          assistantNotice:
+            "The tool is paused right now while the person who runs it checks on something. Try again later today.\n\nIf you need help right now: 988 for crisis, 211 for resources, 911 for emergencies.",
+        },
+        { status: 503 },
+      );
+    }
+
     const rateLimit = await checkPerIpRateLimit(request);
 
     if (!rateLimit.allowed) {
@@ -64,6 +81,24 @@ export async function POST(request: Request) {
           status: 429,
           headers: {
             "Retry-After": String(rateLimit.resetInSeconds),
+          },
+        },
+      );
+    }
+
+    const spendLimit = await checkDailySpendCap();
+
+    if (!spendLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Today's limit has been reached. Please try again tomorrow.",
+          assistantNotice:
+            "Today's limit has been reached, so the tool is resting for now. Try again tomorrow.\n\nIf you need help right now: 988 for crisis, 211 for resources, 911 for emergencies.",
+        },
+        {
+          status: 503,
+          headers: {
+            "Retry-After": String(spendLimit.resetInSeconds),
           },
         },
       );
@@ -86,6 +121,14 @@ export async function POST(request: Request) {
       async start(controller) {
         let sentAnyText = false;
         let responseText = "";
+        let mainUsage:
+          | {
+              cache_creation_input_tokens: null | number;
+              cache_read_input_tokens: null | number;
+              input_tokens: null | number;
+              output_tokens: number;
+            }
+          | null = null;
 
         try {
           for await (const event of stream) {
@@ -108,6 +151,8 @@ export async function POST(request: Request) {
             );
           } else {
             try {
+              const finalMessage = await stream.finalMessage();
+              mainUsage = finalMessage.usage;
               const classifierStartedAt = Date.now();
               const classifierResponse = await anthropic.messages.create({
                 model: classifierModel,
@@ -140,6 +185,37 @@ export async function POST(request: Request) {
                 modelClassifier: classifierModel,
                 classifierResponseTimeMs: Date.now() - classifierStartedAt,
               });
+
+              if (mainUsage) {
+                try {
+                  const spend = await recordDailySpendUsd({
+                    mainUsage,
+                    classifierUsage: classifierResponse.usage,
+                  });
+
+                  if (spend) {
+                    console.info({
+                      code: "daily_spend_recorded",
+                      mainCostUsd: spend.mainCostUsd,
+                      classifierCostUsd: spend.classifierCostUsd,
+                      totalCostUsd: spend.totalCostUsd,
+                      modelMain: model,
+                      modelClassifier: classifierModel,
+                    });
+                  }
+                } catch (error: unknown) {
+                  const spendErrorMessage =
+                    error instanceof Error ? error.message : "";
+                  const isSpendKvError = spendErrorMessage.includes("@vercel/kv");
+
+                  console.error({
+                    code: isSpendKvError ? "daily_spend_record_failed" : "daily_spend_record_failed",
+                    errorType: "SpendTrackingError",
+                    modelMain: model,
+                    modelClassifier: classifierModel,
+                  });
+                }
+              }
             } catch (error: unknown) {
               const responseTimeMs = Date.now() - requestStartedAt;
               const apiError = error instanceof Anthropic.APIError ? error : null;
@@ -205,10 +281,10 @@ export async function POST(request: Request) {
     const responseTimeMs = Date.now() - requestStartedAt;
     const apiError = error instanceof Anthropic.APIError ? error : null;
     const errorMessage = error instanceof Error ? error.message : "";
-    const isRateLimitError = errorMessage.includes("@vercel/kv");
+    const isKvError = errorMessage.includes("@vercel/kv");
 
     console.error({
-      code: isRateLimitError ? "rate_limit_check_failed" : "anthropic_request_setup_failed",
+      code: isKvError ? "request_guard_failed" : "anthropic_request_setup_failed",
       errorType: apiError?.name ?? "UnknownError",
       status: apiError?.status ?? 500,
       model,
