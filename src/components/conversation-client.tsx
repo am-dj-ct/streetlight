@@ -11,6 +11,7 @@ import { getWeakCategoryLabel } from "../lib/referrals";
 import {
   buildConversationHref,
   buildFindHumanHref,
+  buildHomeHref,
   buildPrivacyHref,
 } from "../lib/routes";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
@@ -888,7 +889,7 @@ export function ConversationClient({
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3">
         <header className="flex items-center justify-between pb-3">
           <Link
-            href={`/?lang=${currentLanguageCode}`}
+            href={buildHomeHref(currentLanguageCode)}
             aria-label={copy.backLabel}
             className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22]"
           >

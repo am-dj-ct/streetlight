@@ -10,6 +10,7 @@ import {
   getLanguageOption,
   getRequestLanguageCode,
 } from "../lib/languages";
+import { buildConversationHref, buildHomeHref } from "../lib/routes";
 import { defaultDescription } from "../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 
@@ -58,7 +59,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         <div className="pb-4">
           <LanguageStripLinks
             currentLanguageCode={currentLanguage.code}
-            getHref={(nextLanguageCode) => `/?lang=${nextLanguageCode}`}
+            getHref={buildHomeHref}
           />
         </div>
 
@@ -81,7 +82,10 @@ export default async function Home({ searchParams }: HomePageProps) {
             {promptButtons.map((button) => (
               <Link
                 key={button.id}
-                href={`/conversation/${button.id}?lang=${currentLanguage.code}`}
+                href={buildConversationHref({
+                  entryId: button.id,
+                  languageCode: currentLanguage.code,
+                })}
                 className="flex min-h-16 w-full items-center rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
               >
                 {button.label}
@@ -91,7 +95,10 @@ export default async function Home({ searchParams }: HomePageProps) {
             {alternateActions.map((action) => (
               <Link
                 key={action.id}
-                href={`/conversation/${action.id}?lang=${currentLanguage.code}`}
+                href={buildConversationHref({
+                  entryId: action.id,
+                  languageCode: currentLanguage.code,
+                })}
                 className="flex min-h-16 w-full items-center rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
               >
                 {action.label}
@@ -105,7 +112,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         area="main-screen"
         languageCode={currentLanguage.code}
         regionScope={regionScope}
-        sourcePath={`/?lang=${currentLanguage.code}`}
+        sourcePath={buildHomeHref(currentLanguage.code)}
       />
     </main>
   );

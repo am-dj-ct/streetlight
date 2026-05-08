@@ -4,6 +4,7 @@ import { LanguageStripLinks } from "./language-strip-links";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type { RegionScope } from "../lib/geo";
 import type { LanguageOption, SupportedLanguageCode } from "../lib/languages";
+import { buildHomeHref } from "../lib/routes";
 
 type InfoPageShellProps = {
   area?: string;
@@ -35,7 +36,7 @@ export function InfoPageShell({
         <header className="pb-4">
           <div className="flex items-center justify-between">
             <Link
-              href={`/?lang=${currentLanguage.code}`}
+              href={buildHomeHref(currentLanguage.code)}
               aria-label={copy.homeLabel}
               className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22]"
             >
