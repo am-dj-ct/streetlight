@@ -101,6 +101,7 @@
     "referralsRegionKing": "King County, WA",
     "referralsRegionFallback": "U.S. fallback",
     "chooseLanguageLabel": "Choose language",
+    "localDevBadgeLabel": "Local mock chat mode: no live model calls",
     "backLabel": "Go back",
     "homeLabel": "Home",
     "languageSheetTitle": "Language",

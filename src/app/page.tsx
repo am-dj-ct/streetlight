@@ -63,7 +63,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         </div>
 
         <section className="flex-1 pb-4">
-          <LocalDevBadge className="pb-3" />
+          <LocalDevBadge className="pb-3" languageCode={currentLanguage.code} />
           <h1 className="pt-2 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
             <span className="block">{copy.landingHeadingLineOne}</span>
             <span className="block">{copy.landingHeadingLineTwo}</span>

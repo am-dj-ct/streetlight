@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getUiCopy } from "../lib/ui-copy";
 import { languageOptions, type SupportedLanguageCode } from "../lib/languages";
 
 export function LanguageStripLinks({
@@ -10,9 +11,11 @@ export function LanguageStripLinks({
   getHref: (languageCode: SupportedLanguageCode) => string;
   align?: "end" | "start";
 }) {
+  const copy = getUiCopy(currentLanguageCode);
+
   return (
     <nav
-      aria-label="Choose language"
+      aria-label={copy.chooseLanguageLabel}
       className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] leading-6 text-[#314036] ${
         align === "end" ? "justify-end" : "justify-start"
       }`}
