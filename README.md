@@ -54,8 +54,8 @@ this. Code stays public on GitHub regardless.
   placeholders, translations, and env contract
 - `npm run build:translation-worklist`
 - `npm run validate:data`
-- `npm run smoke` — runs a small synthetic end-to-end chat check against
-  `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
+- `npm run smoke` — checks key pages plus a small synthetic end-to-end chat
+  flow against `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
 - `npm run regression:prompts` — runs the starter synthetic prompt set in
   `tests/prompts/`
 - `npm run verify` — runs the local pre-launch verification stack

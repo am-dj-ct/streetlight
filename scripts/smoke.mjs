@@ -6,6 +6,32 @@ const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const endpoint = new URL("/api/chat", baseUrl).toString();
 const healthEndpoint = new URL("/healthz", baseUrl).toString();
 const casesPath = path.join(cwd, "tests/prompts/smoke-cases.json");
+const pageChecks = [
+  {
+    expectedText: "What do you need?",
+    path: "/",
+  },
+  {
+    expectedText: "Paste the letter or form here",
+    path: "/conversation/understand-letter-or-form?lang=en",
+  },
+  {
+    expectedText: "Find a human",
+    path: "/find-human?entryId=understand-letter-or-form&lang=en",
+  },
+  {
+    expectedText: "About",
+    path: "/about?lang=en",
+  },
+  {
+    expectedText: "Privacy",
+    path: "/privacy?lang=en",
+  },
+  {
+    expectedText: "Report a problem",
+    path: "/report-problem?lang=en",
+  },
+];
 
 function fail(message) {
   throw new Error(message);
@@ -30,6 +56,26 @@ async function checkHealth() {
 
   if (!body || body.ok !== true || body.service !== "access-tool") {
     fail("Unexpected /healthz response body.");
+  }
+}
+
+async function checkPages() {
+  for (const page of pageChecks) {
+    const response = await fetch(new URL(page.path, baseUrl), {
+      headers: {
+        Accept: "text/html",
+      },
+    });
+
+    if (!response.ok) {
+      fail(`HTTP ${response.status} from ${page.path}.`);
+    }
+
+    const html = await response.text();
+
+    if (!html.includes(page.expectedText)) {
+      fail(`Expected text not found on ${page.path}.`);
+    }
   }
 }
 
@@ -149,6 +195,8 @@ async function runCase(testCase) {
 
 await checkHealth();
 console.log("Health check ok (/healthz).");
+await checkPages();
+console.log("Page checks ok (landing, conversation, referrals, support pages).");
 
 const smokeCases = await loadCases();
 const results = [];
