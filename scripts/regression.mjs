@@ -3,6 +3,7 @@ import path from "node:path";
 import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
 import { isChatStreamEvent } from "./lib/chat-stream.mjs";
 import { readJsonFile } from "./lib/json-file.mjs";
+import { validateRegressionCases } from "./lib/prompt-fixtures.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -30,7 +31,7 @@ async function loadCases() {
 
     const entryId = entry.name;
     const filePath = path.join(fixturesRoot, entryId, "cases.json");
-    const cases = await readJsonFile(filePath);
+    const cases = validateRegressionCases(await readJsonFile(filePath), filePath);
 
     for (const testCase of cases) {
       allCases.push({

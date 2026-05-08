@@ -9,6 +9,7 @@ import { isChatStreamEvent } from "./lib/chat-stream.mjs";
 import { readJsonFile } from "./lib/json-file.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
+import { validateSmokeCases } from "./lib/prompt-fixtures.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -151,7 +152,10 @@ function fail(message) {
 }
 
 async function loadCases() {
-  const allCases = await readJsonFile(casesPath);
+  const allCases = validateSmokeCases(
+    await readJsonFile(casesPath),
+    "tests/prompts/smoke-cases.json",
+  );
   const filteredCases = smokeCaseFilter
     ? allCases.filter((testCase) =>
         `${testCase.name}/${testCase.entryId}`.toLowerCase().includes(smokeCaseFilter),
