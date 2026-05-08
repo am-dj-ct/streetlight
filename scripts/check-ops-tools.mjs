@@ -58,4 +58,14 @@ if (
   fail("append-sev3-note dry run did not include the expected log preview.");
 }
 
+const resourceStatusOutput = runNodeScript("scripts/print-resource-status.mjs", []);
+
+if (
+  !resourceStatusOutput.includes("Access Tool resource status") ||
+  !resourceStatusOutput.includes("Referral resources") ||
+  !resourceStatusOutput.includes("Crisis resources")
+) {
+  fail("print-resource-status output did not include the expected sections.");
+}
+
 console.log("Ops helper checks passed.");

@@ -50,6 +50,11 @@ const pageChecks = [
   },
   {
     expectedText: "Source route:",
+    extraExpectedText: [
+      "Current resource scope: <!-- -->King County, WA",
+      "Entry button: <!-- -->Understand a letter or form",
+      "Current chat mode: <!-- -->local mock chat",
+    ],
     path: "/report-problem?lang=en&area=conversation&entryId=understand-letter-or-form&source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",
     reportLinkSnippet:
       "href=\"/conversation/understand-letter-or-form?lang=en\"",
