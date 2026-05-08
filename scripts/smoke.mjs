@@ -49,6 +49,15 @@ const pageChecks = [
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3Fcategory%3Dbenefits_eligibility%26entryId%3Dunderstand-letter-or-form%26lang%3Den",
   },
   {
+    expectedText: "Find a human",
+    extraExpectedText: [
+      "href=\"/?lang=en\"",
+    ],
+    path: "/find-human?entryId=not-a-real-entry&lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=find-human&amp;entryId=not-a-real-entry&amp;source=%2Ffind-human%3FentryId%3Dnot-a-real-entry%26lang%3Den",
+  },
+  {
     expectedText: "About",
     path: "/about?lang=en",
     reportLinkSnippet:
