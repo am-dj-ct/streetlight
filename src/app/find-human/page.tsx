@@ -17,6 +17,7 @@ import {
   isReferralSpecificToCategory,
   isWeakCategory,
 } from "../../lib/referrals";
+import { buildFindHumanHref } from "../../lib/routes";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../../lib/ui-copy";
 
@@ -100,21 +101,13 @@ export default async function FindHumanPage({
           <div className="pt-3">
             <LanguageStripLinks
               currentLanguageCode={currentLanguage.code}
-              getHref={(nextLanguageCode) => {
-                const nextParams = new URLSearchParams();
-
-                if (category) {
-                  nextParams.set("category", category);
-                }
-
-                if (entryId) {
-                  nextParams.set("entryId", entryId);
-                }
-
-                nextParams.set("lang", nextLanguageCode);
-
-                return `/find-human?${nextParams.toString()}`;
-              }}
+              getHref={(nextLanguageCode) =>
+                buildFindHumanHref({
+                  category,
+                  entryId,
+                  languageCode: nextLanguageCode,
+                })
+              }
             />
           </div>
 
@@ -145,16 +138,10 @@ export default async function FindHumanPage({
             <span className="font-semibold">{categoryLabel}</span>.
             <div className="pt-2">
               <Link
-                href={(() => {
-                  const params = new URLSearchParams();
-
-                  if (entryId) {
-                    params.set("entryId", entryId);
-                  }
-
-                  params.set("lang", languageCode);
-                  return `/find-human?${params.toString()}`;
-                })()}
+                href={buildFindHumanHref({
+                  entryId,
+                  languageCode,
+                })}
                 className="font-semibold underline"
               >
                 {copy.referralsShowAll}
@@ -239,20 +226,11 @@ export default async function FindHumanPage({
         entryId={entryId}
         languageCode={languageCode}
         regionScope={regionScope}
-        sourcePath={(() => {
-          const params = new URLSearchParams();
-
-          if (category) {
-            params.set("category", category);
-          }
-
-          if (entryId) {
-            params.set("entryId", entryId);
-          }
-
-          params.set("lang", languageCode);
-          return `/find-human?${params.toString()}`;
-        })()}
+        sourcePath={buildFindHumanHref({
+          category,
+          entryId,
+          languageCode,
+        })}
       />
     </main>
   );

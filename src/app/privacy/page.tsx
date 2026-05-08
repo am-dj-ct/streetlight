@@ -7,6 +7,11 @@ import {
   getLanguageOption,
   getRequestLanguageCode,
 } from "../../lib/languages";
+import {
+  buildHomeHref,
+  buildPrivacyHref,
+  buildReportProblemHref,
+} from "../../lib/routes";
 import { getStaticPageContent } from "../../lib/static-pages";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
@@ -55,10 +60,10 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
       area="privacy"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
-      sourcePath={`/privacy?lang=${languageCode}`}
+      sourcePath={buildPrivacyHref(languageCode)}
       title={page.title}
       lastUpdated={page.lastUpdated}
-      getLanguageHref={(nextLanguageCode) => `/privacy?lang=${nextLanguageCode}`}
+      getLanguageHref={(nextLanguageCode) => buildPrivacyHref(nextLanguageCode)}
     >
       {page.sections.map((section) => (
         <article key={section.heading} className="space-y-3">
@@ -82,14 +87,18 @@ export default async function PrivacyPage({ searchParams }: PrivacyPageProps) {
 
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
         <Link
-          href={`/report-problem?lang=${languageCode}&area=privacy&source=${encodeURIComponent(`/privacy?lang=${languageCode}`)}`}
+          href={buildReportProblemHref({
+            area: "privacy",
+            languageCode,
+            sourcePath: buildPrivacyHref(languageCode),
+          })}
           className="font-semibold underline"
         >
           {copy.reportProblemByEmail}
         </Link>
         <p className="pt-2">
           {copy.goBackPrefix}{" "}
-          <Link href={`/?lang=${languageCode}`} className="font-semibold underline">
+          <Link href={buildHomeHref(languageCode)} className="font-semibold underline">
             {copy.backToMainScreen}
           </Link>
           .

@@ -2,6 +2,12 @@ import Link from "next/link";
 import { getCrisisResources } from "../lib/crisis-resources";
 import type { SupportedLanguageCode } from "../lib/languages";
 import type { RegionScope } from "../lib/geo";
+import {
+  buildAboutHref,
+  buildFindHumanHref,
+  buildPrivacyHref,
+  buildReportProblemHref,
+} from "../lib/routes";
 import { getUiCopy } from "../lib/ui-copy";
 
 export function CrisisFooter({
@@ -19,25 +25,16 @@ export function CrisisFooter({
 }) {
   const copy = getUiCopy(languageCode);
   const crisisResources = getCrisisResources(regionScope);
-  const findHumanHref = entryId
-    ? `/find-human?entryId=${encodeURIComponent(entryId)}&lang=${languageCode}`
-    : `/find-human?lang=${languageCode}`;
-  const reportProblemParams = new URLSearchParams();
-  reportProblemParams.set("lang", languageCode);
-
-  if (area) {
-    reportProblemParams.set("area", area);
-  }
-
-  if (entryId) {
-    reportProblemParams.set("entryId", entryId);
-  }
-
-  if (sourcePath) {
-    reportProblemParams.set("source", sourcePath);
-  }
-
-  const reportProblemHref = `/report-problem?${reportProblemParams.toString()}`;
+  const findHumanHref = buildFindHumanHref({
+    entryId,
+    languageCode,
+  });
+  const reportProblemHref = buildReportProblemHref({
+    area,
+    entryId,
+    languageCode,
+    sourcePath,
+  });
 
   return (
     <footer
@@ -68,10 +65,10 @@ export function CrisisFooter({
           <Link href={findHumanHref} className="font-semibold underline">
             {copy.footerFindHuman}
           </Link>
-          <Link href={`/privacy?lang=${languageCode}`} className="font-semibold underline">
+          <Link href={buildPrivacyHref(languageCode)} className="font-semibold underline">
             {copy.footerPrivacy}
           </Link>
-          <Link href={`/about?lang=${languageCode}`} className="font-semibold underline">
+          <Link href={buildAboutHref(languageCode)} className="font-semibold underline">
             {copy.footerAbout}
           </Link>
           <Link href={reportProblemHref} className="font-semibold underline">

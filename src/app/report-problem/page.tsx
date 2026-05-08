@@ -13,6 +13,10 @@ import {
   getLanguageOption,
   getRequestLanguageCode,
 } from "../../lib/languages";
+import {
+  buildHomeHref,
+  buildReportProblemHref,
+} from "../../lib/routes";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
 
@@ -70,7 +74,12 @@ export default async function ReportProblemPage({
       title={copy.reportPageTitle}
       lastUpdated="2026-05-08"
       getLanguageHref={(nextLanguageCode) =>
-        `/report-problem?lang=${nextLanguageCode}${area ? `&area=${encodeURIComponent(area)}` : ""}${entryId ? `&entryId=${encodeURIComponent(entryId)}` : ""}${source ? `&source=${encodeURIComponent(source)}` : ""}`
+        buildReportProblemHref({
+          area,
+          entryId,
+          languageCode: nextLanguageCode,
+          sourcePath: source,
+        })
       }
     >
       <ReportProblemForm
@@ -94,7 +103,7 @@ export default async function ReportProblemPage({
         ) : null}
         <p>
           {copy.goBackPrefix}{" "}
-          <Link href={`/?lang=${languageCode}`} className="font-semibold underline">
+          <Link href={buildHomeHref(languageCode)} className="font-semibold underline">
             {copy.backToMainScreen}
           </Link>
           .

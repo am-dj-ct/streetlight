@@ -8,6 +8,11 @@ import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
 import { getConversationContentEntry } from "../lib/conversation-content";
 import { getWeakCategoryLabel } from "../lib/referrals";
+import {
+  buildConversationHref,
+  buildFindHumanHref,
+  buildPrivacyHref,
+} from "../lib/routes";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
   ChatErrorBody,
@@ -961,7 +966,11 @@ export function ConversationClient({
                       <div className="mt-3 space-y-3">
                         {weakCategory ? (
                           <Link
-                            href={`/find-human?category=${weakCategory}&entryId=${entryId}&lang=${currentLanguageCode}`}
+                            href={buildFindHumanHref({
+                              category: weakCategory,
+                              entryId,
+                              languageCode: currentLanguageCode,
+                            })}
                             className="block rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]"
                           >
                             <span className="font-semibold">{copy.weakCategoryLead}</span>{" "}
@@ -991,11 +1000,11 @@ export function ConversationClient({
                           {copy.voiceTitle}
                         </button>
                         <Link
-                          href={
-                            weakCategory
-                              ? `/find-human?category=${weakCategory}&entryId=${entryId}&lang=${currentLanguageCode}`
-                              : `/find-human?entryId=${entryId}&lang=${currentLanguageCode}`
-                          }
+                          href={buildFindHumanHref({
+                            category: weakCategory ?? undefined,
+                            entryId,
+                            languageCode: currentLanguageCode,
+                          })}
                           className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                         >
                           {copy.findHumanForThis}
@@ -1185,7 +1194,10 @@ export function ConversationClient({
               {languageOptions.map((language) => (
                 <Link
                   key={language.code}
-                  href={`/conversation/${entryId}?lang=${language.code}`}
+                  href={buildConversationHref({
+                    entryId,
+                    languageCode: language.code,
+                  })}
                   className={`flex min-h-12 items-center justify-between rounded-[16px] border px-4 text-[16px] font-medium ${
                     language.code === currentLanguageCode
                       ? "border-[#1f5f43] bg-[#edf3ef] text-[#1f5f43]"
@@ -1214,7 +1226,7 @@ export function ConversationClient({
               <p>{copy.saveBodyThree}</p>
               <p>
                 <Link
-                  href={`/privacy?lang=${currentLanguageCode}`}
+                  href={buildPrivacyHref(currentLanguageCode)}
                   className="font-semibold underline"
                 >
                   {copy.savePrivacyLink}
@@ -1282,7 +1294,10 @@ export function ConversationClient({
         entryId={entryId}
         languageCode={currentLanguageCode}
         regionScope={regionScope}
-        sourcePath={`/conversation/${entryId}?lang=${currentLanguageCode}`}
+        sourcePath={buildConversationHref({
+          entryId,
+          languageCode: currentLanguageCode,
+        })}
       />
     </main>
   );
