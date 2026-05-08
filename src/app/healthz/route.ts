@@ -1,21 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  getDeployCommitSha,
-  getDeployEnvironment,
-  isDevMockChatEnabled,
-  isProductionMockMisconfigured,
-} from "../../lib/env";
+import { getRuntimeState } from "../../lib/runtime-state";
 
 export function GET() {
   return NextResponse.json(
-    {
-      chatMode: isDevMockChatEnabled() ? "mock-local" : "live-model",
-      commitSha: getDeployCommitSha() ?? "local-dev",
-      deployEnv: getDeployEnvironment(),
-      deployConfigOk: !isProductionMockMisconfigured(),
-      ok: true,
-      service: "access-tool",
-    },
+    getRuntimeState(),
     {
       headers: {
         "Cache-Control": "no-store",

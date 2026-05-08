@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { ConversationEntryId } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
 import { getConversationContentEntry } from "../lib/conversation-content";
+import type { ChatMode } from "../lib/runtime-state";
 import { buildMailtoHref } from "../lib/support";
 import {
   getLanguageOption,
@@ -40,7 +41,7 @@ const problemOptions: readonly ReportOption[] = [
 ];
 
 type ReportProblemFormProps = {
-  chatMode: "live-model" | "mock-local";
+  chatMode: ChatMode;
   commitSha: null | string;
   copy: UiCopy;
   deployEnv: string;
@@ -55,7 +56,7 @@ function isWhereOption(value: string | undefined): value is string {
   return whereOptions.some((option) => option.value === value);
 }
 
-function getChatModeLabel(chatMode: "live-model" | "mock-local", copy: UiCopy) {
+function getChatModeLabel(chatMode: ChatMode, copy: UiCopy) {
   return chatMode === "mock-local"
     ? copy.reportChatModeMockLocal
     : copy.reportChatModeLiveModel;

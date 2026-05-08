@@ -3,16 +3,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
 import { ReportProblemForm } from "../../components/report-problem-form";
-import {
-  getDeployCommitSha,
-  getDeployEnvironment,
-  isDevMockChatEnabled,
-} from "../../lib/env";
 import { getPageRequestContext } from "../../lib/request-context";
 import {
   buildHomeHref,
   buildReportProblemHref,
 } from "../../lib/routes";
+import { getRuntimeState } from "../../lib/runtime-state";
 import { makeTitle } from "../../lib/site-metadata";
 
 type ReportProblemPageProps = {
@@ -54,9 +50,7 @@ export default async function ReportProblemPage({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const chatMode = isDevMockChatEnabled() ? "mock-local" : "live-model";
-  const commitSha = getDeployCommitSha();
-  const deployEnv = getDeployEnvironment();
+  const runtimeState = getRuntimeState();
 
   return (
     <InfoPageShell
@@ -76,10 +70,10 @@ export default async function ReportProblemPage({
       }
     >
       <ReportProblemForm
-        chatMode={chatMode}
-        commitSha={commitSha}
+        chatMode={runtimeState.chatMode}
+        commitSha={runtimeState.commitSha}
         copy={copy}
-        deployEnv={deployEnv}
+        deployEnv={runtimeState.deployEnv}
         entryId={entryId}
         initialArea={area}
         languageCode={languageCode}
