@@ -12,26 +12,36 @@ const pageChecks = [
   {
     expectedText: "What do you need?",
     path: "/",
+    reportLinkSnippet: "/report-problem?lang=en&amp;area=main-screen&amp;source=%2F%3Flang%3Den",
   },
   {
     expectedText: "Paste the letter or form here",
     path: "/conversation/understand-letter-or-form?lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=conversation&amp;entryId=understand-letter-or-form&amp;source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",
   },
   {
     expectedText: "Find a human",
     path: "/find-human?entryId=understand-letter-or-form&lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
   },
   {
     expectedText: "About",
     path: "/about?lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=about&amp;source=%2Fabout%3Flang%3Den",
   },
   {
     expectedText: "Privacy",
     path: "/privacy?lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=privacy&amp;source=%2Fprivacy%3Flang%3Den",
   },
   {
     expectedText: "Report a problem",
     path: "/report-problem?lang=en",
+    reportLinkSnippet: "/report-problem?lang=en&amp;area=other",
   },
 ];
 
@@ -96,6 +106,10 @@ async function checkPages() {
 
     if (!html.includes(page.expectedText)) {
       fail(`Expected text not found on ${page.path}.`);
+    }
+
+    if (page.reportLinkSnippet && !html.includes(page.reportLinkSnippet)) {
+      fail(`Expected report-problem link not found on ${page.path}.`);
     }
   }
 }
