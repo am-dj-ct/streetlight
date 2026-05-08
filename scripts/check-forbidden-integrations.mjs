@@ -83,6 +83,7 @@ function extractImportSpecifiers(source) {
 }
 
 const packageJson = await readJsonFile(path.join(cwd, "package.json"));
+const packageLock = await readJsonFile(path.join(cwd, "package-lock.json"));
 const dependencyViolations = [];
 
 for (const bucket of dependencyBuckets) {
@@ -101,6 +102,26 @@ for (const bucket of dependencyBuckets) {
 
 if (dependencyViolations.length > 0) {
   fail(`Forbidden integration package(s): ${dependencyViolations.join(", ")}.`);
+}
+
+const lockfileViolations = [];
+
+if (packageLock.packages && typeof packageLock.packages === "object") {
+  for (const packagePath of Object.keys(packageLock.packages)) {
+    if (!packagePath.startsWith("node_modules/")) {
+      continue;
+    }
+
+    const packageName = packagePath.slice("node_modules/".length);
+
+    if (isForbiddenSpecifier(packageName)) {
+      lockfileViolations.push(packagePath);
+    }
+  }
+}
+
+if (lockfileViolations.length > 0) {
+  fail(`Forbidden integration lockfile package(s): ${lockfileViolations.join(", ")}.`);
 }
 
 const importViolations = [];
