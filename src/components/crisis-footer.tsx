@@ -3,6 +3,7 @@ import { getCrisisResources } from "../lib/crisis-resources";
 import type { ConversationEntryId } from "../lib/chat-types";
 import type { SupportedLanguageCode } from "../lib/languages";
 import type { RegionScope } from "../lib/geo";
+import type { ReportArea } from "../lib/report-areas";
 import {
   buildAboutHref,
   buildFindHumanHref,
@@ -19,7 +20,7 @@ export function CrisisFooter({
   regionScope = "king",
   sourcePath,
 }: {
-  area?: string;
+  area?: ReportArea;
   entryId?: ConversationEntryId;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;

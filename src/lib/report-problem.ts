@@ -1,27 +1,9 @@
 import { isConversationEntryId, type ConversationEntryId } from "./chat-types";
+import { isReportArea, type ReportArea } from "./report-areas";
 import {
   sanitizeInternalSourcePath,
   type InternalAppPath,
 } from "./routes";
-
-export const reportAreas = [
-  "main-screen",
-  "conversation",
-  "find-human",
-  "saving",
-  "voice-or-mic",
-  "privacy",
-  "about",
-  "other",
-] as const;
-
-export type ReportArea = (typeof reportAreas)[number];
-
-export function isReportArea(
-  value: null | string | undefined,
-): value is ReportArea {
-  return reportAreas.includes(value as ReportArea);
-}
 
 export function sanitizeReportProblemSearchParams({
   area,
@@ -42,3 +24,5 @@ export function sanitizeReportProblemSearchParams({
     sourcePath: sanitizeInternalSourcePath(sourcePath) ?? undefined,
   };
 }
+
+export { isReportArea, reportAreas, type ReportArea } from "./report-areas";

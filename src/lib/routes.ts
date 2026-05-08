@@ -1,5 +1,6 @@
 import type { ConversationEntryId, WeakCategory } from "./chat-types";
 import type { SupportedLanguageCode } from "./languages";
+import type { ReportArea } from "./report-areas";
 
 export type InternalAppPath = `/${string}`;
 
@@ -10,7 +11,7 @@ type FindHumanHrefOptions = {
 };
 
 type ReportProblemHrefOptions = {
-  area?: null | string;
+  area?: ReportArea | null;
   entryId?: ConversationEntryId | null;
   languageCode: SupportedLanguageCode;
   sourcePath?: InternalAppPath | null;

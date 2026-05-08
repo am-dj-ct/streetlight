@@ -4,10 +4,11 @@ import { LanguageStripLinks } from "./language-strip-links";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type { RegionScope } from "../lib/geo";
 import type { LanguageOption, SupportedLanguageCode } from "../lib/languages";
+import type { ReportArea } from "../lib/report-areas";
 import { buildHomeHref, type InternalAppPath } from "../lib/routes";
 
 type InfoPageShellProps = {
-  area?: string;
+  area?: ReportArea;
   currentLanguage: LanguageOption;
   regionScope: RegionScope;
   sourcePath?: InternalAppPath;
