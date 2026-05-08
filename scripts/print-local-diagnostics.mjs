@@ -1,6 +1,10 @@
 const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const healthEndpoint = new URL("/healthz", baseUrl).toString();
-const reportEndpoint = new URL("/report-problem?lang=en", baseUrl).toString();
+const sampleSourcePath = "/conversation/understand-letter-or-form?lang=en";
+const reportEndpoint = new URL(
+  `/report-problem?lang=en&area=conversation&entryId=understand-letter-or-form&source=${encodeURIComponent(sampleSourcePath)}`,
+  baseUrl,
+).toString();
 
 function fail(message) {
   throw new Error(message);
@@ -44,6 +48,7 @@ const reportChatMode = extractValue(reportHtml, "Current chat mode");
 const reportDeployEnv = extractValue(reportHtml, "Current deploy environment");
 const reportCommit = extractValue(reportHtml, "Current commit");
 const reportResourceScope = extractValue(reportHtml, "Current resource scope");
+const reportSourceRoute = extractValue(reportHtml, "Source route");
 
 console.log("Access Tool local diagnostics");
 console.log("");
@@ -58,3 +63,4 @@ console.log(`- chat mode: ${reportChatMode ?? "(missing)"}`);
 console.log(`- deploy environment: ${reportDeployEnv ?? "(missing)"}`);
 console.log(`- commit: ${reportCommit ?? "(missing)"}`);
 console.log(`- resource scope: ${reportResourceScope ?? "(missing)"}`);
+console.log(`- source route: ${reportSourceRoute ?? "(missing)"}`);
