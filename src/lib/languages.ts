@@ -86,3 +86,25 @@ export function getRequestLanguageCode({
     storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
 }
+
+export function getSpeechLocaleForLanguageCode(
+  languageCode: SupportedLanguageCode,
+): string {
+  switch (languageCode) {
+    case "es":
+      return "es-US";
+    case "vi":
+      return "vi-VN";
+    case "so":
+      return "so-SO";
+    case "ru":
+      return "ru-RU";
+    case "am":
+      return "am-ET";
+    case "zh":
+      return "zh-CN";
+    case "en":
+    default:
+      return "en-US";
+  }
+}

@@ -18,6 +18,7 @@ import type {
 } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
 import {
+  getSpeechLocaleForLanguageCode,
   languageOptions,
   type SupportedLanguageCode,
 } from "../lib/languages";
@@ -107,26 +108,6 @@ function stripMarkdownForSpeech(text: string): string {
     .replace(/\n/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim();
-}
-
-function getSpeechLanguage(label: string): string {
-  switch (label) {
-    case "Español":
-      return "es-US";
-    case "Tiếng Việt":
-      return "vi-VN";
-    case "Soomaali":
-      return "so-SO";
-    case "Русский":
-      return "ru-RU";
-    case "አማርኛ":
-      return "am-ET";
-    case "中文":
-      return "zh-CN";
-    case "English":
-    default:
-      return "en-US";
-  }
 }
 
 function chooseBestVoice(voices: SpeechSynthesisVoice[], language: string) {
@@ -459,7 +440,7 @@ export function ConversationClient({
     };
   }, [turnstileScriptReady, turnstileSiteKey]);
 
-  const voiceLanguage = getSpeechLanguage(currentLanguageLabel);
+  const voiceLanguage = getSpeechLocaleForLanguageCode(currentLanguageCode);
   const voiceOptions = getVoiceOptions(availableVoices, voiceLanguage);
   const effectiveVoiceUri =
     selectedVoiceUri ||
@@ -695,7 +676,7 @@ export function ConversationClient({
     dictationBaseDraftRef.current = draft.trimEnd();
 
     const recognition = new Recognition();
-    recognition.lang = getSpeechLanguage(currentLanguageLabel);
+    recognition.lang = getSpeechLocaleForLanguageCode(currentLanguageCode);
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.onresult = (event) => {
