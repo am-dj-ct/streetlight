@@ -35,6 +35,13 @@ const pageChecks = [
       "/report-problem?lang=en&amp;area=conversation&amp;entryId=understand-letter-or-form&amp;source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",
   },
   {
+    expectedText: "Paste the letter or form here",
+    extraExpectedText: ['<html lang="en">'],
+    path: "/conversation/understand-letter-or-form?lang=not-a-real-language",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=conversation&amp;entryId=understand-letter-or-form&amp;source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",
+  },
+  {
     expectedText: "Find a human",
     extraExpectedText: [
       "Resource list checked through:",
