@@ -43,6 +43,12 @@ const pageChecks = [
     path: "/report-problem?lang=en",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=other",
   },
+  {
+    expectedText: "Source route:",
+    path: "/report-problem?lang=en&area=conversation&entryId=understand-letter-or-form&source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",
+    reportLinkSnippet:
+      "href=\"/conversation/understand-letter-or-form?lang=en\"",
+  },
 ];
 
 function fail(message) {
