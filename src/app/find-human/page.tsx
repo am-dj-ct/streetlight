@@ -151,6 +151,7 @@ export default async function FindHumanPage({
                 {resource.phone ? (
                   <a
                     href={formatTelephoneHref(resource.phone)}
+                    aria-label={`${copy.referralsCallLabel} ${resource.name} ${resource.phone}`}
                     className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                   >
                     {copy.referralsCallLabel} {resource.phone}
@@ -160,6 +161,7 @@ export default async function FindHumanPage({
                 {resource.secondaryPhone ? (
                   <a
                     href={formatTelephoneHref(resource.secondaryPhone)}
+                    aria-label={`${copy.referralsAltLabel} ${resource.name} ${resource.secondaryPhone}`}
                     className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                   >
                     {copy.referralsAltLabel} {resource.secondaryPhone}
@@ -170,6 +172,7 @@ export default async function FindHumanPage({
                   href={resource.website}
                   target="_blank"
                   rel="noreferrer"
+                  aria-label={`${copy.referralsWebsiteLabel} ${resource.name}`}
                   className="flex min-h-11 items-center rounded-full bg-[#1f5f43] px-4 text-[15px] font-semibold text-white"
                 >
                   {copy.referralsWebsiteLabel}

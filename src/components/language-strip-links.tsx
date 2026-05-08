@@ -21,6 +21,7 @@ export function LanguageStripLinks({
         <Link
           key={language.code}
           href={getHref(language.code)}
+          aria-current={language.code === currentLanguageCode ? "page" : undefined}
           className={`min-h-10 px-1 font-medium underline-offset-4 hover:underline ${
             language.code === currentLanguageCode ? "underline" : ""
           }`}

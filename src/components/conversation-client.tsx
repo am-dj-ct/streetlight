@@ -840,7 +840,12 @@ export function ConversationClient({
           </button>
         </header>
 
-        <section ref={threadRef} className="min-h-0 flex-1 overflow-y-auto pb-4">
+        <section
+          ref={threadRef}
+          aria-busy={isStreaming}
+          aria-live="polite"
+          className="min-h-0 flex-1 overflow-y-auto pb-4"
+        >
           <div className="flex flex-col gap-5">
             {!hasTranslatedCopy && currentLanguageCode !== "en" ? (
               <div className="rounded-[16px] border border-[#d8e1db] bg-[#fdfefe] px-4 py-3 text-[14px] leading-6 text-[#5f6d64]">
@@ -960,7 +965,9 @@ export function ConversationClient({
             ) : null}
 
             {errorMessage ? (
-              <p className="text-[15px] leading-6 text-[#9a3f2f]">{errorMessage}</p>
+              <p role="status" className="text-[15px] leading-6 text-[#9a3f2f]">
+                {errorMessage}
+              </p>
             ) : null}
 
             {turnstileSiteKey ? (
