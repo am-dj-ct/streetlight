@@ -20,6 +20,15 @@ const validWeakCategories = new Set([
 const validReferralCategories = new Set(["all", ...validWeakCategories]);
 const validRegions = new Set(["king", "fallback"]);
 const staleAfterDays = 180;
+const requiredReferralCoverageCategories = [
+  "legal_procedure",
+  "medical_dosing",
+  "benefits_eligibility",
+  "immigration",
+  "drug_interactions",
+  "specific_deadlines",
+  "specific_dollar_amounts",
+];
 
 function fail(message) {
   throw new Error(message);
@@ -95,10 +104,18 @@ function assertRegions(value, label) {
     fail(`${label} must be a non-empty array.`);
   }
 
+  const seenRegions = new Set();
+
   for (const region of value) {
     if (!validRegions.has(region)) {
       fail(`${label} contains invalid region "${region}".`);
     }
+
+    if (seenRegions.has(region)) {
+      fail(`${label} contains duplicate region "${region}".`);
+    }
+
+    seenRegions.add(region);
   }
 }
 
@@ -116,6 +133,12 @@ function validateReferrals(referrals) {
   }
 
   const seenIds = new Set();
+  const regionCoverage = new Map(
+    [...validRegions].map((region) => [
+      region,
+      new Map(requiredReferralCoverageCategories.map((category) => [category, 0])),
+    ]),
+  );
   const warnings = [];
 
   for (const referral of referrals) {
@@ -156,6 +179,10 @@ function validateReferrals(referrals) {
         referral.secondaryPhone,
         `Referral "${referral.id}" secondaryPhone`,
       );
+
+      if (referral.secondaryPhone === referral.phone) {
+        fail(`Referral "${referral.id}" secondaryPhone must differ from phone.`);
+      }
     }
 
     assertHttpsUrl(referral.website, `Referral "${referral.id}" website`);
@@ -165,11 +192,51 @@ function validateReferrals(referrals) {
       fail(`Referral "${referral.id}" must have at least one category.`);
     }
 
+    const seenCategories = new Set();
+
     for (const category of referral.categories) {
       if (!validReferralCategories.has(category)) {
         fail(
           `Referral "${referral.id}" contains invalid category "${category}".`,
         );
+      }
+
+      if (seenCategories.has(category)) {
+        fail(`Referral "${referral.id}" contains duplicate category "${category}".`);
+      }
+
+      seenCategories.add(category);
+    }
+
+    if (seenCategories.has("none")) {
+      fail(`Referral "${referral.id}" cannot use the classifier-only category "none".`);
+    }
+
+    for (const region of referral.regions) {
+      const coverageForRegion = regionCoverage.get(region);
+
+      if (!coverageForRegion) {
+        continue;
+      }
+
+      for (const category of requiredReferralCoverageCategories) {
+        if (seenCategories.has("all") || seenCategories.has(category)) {
+          coverageForRegion.set(category, (coverageForRegion.get(category) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
+  for (const region of validRegions) {
+    const coverageForRegion = regionCoverage.get(region);
+
+    if (!coverageForRegion) {
+      continue;
+    }
+
+    for (const category of requiredReferralCoverageCategories) {
+      if ((coverageForRegion.get(category) ?? 0) === 0) {
+        fail(`Referral coverage is missing for region "${region}" and category "${category}".`);
       }
     }
   }
@@ -187,6 +254,7 @@ function validateCrisisResources(resources) {
   }
 
   const seenIds = new Set();
+  const regionCounts = new Map([...validRegions].map((region) => [region, 0]));
   const warnings = [];
 
   for (const resource of resources) {
@@ -217,6 +285,16 @@ function validateCrisisResources(resources) {
     assertPhone(resource.phone, `Crisis resource "${resource.id}" phone`);
     assertHttpsUrl(resource.url, `Crisis resource "${resource.id}" url`);
     assertRegions(resource.regions, `Crisis resource "${resource.id}" regions`);
+
+    for (const region of resource.regions) {
+      regionCounts.set(region, (regionCounts.get(region) ?? 0) + 1);
+    }
+  }
+
+  for (const region of validRegions) {
+    if ((regionCounts.get(region) ?? 0) === 0) {
+      fail(`Crisis resources are missing all entries for region "${region}".`);
+    }
   }
 
   console.log(`Validated ${resources.length} crisis resource(s).`);

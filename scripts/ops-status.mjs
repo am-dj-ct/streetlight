@@ -44,6 +44,12 @@ function fail(message) {
   process.exit(1);
 }
 
+function classifyLaunchDocIssue(issue) {
+  return issue.includes("placeholder") || issue.includes("screenshots")
+    ? "external"
+    : "internal";
+}
+
 function readEnvValue(contents, variable) {
   const match = contents.match(new RegExp(`^${variable}=(.*)$`, "m"));
   return match ? match[1].trim() : null;
@@ -280,9 +286,28 @@ console.log("");
 if (placeholderSummary.length === 0) {
   console.log("Launch doc placeholders: none detected");
 } else {
-  console.log(`Launch doc placeholders: ${placeholderSummary.length} file-level issue(s)`);
+  const classifiedPlaceholderSummary = placeholderSummary.map((issue) => ({
+    issue,
+    scope: classifyLaunchDocIssue(issue),
+  }));
+  const externalCount = classifiedPlaceholderSummary.filter(
+    (entry) => entry.scope === "external",
+  ).length;
+  const internalCount = classifiedPlaceholderSummary.length - externalCount;
 
-  for (const issue of placeholderSummary) {
-    console.log(`- ${issue}`);
+  console.log(
+    `Launch doc placeholders: ${classifiedPlaceholderSummary.length} file-level issue(s) (${internalCount} internal, ${externalCount} external)`,
+  );
+
+  for (const entry of classifiedPlaceholderSummary) {
+    console.log(`- [${entry.scope}] ${entry.issue}`);
   }
 }
+
+console.log("");
+const externalTranslationCount = incompleteTranslations.length;
+const externalPlaceholderCount = placeholderSummary.length;
+const externalLaunchBlockerCount = externalTranslationCount + externalPlaceholderCount;
+console.log(
+  `Known external launch blockers from repo checks: ${externalLaunchBlockerCount} (${externalTranslationCount} translation, ${externalPlaceholderCount} launch-doc placeholder)`,
+);
