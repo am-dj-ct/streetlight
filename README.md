@@ -58,6 +58,8 @@ this. Code stays public on GitHub regardless.
   verification loops
 - `npm run check:launch` — static soft-launch readiness check for docs,
   placeholders, translations, and env contract
+- `npm run check:forbidden-integrations` — fails if forbidden analytics,
+  error-reporting, or log-forwarding packages are added
 - `npm run check:ops` — dry-run validation for the incident and ops helper
   scripts
 - `npm run check:translation-worklist` — verifies that the generated
