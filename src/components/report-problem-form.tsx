@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { RegionScope } from "../lib/geo";
 import { buildMailtoHref } from "../lib/support";
 import { languageOptions, type SupportedLanguageCode } from "../lib/languages";
 import type { UiCopy } from "../lib/ui-copy";
@@ -38,6 +39,7 @@ type ReportProblemFormProps = {
   entryId?: string;
   initialArea?: string;
   languageCode: SupportedLanguageCode;
+  regionScope: RegionScope;
 };
 
 function isWhereOption(value: string | undefined): value is string {
@@ -50,6 +52,7 @@ export function ReportProblemForm({
   entryId,
   initialArea,
   languageCode,
+  regionScope,
 }: ReportProblemFormProps) {
   const [where, setWhere] = useState(
     isWhereOption(initialArea) ? initialArea : "conversation",
@@ -71,6 +74,7 @@ export function ReportProblemForm({
       "",
       `Where this happened: ${where}`,
       `Chat mode: ${chatMode}`,
+      `Resource scope: ${regionScope}`,
       `Conversation language: ${conversationLanguage}`,
     ];
 
@@ -109,6 +113,7 @@ export function ReportProblemForm({
     details,
     entryId,
     goal,
+    regionScope,
     reply,
     selectedProblemLabels,
     where,
@@ -148,6 +153,9 @@ export function ReportProblemForm({
         </p>
         <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
           Current chat mode: {chatMode}
+        </p>
+        <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+          Current resource scope: {regionScope}
         </p>
         <p className="pt-3 text-[15px] leading-6 text-[#5f6d64]">
           {copy.reportPagePrivacyWarning}
