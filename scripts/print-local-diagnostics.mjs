@@ -49,6 +49,7 @@ const reportDeployEnv = extractValue(reportHtml, "Current deploy environment");
 const reportCommit = extractValue(reportHtml, "Current commit");
 const reportResourceScope = extractValue(reportHtml, "Current resource scope");
 const reportSourceRoute = extractValue(reportHtml, "Source route");
+const reportEntryButton = extractValue(reportHtml, "Entry button");
 
 console.log("Access Tool local diagnostics");
 console.log("");
@@ -64,3 +65,4 @@ console.log(`- deploy environment: ${reportDeployEnv ?? "(missing)"}`);
 console.log(`- commit: ${reportCommit ?? "(missing)"}`);
 console.log(`- resource scope: ${reportResourceScope ?? "(missing)"}`);
 console.log(`- source route: ${reportSourceRoute ?? "(missing)"}`);
+console.log(`- entry button: ${reportEntryButton ?? "(missing)"}`);
