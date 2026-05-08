@@ -5,6 +5,7 @@ import {
   languageCookieName,
   languageHeaderName,
 } from "./lib/languages";
+import { isHardPauseEnabled } from "./lib/env";
 import { buildMailtoHref, supportEmail } from "./lib/support";
 
 function isDocumentRequest(request: NextRequest) {
@@ -155,7 +156,7 @@ export function proxy(request: NextRequest) {
       ? storedLanguageCode
       : defaultLanguageCode;
 
-  if (process.env.HARD_PAUSE_ENABLED === "true") {
+  if (isHardPauseEnabled()) {
     const response = new NextResponse(renderHardPausePage(resolvedLanguageCode), {
       status: 503,
       headers: {
