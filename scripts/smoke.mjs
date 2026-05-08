@@ -618,6 +618,27 @@ async function checkInvalidFindHumanCategory() {
   }
 }
 
+async function checkInvalidConversationEntryRoute() {
+  const response = await fetch(
+    new URL("/conversation/not-a-real-entry?lang=en", baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (response.status !== 404) {
+    fail(`Expected 404 from invalid conversation route, got ${response.status}.`);
+  }
+
+  const html = await response.text();
+
+  if (!html.includes("404")) {
+    fail("Invalid conversation route did not render the 404 page.");
+  }
+}
+
 async function checkInvalidReportProblemArea() {
   const response = await fetch(
     new URL("/report-problem?lang=en&area=not-real", baseUrl),
@@ -677,6 +698,8 @@ await checkInvalidReportProblemEntryId();
 console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
 await checkInvalidFindHumanCategory();
 console.log("Invalid find-human category handling ok (/find-human drops bad category filters).");
+await checkInvalidConversationEntryRoute();
+console.log("Invalid conversation route handling ok (/conversation returns 404 for bad entry ids).");
 await checkInvalidReportProblemArea();
 console.log("Invalid report area handling ok (/report-problem falls back cleanly).");
 
