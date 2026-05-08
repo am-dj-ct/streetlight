@@ -1,3 +1,5 @@
+import type { SupportedLanguageCode } from "./languages";
+
 export type ConversationEntryId =
   | "understand-letter-or-form"
   | "write-something"
@@ -65,7 +67,7 @@ export type ClientChatMessage = {
 
 export type ChatRequestBody = {
   entryId: ConversationEntryId;
-  language: string;
+  language: SupportedLanguageCode;
   messages: ClientChatMessage[];
   turnstileToken?: string;
 };

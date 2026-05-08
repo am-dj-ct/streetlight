@@ -15,6 +15,7 @@ import { buildMockChatTurn } from "../../../lib/mock-chat";
 import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
+import { isSupportedLanguageCode } from "../../../lib/languages";
 import {
   isConversationEntryId,
   type ChatRequestBody,
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   if (
     !body ||
     !isConversationEntryId(body.entryId) ||
-    typeof body.language !== "string" ||
+    !isSupportedLanguageCode(body.language) ||
     !Array.isArray(body.messages) ||
     body.messages.length === 0 ||
     !body.messages.every(isClientChatMessage)

@@ -308,6 +308,36 @@ async function checkInvalidChatEntryId() {
   }
 }
 
+async function checkInvalidChatLanguage() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "not-a-real-language",
+      messages: [
+        {
+          id: "smoke-invalid-language",
+          role: "user",
+          text: "hello",
+        },
+      ],
+    }),
+  });
+
+  if (response.status !== 400) {
+    fail(`Expected 400 from /api/chat for invalid language, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid request shape.") {
+    fail("Unexpected invalid-language response body from /api/chat.");
+  }
+}
+
 const health = await getHealth({
   baseUrl,
   fail,
@@ -320,6 +350,8 @@ await checkLanguagePersistence();
 console.log("Language persistence ok (query -> cookie -> later request).");
 await checkInvalidChatEntryId();
 console.log("Invalid entryId handling ok (/api/chat rejects bad entry ids).");
+await checkInvalidChatLanguage();
+console.log("Invalid language handling ok (/api/chat rejects bad language codes).");
 
 const smokeCases = await loadCases();
 const results = [];
