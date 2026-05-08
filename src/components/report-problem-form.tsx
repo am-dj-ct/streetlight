@@ -23,8 +23,21 @@ type ReportAreaOption = {
   copyKey: keyof UiCopy;
 };
 
+const problemValues = [
+  "wrong-facts",
+  "missed-point",
+  "unsafe-advice",
+  "too-vague",
+  "too-harsh",
+  "too-soft",
+  "technical-problem",
+  "other",
+] as const;
+
+type ProblemValue = (typeof problemValues)[number];
+
 type ProblemOption = {
-  value: string;
+  value: ProblemValue;
   copyKey: keyof UiCopy;
 };
 
@@ -44,16 +57,21 @@ const whereOptions: readonly ReportAreaOption[] = reportAreas.map((value) => ({
   copyKey: reportAreaCopyKeys[value],
 }));
 
-const problemOptions: readonly ProblemOption[] = [
-  { value: "wrong-facts", copyKey: "reportWrongFacts" },
-  { value: "missed-point", copyKey: "reportWrongMissedPoint" },
-  { value: "unsafe-advice", copyKey: "reportWrongUnsafe" },
-  { value: "too-vague", copyKey: "reportWrongVague" },
-  { value: "too-harsh", copyKey: "reportWrongTooHarsh" },
-  { value: "too-soft", copyKey: "reportWrongTooSoft" },
-  { value: "technical-problem", copyKey: "reportWrongTechnical" },
-  { value: "other", copyKey: "reportWrongOther" },
-];
+const problemCopyKeys: Record<ProblemValue, keyof UiCopy> = {
+  "wrong-facts": "reportWrongFacts",
+  "missed-point": "reportWrongMissedPoint",
+  "unsafe-advice": "reportWrongUnsafe",
+  "too-vague": "reportWrongVague",
+  "too-harsh": "reportWrongTooHarsh",
+  "too-soft": "reportWrongTooSoft",
+  "technical-problem": "reportWrongTechnical",
+  other: "reportWrongOther",
+};
+
+const problemOptions: readonly ProblemOption[] = problemValues.map((value) => ({
+  value,
+  copyKey: problemCopyKeys[value],
+}));
 
 type ReportProblemFormProps = {
   chatMode: ChatMode;
@@ -97,7 +115,7 @@ export function ReportProblemForm({
   const [goal, setGoal] = useState("");
   const [reply, setReply] = useState("");
   const [details, setDetails] = useState("");
-  const [selectedProblems, setSelectedProblems] = useState<string[]>([]);
+  const [selectedProblems, setSelectedProblems] = useState<ProblemValue[]>([]);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const whereLabel = copy[reportAreaCopyKeys[where]];
   const conversationLanguageLabel = getLanguageOption(conversationLanguage).label;
@@ -110,7 +128,7 @@ export function ReportProblemForm({
   const sourcePathLabel = sourcePath ?? copy.reportSourceFallback;
 
   const selectedProblemLabels = selectedProblems.map(
-    (value) => problemOptions.find((option) => option.value === value)?.copyKey ?? "reportWrongOther",
+    (value) => problemCopyKeys[value],
   );
   const reportSubject = useMemo(() => {
     const parts = [copy.reportTemplateTitle, whereLabel];
@@ -190,7 +208,7 @@ export function ReportProblemForm({
     [reportBody, reportSubject],
   );
 
-  function toggleProblem(problem: string) {
+  function toggleProblem(problem: ProblemValue) {
     setSelectedProblems((current) =>
       current.includes(problem)
         ? current.filter((value) => value !== problem)
