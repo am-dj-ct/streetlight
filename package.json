@@ -12,6 +12,7 @@
     "check:locales": "node scripts/report-missing-locales.mjs",
     "check:locales:summary": "node scripts/report-missing-locales.mjs --summary",
     "check:launch": "node scripts/check-launch-readiness.mjs",
+    "check:content": "node scripts/check-content-contracts.mjs",
     "check:ops": "node scripts/check-ops-tools.mjs",
     "check:translation-worklist": "node scripts/build-translation-worklist.mjs --check",
     "cost:status": "node scripts/print-cost-mode.mjs",
@@ -26,8 +27,8 @@
     "incident:new": "node scripts/new-incident.mjs",
     "incident:sev3": "node scripts/append-sev3-note.mjs",
     "ops:status": "node scripts/ops-status.mjs",
-    "verify:quick": "npm run lint && npm run build && npm run check:locales:summary && npm run check:translation-worklist && npm run check:ops && npm run validate:data && npm run diagnostics:local && npm run smoke:quick && npm run regression:quick",
-    "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run validate:data && npm run smoke && npm run regression:prompts"
+    "verify:quick": "npm run lint && npm run build && npm run check:locales:summary && npm run check:translation-worklist && npm run check:content && npm run check:ops && npm run validate:data && npm run diagnostics:local && npm run smoke:quick && npm run regression:quick",
+    "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run check:content && npm run validate:data && npm run smoke && npm run regression:prompts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
