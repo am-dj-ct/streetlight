@@ -1,6 +1,8 @@
 import referralsData from "../data/referrals.json";
 import {
   isConversationEntryId,
+  isWeakCategory,
+  type ConversationEntryId,
   type WeakCategory,
 } from "./chat-types";
 import type { RegionScope } from "./geo";
@@ -24,8 +26,6 @@ export type ReferralResource = {
 };
 
 const referrals = referralsData as ReferralResource[];
-
-export { isWeakCategory } from "./chat-types";
 
 function isSpecificCategoryMatch(
   resource: ReferralResource,
@@ -128,3 +128,21 @@ export function getBackHrefForReferrals({
       })
     : `/conversation/${entryId}`;
 }
+
+export function sanitizeFindHumanSearchParams({
+  category,
+  entryId,
+}: {
+  category?: null | string;
+  entryId?: null | string;
+}): {
+  category: WeakCategory | undefined;
+  entryId: ConversationEntryId | undefined;
+} {
+  return {
+    category: isWeakCategory(category) ? category : undefined,
+    entryId: isConversationEntryId(entryId) ? entryId : undefined,
+  };
+}
+
+export { isWeakCategory } from "./chat-types";

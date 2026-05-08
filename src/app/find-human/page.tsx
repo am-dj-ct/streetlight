@@ -11,7 +11,7 @@ import {
   getReferralsForCategory,
   getWeakCategoryLabel,
   isReferralSpecificToCategory,
-  isWeakCategory,
+  sanitizeFindHumanSearchParams,
 } from "../../lib/referrals";
 import { buildFindHumanHref } from "../../lib/routes";
 import { makeTitle } from "../../lib/site-metadata";
@@ -55,8 +55,10 @@ export default async function FindHumanPage({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const category =
-    rawCategory && isWeakCategory(rawCategory) ? rawCategory : undefined;
+  const { category, entryId: safeEntryId } = sanitizeFindHumanSearchParams({
+    category: rawCategory,
+    entryId,
+  });
   const referrals = getReferralsForCategory({ category, regionScope });
   const formatResourceDate = (value: string) =>
     new Intl.DateTimeFormat(currentLanguage.code, {
@@ -65,7 +67,7 @@ export default async function FindHumanPage({
     }).format(new Date(`${value}T00:00:00Z`));
   const checkedThroughDate = getCheckedThroughDate(referrals);
   const backHref = getBackHrefForReferrals({
-    entryId,
+    entryId: safeEntryId,
     languageCode,
   });
   const categoryLabel = category ? getWeakCategoryLabel(category) : "";
@@ -97,7 +99,7 @@ export default async function FindHumanPage({
               getHref={(nextLanguageCode) =>
                 buildFindHumanHref({
                   category,
-                  entryId,
+                  entryId: safeEntryId,
                   languageCode: nextLanguageCode,
                 })
               }
@@ -132,7 +134,7 @@ export default async function FindHumanPage({
             <div className="pt-2">
               <Link
                 href={buildFindHumanHref({
-                  entryId,
+                  entryId: safeEntryId,
                   languageCode,
                 })}
                 className="font-semibold underline"
@@ -216,12 +218,12 @@ export default async function FindHumanPage({
 
       <CrisisFooter
         area="find-human"
-        entryId={entryId}
+        entryId={safeEntryId}
         languageCode={languageCode}
         regionScope={regionScope}
         sourcePath={buildFindHumanHref({
           category,
-          entryId,
+          entryId: safeEntryId,
           languageCode,
         })}
       />

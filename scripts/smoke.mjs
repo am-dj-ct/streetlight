@@ -55,7 +55,7 @@ const pageChecks = [
     ],
     path: "/find-human?entryId=not-a-real-entry&lang=en",
     reportLinkSnippet:
-      "/report-problem?lang=en&amp;area=find-human&amp;entryId=not-a-real-entry&amp;source=%2Ffind-human%3FentryId%3Dnot-a-real-entry%26lang%3Den",
+      "/report-problem?lang=en&amp;area=find-human&amp;source=%2Ffind-human%3Flang%3Den",
   },
   {
     expectedText: "About",
