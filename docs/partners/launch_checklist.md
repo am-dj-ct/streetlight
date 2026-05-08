@@ -17,6 +17,7 @@ Use this before any named partner starts sending real people to the tool.
 - `npm run verify` passes locally.
 - `npm run check:launch` passes.
 - `OPERATIONAL_RUNBOOK.md` exists and has real screenshots.
+- `DEV_MOCK_CHAT` is unset or `false` in the Vercel production environment.
 - Bus-factor contact info is filled in.
 - Soft pause tested once.
 - Hard pause tested once.

@@ -9,6 +9,8 @@ Before launch:
   real Vercel dashboard.
 - Add the bus-factor person's current contact info.
 - Practice this twice solo and once with the bus-factor person.
+- Confirm `DEV_MOCK_CHAT` is unset or `false` in the Vercel production
+  environment.
 
 ## Fill this in before launch
 
@@ -133,6 +135,7 @@ Do not rush this.
 - You understand what happened well enough to explain it plainly.
 - If this was a serious incident, the public incident write-up is live first.
 - You have tested the live app again.
+- `DEV_MOCK_CHAT` is still unset or `false` in Vercel production.
 
 ### To turn soft pause off
 
@@ -201,7 +204,7 @@ Do this in order:
 5. Confirm env vars are updated in Vercel.
 6. Wait for redeploy.
 7. Run the smoke check:
-   - `/healthz` returns `{"ok":true,"service":"access-tool"}`
+   - `/healthz` returns `{"ok":true,"service":"access-tool","chatMode":"live-model","deployConfigOk":true}`
    - landing page loads
    - conversation page loads
    - sending a message works
