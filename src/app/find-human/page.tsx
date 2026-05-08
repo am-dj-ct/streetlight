@@ -11,6 +11,7 @@ import {
 import {
   formatTelephoneHref,
   getBackHrefForReferrals,
+  getCheckedThroughDate,
   getReferralsForCategory,
   getWeakCategoryLabel,
   isReferralSpecificToCategory,
@@ -51,11 +52,17 @@ export default async function FindHumanPage({
   const category =
     rawCategory && isWeakCategory(rawCategory) ? rawCategory : undefined;
   const referrals = getReferralsForCategory({ category, regionScope });
+  const checkedThroughDate = getCheckedThroughDate(referrals);
   const backHref = getBackHrefForReferrals({
     entryId,
     languageCode,
   });
   const categoryLabel = category ? getWeakCategoryLabel(category) : "";
+  const formattedCheckedThroughDate = checkedThroughDate
+    ? new Intl.DateTimeFormat(currentLanguage.code, {
+        dateStyle: "medium",
+      }).format(new Date(`${checkedThroughDate}T00:00:00Z`))
+    : null;
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
@@ -105,6 +112,11 @@ export default async function FindHumanPage({
               ? copy.referralsIntroKing
               : copy.referralsIntroFallback}
           </p>
+          {formattedCheckedThroughDate ? (
+            <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+              {copy.referralsCheckedThroughLabel} {formattedCheckedThroughDate}
+            </p>
+          ) : null}
           {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
             <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
               {copy.infoPageTranslationNotice}

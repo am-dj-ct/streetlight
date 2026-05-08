@@ -9,8 +9,10 @@ export type ReferralResource = {
   id: string;
   name: string;
   description: string;
+  lastVerified: string;
   phone?: string;
   secondaryPhone?: string;
+  sourceName: string;
   website: string;
   categories: ReferralCategory[];
   regions: ReferralRegion[];
@@ -81,8 +83,9 @@ export function getReferralsForCategory({
 
   return regionReferrals
     .filter(
-    (resource) =>
-      resource.categories.includes("all") || resource.categories.includes(category),
+      (resource) =>
+        resource.categories.includes("all") ||
+        resource.categories.includes(category),
     )
     .sort((left, right) => {
       const leftSpecific = isSpecificCategoryMatch(left, category) ? 1 : 0;
@@ -90,6 +93,16 @@ export function getReferralsForCategory({
 
       return rightSpecific - leftSpecific;
     });
+}
+
+export function getCheckedThroughDate(resources: ReferralResource[]) {
+  if (resources.length === 0) {
+    return null;
+  }
+
+  return resources.reduce((oldest, resource) =>
+    resource.lastVerified < oldest ? resource.lastVerified : oldest,
+  resources[0].lastVerified);
 }
 
 export function isReferralSpecificToCategory(
