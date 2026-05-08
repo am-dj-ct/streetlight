@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-08
-**Last meaningful change:** 2026-05-08 (classifier prompt disambiguation landed)
+**Last meaningful change:** 2026-05-08 (classifier prompt false-positive guard for urgency vs. deadlines landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -671,6 +671,7 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 - Each subdirectory contains 5–10 canonical synthetic prompts covering typical and edge cases.
 - Each test runs the actual button system prompt + synthetic user prompt against the live API (test mode or separate test API key).
 - Assertions: response length within bounds, response in correct language when input language is specified, response doesn't refuse the request, classifier fires correct category for cases where one is expected.
+- `specific_deadlines` is reserved for concrete due dates or timing rules, not general urgency language.
 - Runs on every PR that touches `lib/system-prompts/`, `lib/classifier-prompt.ts`, or model config.
 - Fails the build on regression.
 
