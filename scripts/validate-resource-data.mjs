@@ -19,6 +19,7 @@ const validWeakCategories = new Set([
 
 const validReferralCategories = new Set(["all", ...validWeakCategories]);
 const validRegions = new Set(["king", "fallback"]);
+const staleAfterDays = 180;
 
 function fail(message) {
   throw new Error(message);
@@ -45,6 +46,31 @@ function assertHttpsUrl(value, label) {
     }
   } catch {
     fail(`${label} must be a valid URL.`);
+  }
+}
+
+function assertIsoDate(value, label) {
+  if (!isNonEmptyString(value)) {
+    fail(`${label} must be a non-empty string.`);
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    fail(`${label} must use YYYY-MM-DD.`);
+  }
+
+  const parsed = Date.parse(`${value}T00:00:00Z`);
+
+  if (Number.isNaN(parsed)) {
+    fail(`${label} must be a valid calendar date.`);
+  }
+}
+
+function collectStaleWarning(lastVerified, label, warnings) {
+  const verifiedAt = Date.parse(`${lastVerified}T00:00:00Z`);
+  const ageInDays = Math.floor((Date.now() - verifiedAt) / (1000 * 60 * 60 * 24));
+
+  if (ageInDays > staleAfterDays) {
+    warnings.push(`${label} was last verified ${ageInDays} days ago.`);
   }
 }
 
@@ -86,6 +112,7 @@ function validateReferrals(referrals) {
   }
 
   const seenIds = new Set();
+  const warnings = [];
 
   for (const referral of referrals) {
     if (!isNonEmptyString(referral.id)) {
@@ -101,6 +128,20 @@ function validateReferrals(referrals) {
     if (!isNonEmptyString(referral.description)) {
       fail(`Referral "${referral.id}" must have a non-empty description.`);
     }
+
+    if (!isNonEmptyString(referral.sourceName)) {
+      fail(`Referral "${referral.id}" must have a non-empty sourceName.`);
+    }
+
+    assertIsoDate(
+      referral.lastVerified,
+      `Referral "${referral.id}" lastVerified`,
+    );
+    collectStaleWarning(
+      referral.lastVerified,
+      `Referral "${referral.id}"`,
+      warnings,
+    );
 
     if (referral.phone !== undefined) {
       assertPhone(referral.phone, `Referral "${referral.id}" phone`);
@@ -130,6 +171,10 @@ function validateReferrals(referrals) {
   }
 
   console.log(`Validated ${referrals.length} referral resource(s).`);
+
+  for (const warning of warnings) {
+    console.log(`Warning: ${warning}`);
+  }
 }
 
 function validateCrisisResources(resources) {
@@ -138,6 +183,7 @@ function validateCrisisResources(resources) {
   }
 
   const seenIds = new Set();
+  const warnings = [];
 
   for (const resource of resources) {
     if (!isNonEmptyString(resource.id)) {
@@ -150,12 +196,30 @@ function validateCrisisResources(resources) {
       fail(`Crisis resource "${resource.id}" must have a non-empty label.`);
     }
 
+    if (!isNonEmptyString(resource.sourceName)) {
+      fail(`Crisis resource "${resource.id}" must have a non-empty sourceName.`);
+    }
+
+    assertIsoDate(
+      resource.lastVerified,
+      `Crisis resource "${resource.id}" lastVerified`,
+    );
+    collectStaleWarning(
+      resource.lastVerified,
+      `Crisis resource "${resource.id}"`,
+      warnings,
+    );
+
     assertPhone(resource.phone, `Crisis resource "${resource.id}" phone`);
     assertHttpsUrl(resource.url, `Crisis resource "${resource.id}" url`);
     assertRegions(resource.regions, `Crisis resource "${resource.id}" regions`);
   }
 
   console.log(`Validated ${resources.length} crisis resource(s).`);
+
+  for (const warning of warnings) {
+    console.log(`Warning: ${warning}`);
+  }
 }
 
 const [referrals, crisisResources] = await Promise.all([

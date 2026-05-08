@@ -5,6 +5,8 @@
     "description": "Start here for housing, shelter, food, transportation, benefits, and local service referrals in King County.",
     "phone": "211",
     "secondaryPhone": "800-621-4636",
+    "sourceName": "Crisis Connections King County 211",
+    "lastVerified": "2026-05-08",
     "website": "https://www.crisisconnections.org/king-county-2-1-1/",
     "categories": ["all", "legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration"],
     "regions": ["king"]
@@ -15,6 +17,8 @@
     "description": "Free expert help with medication mistakes, drug interactions, overdoses, and toxic exposures.",
     "phone": "800-222-1222",
     "secondaryPhone": "206-526-2121",
+    "sourceName": "Washington Poison Center Helpline",
+    "lastVerified": "2026-05-08",
     "website": "https://www.wapc.org/helpline/",
     "categories": ["medical_dosing", "drug_interactions"],
     "regions": ["king"]
@@ -24,6 +28,8 @@
     "name": "Northwest Immigrant Rights Project",
     "description": "Free or low-cost immigration legal help in Washington for many low-income immigrants, asylum-seekers, and refugees.",
     "phone": "206-587-4025",
+    "sourceName": "Northwest Immigrant Rights Project Get Help",
+    "lastVerified": "2026-05-08",
     "website": "https://www.nwirp.org/get-help/?lang=english",
     "categories": ["immigration"],
     "regions": ["king"]
@@ -33,6 +39,8 @@
     "name": "DSHS Community Services",
     "description": "Help with Basic Food, cash assistance, documents, interviews, and benefit questions.",
     "phone": "877-501-2233",
+    "sourceName": "DSHS Community Services Offices",
+    "lastVerified": "2026-05-08",
     "website": "https://www.dshs.wa.gov/esa/community-services-offices/how-apply-services",
     "categories": ["benefits_eligibility", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -42,6 +50,8 @@
     "name": "Washington Healthplanfinder",
     "description": "Human help with Apple Health and health coverage questions. Interpreter support is available in many languages.",
     "phone": "855-923-4633",
+    "sourceName": "Washington Healthplanfinder Contact Us",
+    "lastVerified": "2026-05-08",
     "website": "https://www.wahealthplanfinder.org/us/en/tools-and-resources/connect-with-us/contact-us.html",
     "categories": ["benefits_eligibility", "medical_dosing"],
     "regions": ["king"]
@@ -50,6 +60,8 @@
     "id": "washington-lawhelp",
     "name": "Washington LawHelp",
     "description": "Plain-language Washington legal information, including eviction, notices, and court steps. Good if you need to read before you call someone.",
+    "sourceName": "Washington LawHelp Eviction Topic",
+    "lastVerified": "2026-05-08",
     "website": "https://www.washingtonlawhelp.org/topics/housing/eviction",
     "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -59,6 +71,8 @@
     "name": "Eviction Defense Screening Line",
     "description": "Best direct line if you are dealing with eviction, notices, or a landlord case in Washington. Run through the Office of Civil Legal Aid network.",
     "phone": "855-657-8387",
+    "sourceName": "Office of Civil Legal Aid Find Legal Help",
+    "lastVerified": "2026-05-08",
     "website": "https://ocla.wa.gov/find-legal-help",
     "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king", "fallback"]
@@ -68,6 +82,8 @@
     "name": "Solid Ground Tenant Services",
     "description": "Seattle-area tenant rights help and next-step guidance for renters dealing with housing problems.",
     "phone": "206-694-6767",
+    "sourceName": "Solid Ground Tenant Services",
+    "lastVerified": "2026-05-08",
     "website": "https://www.solid-ground.org/housing/for-tenants/",
     "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -78,6 +94,8 @@
     "description": "24/7 confidential support, information, and advocacy for sexual assault survivors and people helping them.",
     "phone": "888-998-6423",
     "secondaryPhone": "425-282-0324",
+    "sourceName": "KCSARC",
+    "lastVerified": "2026-05-08",
     "website": "https://www.kcsarc.org/en/",
     "categories": ["all"],
     "regions": ["king"]
@@ -87,6 +105,8 @@
     "name": "CLEAR Legal Hotline",
     "description": "Free civil legal screening and referrals across Washington for problems involving housing, benefits, debt, family law, and more.",
     "phone": "888-201-1014",
+    "sourceName": "Office of Civil Legal Aid Find Legal Help",
+    "lastVerified": "2026-05-08",
     "website": "https://ocla.wa.gov/find-legal-help",
     "categories": ["legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration"],
     "regions": ["fallback"]
@@ -96,6 +116,8 @@
     "name": "Poison Help",
     "description": "Free 24/7 expert help for medication mistakes, overdoses, poisonings, and drug-interaction concerns anywhere in the U.S.",
     "phone": "800-222-1222",
+    "sourceName": "Poison Help",
+    "lastVerified": "2026-05-08",
     "website": "https://www.poisonhelp.org/",
     "categories": ["medical_dosing", "drug_interactions"],
     "regions": ["fallback"]
@@ -106,6 +128,8 @@
     "description": "Official national help for Marketplace coverage, enrollment, eligibility, and local enrollment help outside Washington state.",
     "phone": "800-318-2596",
     "secondaryPhone": "855-889-4325",
+    "sourceName": "HealthCare.gov Contact Us",
+    "lastVerified": "2026-05-08",
     "website": "https://www.healthcare.gov/contact-us/",
     "categories": ["benefits_eligibility", "specific_deadlines"],
     "regions": ["fallback"]
@@ -115,6 +139,8 @@
     "name": "988 Suicide & Crisis Lifeline",
     "description": "National crisis support by call, text, or chat. Good first stop if you need urgent emotional support anywhere in the U.S.",
     "phone": "988",
+    "sourceName": "988 Lifeline",
+    "lastVerified": "2026-05-08",
     "website": "https://988lifeline.org/",
     "categories": ["all"],
     "regions": ["fallback"]
@@ -124,6 +150,8 @@
     "name": "211",
     "description": "Start here for local housing, food, benefits, transportation, and other community resources outside King County too.",
     "phone": "211",
+    "sourceName": "211",
+    "lastVerified": "2026-05-08",
     "website": "https://www.211.org/",
     "categories": ["all", "legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration"],
     "regions": ["fallback"]
@@ -133,6 +161,8 @@
     "name": "National Domestic Violence Hotline",
     "description": "24/7 confidential support by call, chat, or text for domestic violence and relationship abuse.",
     "phone": "800-799-7233",
+    "sourceName": "National Domestic Violence Hotline",
+    "lastVerified": "2026-05-08",
     "website": "https://www.thehotline.org/",
     "categories": ["all"],
     "regions": ["fallback"]

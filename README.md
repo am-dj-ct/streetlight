@@ -73,7 +73,8 @@ this. Code stays public on GitHub regardless.
   appends a structured Sev-3 note to `incidents/log.md`
 - add `--dry-run true` to either incident command if you want a preview without
   writing files
-- `npm run validate:data`
+- `npm run validate:data` — validates referral/crisis schema plus source and
+  last-verified metadata
 - `npm run smoke` — checks key pages plus a small synthetic end-to-end chat
   flow against `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
 - `npm run smoke:quick` — cheaper local smoke pass with a smaller synthetic
