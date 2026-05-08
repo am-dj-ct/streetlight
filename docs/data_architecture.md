@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-05-07
-**Last meaningful change:** 2026-05-07 (fixed-schema metadata logging landed)
+**Last reviewed:** 2026-05-08
+**Last meaningful change:** 2026-05-08 (classifier prompt disambiguation landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -1017,7 +1017,7 @@ One-line summary of every decision in this document, dated for traceability.
 - Geo headers used once per request, never logged, never stored, never passed to model.
 - No Supabase for V1; Vercel KV for rate-limit/spend/kill-switch; static JSON for referrals/translations; metrics via Vercel runtime logs.
 - Hashed IP with secret salt, daily TTL, quarterly salt rotation.
-- Classifier: label-only output, metadata logging only, never log Claude API request/response objects directly.
+- Classifier: label-only output, metadata logging only, never log Claude API request/response objects directly. Prompt disambiguation added for landlord/tenant/legal versus benefits cases.
 - Debugging policy: option (a), no content logging ever, no toggle.
 - Hardening: synthetic regression suite, partner bug-report template, model snapshot pinning, pre-deploy smoke check, ESLint rule, ADR directory, "no" list at repo root.
 - Eight-threat threat model with explicit residual risks accepted.

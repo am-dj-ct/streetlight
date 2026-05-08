@@ -1,6 +1,7 @@
 [
   {
     "name": "landlord-call",
-    "text": "Help me prepare for a hard conversation with my landlord about repairs and late rent."
+    "text": "Help me prepare for a hard conversation with my landlord about repairs and late rent.",
+    "expectedClassifier": "legal_procedure"
   }
 ]

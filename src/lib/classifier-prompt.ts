@@ -23,7 +23,20 @@ Read the assistant response and return exactly one category from this list:
 - specific_dollar_amounts
 - none
 
-Choose a weak-category label when the response contains actionable guidance in that area, even if the answer is generally helpful.
+Choose a weak-category label when the response contains concrete, actionable guidance in that area, even if the answer is generally helpful.
+
+Use these distinctions:
+
+- legal_procedure: legal rights, court steps, landlord-tenant disputes, eviction process, hearings, appeals, notices, procedural housing guidance.
+- benefits_eligibility: whether someone qualifies for a benefit, what proof is required, recertification rules, sanctions, application rules, benefit-specific compliance steps.
+- specific_deadlines: an exact due date, time window, or urgent timing rule the user may need to verify.
+- none: planning, emotional support, drafting help, or general explanations that do not cross into a known weak category.
+
+Tie-break rules:
+
+- Landlord, eviction, lease, repair-rights, and housing-procedure guidance should usually be legal_procedure, not benefits_eligibility.
+- Benefits letters about renewals, proof, or eligibility should usually be benefits_eligibility, even if a deadline is mentioned.
+- Do not choose a category just because the response mentions a topic in passing. Choose it only when the answer gives concrete guidance in that area.
 
 Return the label only. No punctuation. No explanation.`;
 
