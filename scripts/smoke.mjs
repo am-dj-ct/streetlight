@@ -58,6 +58,15 @@ const pageChecks = [
       "/report-problem?lang=en&amp;area=find-human&amp;source=%2Ffind-human%3Flang%3Den",
   },
   {
+    expectedText: "Find a human",
+    extraExpectedText: [
+      "href=\"/conversation/understand-letter-or-form?lang=en\"",
+    ],
+    path: "/find-human?category=not-a-real-category&entryId=understand-letter-or-form&lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
+  },
+  {
     expectedText: "About",
     path: "/about?lang=en",
     reportLinkSnippet:
@@ -542,6 +551,30 @@ async function checkInvalidReportProblemEntryId() {
   }
 }
 
+async function checkInvalidFindHumanCategory() {
+  const response = await fetch(
+    new URL(
+      "/find-human?category=not-a-real-category&entryId=understand-letter-or-form&lang=en",
+      baseUrl,
+    ),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /find-human with invalid category.`);
+  }
+
+  const html = await response.text();
+
+  if (html.includes("Show all resources")) {
+    fail("Invalid find-human category still rendered the filtered-state banner.");
+  }
+}
+
 async function checkInvalidReportProblemArea() {
   const response = await fetch(
     new URL("/report-problem?lang=en&area=not-real", baseUrl),
@@ -599,6 +632,8 @@ await checkBlankMessageId();
 console.log("Malformed message id handling ok (/api/chat rejects blank ids).");
 await checkInvalidReportProblemEntryId();
 console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
+await checkInvalidFindHumanCategory();
+console.log("Invalid find-human category handling ok (/find-human drops bad category filters).");
 await checkInvalidReportProblemArea();
 console.log("Invalid report area handling ok (/report-problem falls back cleanly).");
 
