@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import type { Metadata } from "next";
 import { CrisisFooter } from "../../components/crisis-footer";
 import { LanguageStripLinks } from "../../components/language-strip-links";
 import { getRegionScope } from "../../lib/geo";
@@ -15,7 +16,13 @@ import {
   isReferralSpecificToCategory,
   isWeakCategory,
 } from "../../lib/referrals";
+import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../../lib/ui-copy";
+
+export const metadata: Metadata = {
+  title: makeTitle("Find a human"),
+  description: "Maintained human-help resources, with King County and U.S. fallback options.",
+};
 
 type FindHumanPageProps = {
   searchParams: Promise<{

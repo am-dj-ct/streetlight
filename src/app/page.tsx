@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { CrisisFooter } from "../components/crisis-footer";
 import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getRegionScope } from "../lib/geo";
@@ -8,7 +9,12 @@ import {
   getPreferredLanguageCode,
   languageOptions,
 } from "../lib/languages";
+import { defaultDescription } from "../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
+
+export const metadata: Metadata = {
+  description: defaultDescription,
+};
 
 type HomePageProps = {
   searchParams: Promise<{

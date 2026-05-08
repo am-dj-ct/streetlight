@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
 import { getRegionScope } from "../../lib/geo";
 import {
@@ -8,7 +9,13 @@ import {
 } from "../../lib/languages";
 import { getStaticPageContent } from "../../lib/static-pages";
 import { getBugReportHref } from "../../lib/support";
+import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
+
+export const metadata: Metadata = {
+  title: makeTitle("Privacy"),
+  description: "Plain-language privacy details for Access Tool.",
+};
 
 type PrivacyPageProps = {
   searchParams: Promise<{

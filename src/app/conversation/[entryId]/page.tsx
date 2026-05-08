@@ -1,15 +1,18 @@
 import { headers } from "next/headers";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ConversationClient } from "../../../components/conversation-client";
 import {
   conversationSeeds,
   getLocalizedConversationSeed,
+  getConversationSeed,
 } from "../../../lib/conversation-shell";
 import { getRegionScope } from "../../../lib/geo";
 import {
   getLanguageOption,
   getPreferredLanguageCode,
 } from "../../../lib/languages";
+import { makeTitle } from "../../../lib/site-metadata";
 
 type ConversationPageProps = {
   params: Promise<{
@@ -24,6 +27,18 @@ export function generateStaticParams() {
   return conversationSeeds.map((entry) => ({
     entryId: entry.id,
   }));
+}
+
+export async function generateMetadata({
+  params,
+}: ConversationPageProps): Promise<Metadata> {
+  const { entryId } = await params;
+  const seed = getConversationSeed(entryId);
+
+  return {
+    title: makeTitle(seed?.label ?? "Conversation"),
+    description: "A live Access Tool conversation.",
+  };
 }
 
 export const dynamicParams = false;
