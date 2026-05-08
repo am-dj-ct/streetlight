@@ -5,7 +5,7 @@ import { CrisisFooter } from "../components/crisis-footer";
 import { LanguageStripLinks } from "../components/language-strip-links";
 import { LocalDevBadge } from "../components/local-dev-badge";
 import { getAlternateActions, getPromptButtons } from "../lib/buttons";
-import { getRegionScope } from "../lib/geo";
+import { getRequestRegionScope } from "../lib/geo";
 import {
   getLanguageOption,
   getRequestLanguageCode,
@@ -46,10 +46,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   const currentLanguage = getLanguageOption(languageCode);
   const promptButtons = getPromptButtons(currentLanguage.code);
   const alternateActions = getAlternateActions(currentLanguage.code);
-  const regionScope = getRegionScope({
-    countryHeader: requestHeaders.get("x-vercel-ip-country"),
-    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
-  });
+  const regionScope = getRequestRegionScope({ requestHeaders });
   const copy = getUiCopy(languageCode);
   const hasTranslatedCopy = hasTranslatedUiCopy(languageCode);
 

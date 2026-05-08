@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
-import { getRegionScope } from "../../lib/geo";
+import { getRequestRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
   getRequestLanguageCode,
@@ -48,10 +48,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);
-  const regionScope = getRegionScope({
-    countryHeader: requestHeaders.get("x-vercel-ip-country"),
-    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
-  });
+  const regionScope = getRequestRegionScope({ requestHeaders });
   const page = getStaticPageContent("about", languageCode);
 
   return (

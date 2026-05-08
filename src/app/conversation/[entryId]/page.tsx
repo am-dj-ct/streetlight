@@ -7,7 +7,7 @@ import {
   conversationSeeds,
   getLocalizedConversationSeed,
 } from "../../../lib/conversation-shell";
-import { getRegionScope } from "../../../lib/geo";
+import { getRequestRegionScope } from "../../../lib/geo";
 import {
   getLanguageOption,
   getRequestLanguageCode,
@@ -70,10 +70,7 @@ export default async function ConversationPage({
   }
 
   const currentLanguage = getLanguageOption(languageCode);
-  const regionScope = getRegionScope({
-    countryHeader: requestHeaders.get("x-vercel-ip-country"),
-    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
-  });
+  const regionScope = getRequestRegionScope({ requestHeaders });
 
   return (
     <>

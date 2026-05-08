@@ -16,3 +16,16 @@ export function getRegionScope({
 
   return country === "US" && region === "WA" ? "king" : "fallback";
 }
+
+export function getRequestRegionScope({
+  requestHeaders,
+}: {
+  requestHeaders: {
+    get(name: string): null | string;
+  };
+}): RegionScope {
+  return getRegionScope({
+    countryHeader: requestHeaders.get("x-vercel-ip-country"),
+    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
+  });
+}

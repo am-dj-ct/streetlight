@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { CrisisFooter } from "../../components/crisis-footer";
 import { LanguageStripLinks } from "../../components/language-strip-links";
-import { getRegionScope } from "../../lib/geo";
+import { getRequestRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
   getRequestLanguageCode,
@@ -58,10 +58,7 @@ export default async function FindHumanPage({
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);
   const hasTranslatedCopy = hasTranslatedUiCopy(languageCode);
-  const regionScope = getRegionScope({
-    countryHeader: requestHeaders.get("x-vercel-ip-country"),
-    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
-  });
+  const regionScope = getRequestRegionScope({ requestHeaders });
   const category =
     rawCategory && isWeakCategory(rawCategory) ? rawCategory : undefined;
   const referrals = getReferralsForCategory({ category, regionScope });

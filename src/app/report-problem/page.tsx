@@ -8,7 +8,7 @@ import {
   getDeployEnvironment,
   isDevMockChatEnabled,
 } from "../../lib/env";
-import { getRegionScope } from "../../lib/geo";
+import { getRequestRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
   getRequestLanguageCode,
@@ -60,10 +60,7 @@ export default async function ReportProblemPage({
   const chatMode = isDevMockChatEnabled() ? "mock-local" : "live-model";
   const commitSha = getDeployCommitSha();
   const deployEnv = getDeployEnvironment();
-  const regionScope = getRegionScope({
-    countryHeader: requestHeaders.get("x-vercel-ip-country"),
-    regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
-  });
+  const regionScope = getRequestRegionScope({ requestHeaders });
 
   return (
     <InfoPageShell
