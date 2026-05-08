@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { kv } from "@vercel/kv";
-import { getHashedIpSalt, hasKvConfig } from "./env";
+import { getHashedIpSalt, hasHashedIpSalt, hasKvConfig } from "./env";
 
 const MAX_TURNS_PER_DAY = 100;
 
@@ -50,6 +50,16 @@ function hashIp(ip: string): string {
   return createHash("sha256")
     .update(`${ip}:${getHashedIpSalt()}`)
     .digest("hex");
+}
+
+export function getHashedIp(request: Request): null | string {
+  const ip = getClientIp(request);
+
+  if (!ip || !hasHashedIpSalt()) {
+    return null;
+  }
+
+  return hashIp(ip);
 }
 
 function getUtcDateKey(now: Date): string {

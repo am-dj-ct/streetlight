@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-07
-**Last meaningful change:** 2026-05-07 (Turnstile validation landed; full metadata-log schema still pending)
+**Last meaningful change:** 2026-05-07 (fixed-schema metadata logging landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -334,13 +334,12 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 
 Every hop a user message takes from the moment they tap send to the moment a response renders. Text-only, paste-able into other chats.
 
-**Implementation note as of 2026-05-07:** The current codebase implements a
-subset of this target flow: browser memory state, backend `/api/chat`, the
-main Anthropic Messages API call, the Haiku classifier pass, the inline
+**Implementation note as of 2026-05-07:** The current codebase implements the
+core V1 request path: browser memory state, backend `/api/chat`, the main
+Anthropic Messages API call, the Haiku classifier pass, the inline
 weak-category UI note, KV-backed per-IP rate limiting, daily spend tracking,
-the soft/hard pause controls, and Cloudflare Turnstile validation. The full
-fixed-schema metadata log is still not landed and must be completed before
-partner-facing use.
+the soft/hard pause controls, Cloudflare Turnstile validation, and the fixed
+allowlisted per-turn metadata log in Vercel runtime logs.
 
 ### User Action: Tap Send
 
@@ -523,14 +522,13 @@ These rules are enforced by the codebase and any future Claude Code session. Vio
 8. **No Vercel Analytics, Speed Insights, or Web Analytics.** All would inject client-side scripts capturing page views, user agents, geographic data, and in some configs custom event payloads.
 
 **Current code state as of 2026-05-07:** The `/api/chat` route follows the
-no-content-logging rules. It writes structured error metadata for the main
-model, classifier, rate-limit, and spend-control paths, plus minimal success
-records for classifier labels and daily spend increments. The rate-limit and
-spend checks use Vercel KV when the relevant env vars are present; local
+no-content-logging rules. It writes one fixed-schema metadata record per send
+attempt with only the allowlisted fields from this document, plus separate
+structured error records for operational failures. The rate-limit and spend
+checks use Vercel KV when the relevant env vars are present; local
 development without those env vars intentionally fails open so the app remains
 usable on the operator's machine. `SOFT_PAUSE_ENABLED` is checked at the top
-of `/api/chat`, and `HARD_PAUSE_ENABLED` is enforced in `src/proxy.ts`. The
-full per-turn metadata schema described in Hop 7 is still not landed.
+of `/api/chat`, and `HARD_PAUSE_ENABLED` is enforced in `src/proxy.ts`.
 
 ### Geo-Awareness
 

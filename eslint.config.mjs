@@ -21,6 +21,11 @@ const eslintConfig = defineConfig([
         },
         {
           selector:
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name=/^(request|response|completion)$/]",
+          message: "Do not log raw request, response, or completion objects.",
+        },
+        {
+          selector:
             "CallExpression[callee.object.name='console'][callee.property.name='error'][arguments.length=1][arguments.0.type='Identifier'][arguments.0.name='error']",
           message: "Do not pass raw error objects to console.error.",
         },

@@ -54,6 +54,10 @@ export function getHashedIpSalt(): string {
   return readEnv("HASHED_IP_SALT");
 }
 
+export function hasHashedIpSalt(): boolean {
+  return Boolean(readOptionalEnv("HASHED_IP_SALT"));
+}
+
 export function hasKvConfig(): boolean {
   return Boolean(
     readOptionalEnv("KV_REST_API_URL") && readOptionalEnv("KV_REST_API_TOKEN"),

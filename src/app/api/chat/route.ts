@@ -7,11 +7,16 @@ import {
   getMainModel,
   isSoftPauseEnabled,
 } from "../../../lib/env";
-import { checkPerIpRateLimit } from "../../../lib/rate-limit";
+import { checkPerIpRateLimit, getHashedIp } from "../../../lib/rate-limit";
+import { logChatTurnMetadata } from "../../../lib/metadata-log";
 import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
-import type { ChatRequestBody, ClientChatMessage } from "../../../lib/chat-types";
+import type {
+  ChatRequestBody,
+  ClientChatMessage,
+  WeakCategory,
+} from "../../../lib/chat-types";
 
 function isClientChatMessage(value: unknown): value is ClientChatMessage {
   if (!value || typeof value !== "object") {
@@ -60,9 +65,72 @@ export async function POST(request: Request) {
 
   const requestStartedAt = Date.now();
   let model = process.env.MAIN_MODEL ?? "missing";
+  let classifierModel = process.env.CLASSIFIER_MODEL ?? "missing";
+  const hashedIp = getHashedIp(request);
+  let loggedTurnMetadata = false;
+
+  function logTurnMetadataOnce({
+    classifierCategory = "none",
+    classifierResponseTimeMs = null,
+    classifierStatus = "not_started",
+    classifierUsage = null,
+    mainResponseTimeMs = Date.now() - requestStartedAt,
+    mainStatus,
+    mainUsage = null,
+  }: {
+    classifierCategory?: WeakCategory;
+    classifierResponseTimeMs?: null | number;
+    classifierStatus?: "completed" | "error_classifier" | "not_started";
+    classifierUsage?: null | {
+      cache_creation_input_tokens: null | number;
+      cache_read_input_tokens: null | number;
+      input_tokens: null | number;
+      output_tokens: number;
+    };
+    mainResponseTimeMs?: null | number;
+    mainStatus:
+      | "blocked_daily_spend"
+      | "blocked_rate_limit"
+      | "blocked_soft_pause"
+      | "blocked_turnstile"
+      | "completed"
+      | "error_no_text"
+      | "error_request_setup"
+      | "error_stream";
+    mainUsage?: null | {
+      cache_creation_input_tokens: null | number;
+      cache_read_input_tokens: null | number;
+      input_tokens: null | number;
+      output_tokens: number;
+    };
+  }) {
+    if (loggedTurnMetadata) {
+      return;
+    }
+
+    loggedTurnMetadata = true;
+    logChatTurnMetadata({
+      buttonId: body.entryId,
+      classifierCategory,
+      classifierResponseTimeMs,
+      classifierStatus,
+      classifierUsage,
+      hashedIp,
+      language: body.language,
+      mainResponseTimeMs,
+      mainStatus,
+      mainUsage,
+      modelClassifier: classifierModel,
+      modelMain: model,
+    });
+  }
 
   try {
     if (isSoftPauseEnabled()) {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_soft_pause",
+      });
+
       return NextResponse.json(
         {
           error: "The tool is paused right now. Please try again later today.",
@@ -79,6 +147,10 @@ export async function POST(request: Request) {
     });
 
     if (!turnstile.allowed) {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_turnstile",
+      });
+
       return NextResponse.json(
         { error: "Please try again." },
         { status: 403 },
@@ -88,6 +160,10 @@ export async function POST(request: Request) {
     const rateLimit = await checkPerIpRateLimit(request);
 
     if (!rateLimit.allowed) {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_rate_limit",
+      });
+
       return NextResponse.json(
         { error: "Too many messages today. Please try again tomorrow." },
         {
@@ -102,6 +178,10 @@ export async function POST(request: Request) {
     const spendLimit = await checkDailySpendCap();
 
     if (!spendLimit.allowed) {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_daily_spend",
+      });
+
       return NextResponse.json(
         {
           error: "Today's limit has been reached. Please try again tomorrow.",
@@ -121,7 +201,7 @@ export async function POST(request: Request) {
       apiKey: getAnthropicApiKey(),
     });
     model = getMainModel();
-    const classifierModel = getClassifierModel();
+    classifierModel = getClassifierModel();
     const stream = anthropic.messages.stream({
       model,
       max_tokens: 900,
@@ -134,6 +214,16 @@ export async function POST(request: Request) {
       async start(controller) {
         let sentAnyText = false;
         let responseText = "";
+        let classifierCategory: WeakCategory = "none";
+        let classifierResponseTimeMs: null | number = null;
+        let classifierUsage:
+          | {
+              cache_creation_input_tokens: null | number;
+              cache_read_input_tokens: null | number;
+              input_tokens: null | number;
+              output_tokens: number;
+            }
+          | null = null;
         let mainUsage:
           | {
               cache_creation_input_tokens: null | number;
@@ -157,6 +247,10 @@ export async function POST(request: Request) {
           }
 
           if (!sentAnyText) {
+            logTurnMetadataOnce({
+              mainStatus: "error_no_text",
+            });
+
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ type: "error", error: "The model returned no text." })}\n\n`,
@@ -184,6 +278,9 @@ export async function POST(request: Request) {
                 .join(" ")
                 .trim();
               const category = parseWeakCategory(classifierText);
+              classifierCategory = category;
+              classifierResponseTimeMs = Date.now() - classifierStartedAt;
+              classifierUsage = classifierResponse.usage;
 
               controller.enqueue(
                 encoder.encode(
@@ -191,31 +288,12 @@ export async function POST(request: Request) {
                 ),
               );
 
-              console.info({
-                code: "weak_category_classified",
-                category,
-                modelMain: model,
-                modelClassifier: classifierModel,
-                classifierResponseTimeMs: Date.now() - classifierStartedAt,
-              });
-
               if (mainUsage) {
                 try {
-                  const spend = await recordDailySpendUsd({
+                  await recordDailySpendUsd({
                     mainUsage,
                     classifierUsage: classifierResponse.usage,
                   });
-
-                  if (spend) {
-                    console.info({
-                      code: "daily_spend_recorded",
-                      mainCostUsd: spend.mainCostUsd,
-                      classifierCostUsd: spend.classifierCostUsd,
-                      totalCostUsd: spend.totalCostUsd,
-                      modelMain: model,
-                      modelClassifier: classifierModel,
-                    });
-                  }
                 } catch (error: unknown) {
                   const spendErrorMessage =
                     error instanceof Error ? error.message : "";
@@ -229,6 +307,15 @@ export async function POST(request: Request) {
                   });
                 }
               }
+
+              logTurnMetadataOnce({
+                classifierCategory,
+                classifierResponseTimeMs,
+                classifierStatus: "completed",
+                classifierUsage,
+                mainStatus: "completed",
+                mainUsage,
+              });
             } catch (error: unknown) {
               const responseTimeMs = Date.now() - requestStartedAt;
               const apiError = error instanceof Anthropic.APIError ? error : null;
@@ -240,6 +327,15 @@ export async function POST(request: Request) {
                 modelMain: model,
                 modelClassifier: classifierModel,
                 responseTimeMs,
+              });
+
+              logTurnMetadataOnce({
+                classifierCategory,
+                classifierResponseTimeMs,
+                classifierStatus: "error_classifier",
+                classifierUsage,
+                mainStatus: "completed",
+                mainUsage,
               });
             }
           }
@@ -256,6 +352,11 @@ export async function POST(request: Request) {
             status: apiError?.status ?? 500,
             model,
             responseTimeMs,
+          });
+
+          logTurnMetadataOnce({
+            mainStatus: "error_stream",
+            mainUsage,
           });
 
           controller.enqueue(
@@ -302,6 +403,10 @@ export async function POST(request: Request) {
       status: apiError?.status ?? 500,
       model,
       responseTimeMs,
+    });
+
+    logTurnMetadataOnce({
+      mainStatus: "error_request_setup",
     });
 
     return NextResponse.json(
