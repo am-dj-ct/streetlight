@@ -1,4 +1,5 @@
 import { access, readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import {
   collectLaunchDocPlaceholderIssues,
@@ -56,6 +57,23 @@ function addFailure(failures, message, scope = "internal") {
     message,
     scope,
   });
+}
+
+function runNodeScript(scriptPath) {
+  const result = spawnSync(process.execPath, [scriptPath], {
+    cwd,
+    encoding: "utf8",
+  });
+
+  if (result.error) {
+    return `Failed to run ${scriptPath}: ${result.error.message}`;
+  }
+
+  if (result.status !== 0) {
+    return `${scriptPath} exited ${result.status}.\n${result.stderr || result.stdout}`;
+  }
+
+  return null;
 }
 
 async function checkRequiredFiles(failures) {
@@ -160,6 +178,21 @@ async function checkResourceFreshness(failures) {
   }
 }
 
+function checkSafetyGuardrails(failures) {
+  const scripts = [
+    "scripts/check-forbidden-integrations.mjs",
+    "scripts/check-no-tracked-secrets.mjs",
+  ];
+
+  for (const scriptPath of scripts) {
+    const error = runNodeScript(scriptPath);
+
+    if (error) {
+      addFailure(failures, `${scriptPath}: ${error}`);
+    }
+  }
+}
+
 const failures = [];
 
 await checkRequiredFiles(failures);
@@ -167,6 +200,7 @@ await checkEnvExample(failures);
 await checkPlaceholders(failures);
 await checkTranslations(failures);
 await checkResourceFreshness(failures);
+checkSafetyGuardrails(failures);
 
 console.log("Launch readiness check");
 console.log("");
