@@ -6,6 +6,7 @@ import {
   getClassifierModel,
   getMainModel,
   isDevMockChatEnabled,
+  isProductionMockMisconfigured,
   isSoftPauseEnabled,
 } from "../../../lib/env";
 import { checkPerIpRateLimit, getHashedIp } from "../../../lib/rate-limit";
@@ -128,6 +129,21 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (isProductionMockMisconfigured()) {
+      logTurnMetadataOnce({
+        mainStatus: "error_request_setup",
+      });
+
+      return NextResponse.json(
+        {
+          error: "This deployment is misconfigured.",
+          assistantNotice:
+            "This deployment is misconfigured right now and is not safe to use. Please try again later.",
+        },
+        { status: 503 },
+      );
+    }
+
     if (isDevMockChatEnabled()) {
       model = "mock-local-main";
       classifierModel = "mock-local-classifier";

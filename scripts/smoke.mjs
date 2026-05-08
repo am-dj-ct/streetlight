@@ -71,7 +71,8 @@ async function checkHealth() {
     !body ||
     body.ok !== true ||
     body.service !== "access-tool" ||
-    (body.chatMode !== "live-model" && body.chatMode !== "mock-local")
+    (body.chatMode !== "live-model" && body.chatMode !== "mock-local") ||
+    body.deployConfigOk !== true
   ) {
     fail("Unexpected /healthz response body.");
   }

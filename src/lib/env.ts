@@ -99,3 +99,7 @@ export function hasTurnstileSecret(): boolean {
 export function isDevMockChatEnabled(): boolean {
   return readOptionalBooleanEnv("DEV_MOCK_CHAT");
 }
+
+export function isProductionMockMisconfigured(): boolean {
+  return readOptionalEnv("VERCEL_ENV") === "production" && isDevMockChatEnabled();
+}
