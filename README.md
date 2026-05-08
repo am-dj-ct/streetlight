@@ -89,6 +89,8 @@ this. Code stays public on GitHub regardless.
   sample
 - `npm run regression:prompts` — runs the starter synthetic prompt set in
   `tests/prompts/`
+- `npm run regression:mock` — runs the full prompt set in mock-local plumbing
+  mode without live model calls
 - `npm run regression:quick` — cheaper prompt plumbing check; in mock mode it
   verifies streaming/classifier wiring without pretending to validate live
   model behavior
@@ -99,7 +101,8 @@ this. Code stays public on GitHub regardless.
 `npm run dev:mock` is for zero-cost local UI work. `npm run dev:live` is the
 easy way back to real model calls. Full prompt regression still expects live
 model replies, so `npm run regression:prompts` will stop with a clear message
-while mock mode is active.
+while mock mode is active. Use `npm run regression:mock` for a full no-spend
+plumbing pass.
 
 ## Utility routes
 
