@@ -1,7 +1,7 @@
-import { promptButtons } from "../lib/buttons";
+import Link from "next/link";
+import { CrisisFooter } from "../components/crisis-footer";
+import { alternateActions, promptButtons } from "../lib/buttons";
 import { languageOptions } from "../lib/languages";
-
-const alternateActions = ["Type your own", "Talk instead"] as const;
 
 export default function Home() {
   return (
@@ -36,44 +36,29 @@ export default function Home() {
 
           <div className="mt-5 flex flex-col gap-2.5">
             {promptButtons.map((button) => (
-              <button
+              <Link
                 key={button.id}
-                type="button"
-                className="min-h-16 w-full rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+                href={`/conversation/${button.id}`}
+                className="flex min-h-16 w-full items-center rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
               >
                 {button.label}
-              </button>
+              </Link>
             ))}
 
-            {alternateActions.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="min-h-16 w-full rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+            {alternateActions.map((action) => (
+              <Link
+                key={action.id}
+                href={`/conversation/${action.id}`}
+                className="flex min-h-16 w-full items-center rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
               >
-                {label}
-              </button>
+                {action.label}
+              </Link>
             ))}
           </div>
         </section>
 
       </div>
-
-      <footer
-        id="crisis-resources"
-        className="shrink-0 border-t border-[#cbd6cf] bg-[#edf3ef] px-4 py-3 text-[14px] leading-5 text-[#25342b]"
-      >
-        <div className="mx-auto flex max-w-md flex-wrap items-center gap-x-3 gap-y-1">
-          <strong className="font-semibold">Crisis help:</strong>
-          <span>Call or text 988</span>
-          <span>Call 911 for danger now</span>
-          {/* TODO: Replace with maintained King County crisis numbers JSON. */}
-          <span>King County crisis numbers coming soon</span>
-          <button type="button" className="font-semibold underline">
-            Find a human
-          </button>
-        </div>
-      </footer>
+      <CrisisFooter />
     </main>
   );
 }

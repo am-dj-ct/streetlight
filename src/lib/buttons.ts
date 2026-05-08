@@ -14,6 +14,11 @@ export type PromptButton = {
   systemPrompt: string;
 };
 
+export type AlternateAction = {
+  id: "type-your-own" | "talk-instead";
+  label: string;
+};
+
 export const promptButtons: readonly PromptButton[] = [
   {
     id: "understand-letter-or-form",
@@ -55,4 +60,9 @@ export const promptButtons: readonly PromptButton[] = [
     label: "Something I'm embarrassed to ask",
     systemPrompt: "",
   },
+];
+
+export const alternateActions: readonly AlternateAction[] = [
+  { id: "type-your-own", label: "Type your own" },
+  { id: "talk-instead", label: "Talk instead" },
 ];
