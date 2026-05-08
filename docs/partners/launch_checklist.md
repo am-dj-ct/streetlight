@@ -38,6 +38,6 @@ Use this before any named partner starts sending real people to the tool.
 When this checklist is complete, send the partner:
 
 - the main URL
-- one-sentence framing for what the tool is
-- the bug-report template
-- a plain-language note about current limits
+- `docs/partners/one-sentence-framing.md`
+- `docs/partners/bug-report.md`
+- `docs/partners/current-limits.md`

@@ -41,6 +41,38 @@ const hardPausePage = `<!doctype html>
         font-size: 18px;
         line-height: 1.6;
       }
+      .eyebrow {
+        margin: 0 0 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: #55645b;
+      }
+      .help-box {
+        margin: 24px 0;
+        border: 1px solid #d8e1db;
+        border-radius: 18px;
+        background: #edf3ef;
+        padding: 16px;
+      }
+      .help-box p {
+        margin-bottom: 12px;
+        font-size: 16px;
+      }
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+      }
+      .links a {
+        color: #1f2923;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: underline;
+      }
+      .small {
+        font-size: 15px;
+        color: #55645b;
+      }
       strong {
         font-weight: 700;
       }
@@ -49,15 +81,29 @@ const hardPausePage = `<!doctype html>
   <body>
     <main>
       <article>
+        <p class="eyebrow">Access Tool is temporarily unavailable.</p>
         <h1>The tool is paused.</h1>
         <p>
           The tool is paused while the person who runs it checks on something.
         </p>
         <p>
-          <strong>If you need help right now:</strong> 988 for crisis, 211 for resources, 911 for emergencies.
+          Try again later today.
         </p>
-        <p>
+        <div class="help-box">
+          <p><strong>If you need help right now:</strong></p>
+          <div class="links">
+            <a href="tel:988">Call or text 988</a>
+            <a href="tel:911">Call 911</a>
+            <a href="tel:8664274747">24-Hr Crisis Line 866-427-4747</a>
+            <a href="tel:8667891511">Recovery Help 866-789-1511</a>
+            <a href="tel:2067370242">DV Hopeline 206-737-0242</a>
+          </div>
+        </div>
+        <p class="small">
           Built and run by one person in Seattle.
+        </p>
+        <p class="small">
+          Problem report: <a href="mailto:jesse.c.dunn@outlook.com?subject=Access%20Tool%20problem%20report">jesse.c.dunn@outlook.com</a>
         </p>
       </article>
     </main>
