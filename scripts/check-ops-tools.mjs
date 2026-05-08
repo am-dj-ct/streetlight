@@ -31,6 +31,15 @@ const newIncidentOutput = runNodeScript("scripts/new-incident.mjs", [
   "true",
 ]);
 
+const forbiddenIntegrationsOutput = runNodeScript(
+  "scripts/check-forbidden-integrations.mjs",
+  [],
+);
+
+if (!forbiddenIntegrationsOutput.includes("Forbidden integration check passed.")) {
+  fail("forbidden integration check did not include the expected pass output.");
+}
+
 if (
   !newIncidentOutput.includes("Would create incidents/") ||
   !newIncidentOutput.includes("Severity: Sev-1")

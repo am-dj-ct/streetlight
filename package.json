@@ -13,6 +13,7 @@
     "check:locales:summary": "node scripts/report-missing-locales.mjs --summary",
     "check:launch": "node scripts/check-launch-readiness.mjs",
     "check:content": "node scripts/check-content-contracts.mjs",
+    "check:forbidden-integrations": "node scripts/check-forbidden-integrations.mjs",
     "check:ops": "node scripts/check-ops-tools.mjs",
     "check:translation-worklist": "node scripts/build-translation-worklist.mjs --check",
     "cost:status": "node scripts/print-cost-mode.mjs",
