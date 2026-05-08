@@ -6,6 +6,8 @@ const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const endpoint = new URL("/api/chat", baseUrl).toString();
 const healthEndpoint = new URL("/healthz", baseUrl).toString();
 const casesPath = path.join(cwd, "tests/prompts/smoke-cases.json");
+const smokeCaseLimit = Number.parseInt(process.env.SMOKE_CASE_LIMIT ?? "", 10);
+const smokeCaseFilter = (process.env.SMOKE_CASE_FILTER ?? "").trim().toLowerCase();
 const pageChecks = [
   {
     expectedText: "What do you need?",
@@ -38,7 +40,18 @@ function fail(message) {
 }
 
 async function loadCases() {
-  return JSON.parse(await readFile(casesPath, "utf8"));
+  const allCases = JSON.parse(await readFile(casesPath, "utf8"));
+  const filteredCases = smokeCaseFilter
+    ? allCases.filter((testCase) =>
+        `${testCase.name}/${testCase.entryId}`.toLowerCase().includes(smokeCaseFilter),
+      )
+    : allCases;
+
+  if (Number.isFinite(smokeCaseLimit) && smokeCaseLimit > 0) {
+    return filteredCases.slice(0, smokeCaseLimit);
+  }
+
+  return filteredCases;
 }
 
 async function checkHealth() {
@@ -200,6 +213,12 @@ console.log("Page checks ok (landing, conversation, referrals, support pages).")
 
 const smokeCases = await loadCases();
 const results = [];
+
+if (smokeCases.length === 0) {
+  fail("No smoke cases matched the current filter/limit.");
+}
+
+console.log(`Running ${smokeCases.length} smoke case(s).`);
 
 for (const testCase of smokeCases) {
   process.stdout.write(`Running ${testCase.name}... `);

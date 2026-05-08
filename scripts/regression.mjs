@@ -5,6 +5,8 @@ const cwd = process.cwd();
 const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const endpoint = new URL("/api/chat", baseUrl).toString();
 const fixturesRoot = path.join(cwd, "tests/prompts");
+const promptCaseLimit = Number.parseInt(process.env.PROMPT_CASE_LIMIT ?? "", 10);
+const promptCaseFilter = (process.env.PROMPT_CASE_FILTER ?? "").trim().toLowerCase();
 
 const refusalPattern =
   /\b(i can't help with that|i cannot help with that|i can't assist with that|i cannot assist with that)\b/i;
@@ -38,7 +40,18 @@ async function loadCases() {
     }
   }
 
-  return allCases;
+  const filteredCases = promptCaseFilter
+    ? allCases.filter((testCase) => {
+        const combined = `${testCase.entryId}/${testCase.name}`.toLowerCase();
+        return combined.includes(promptCaseFilter);
+      })
+    : allCases;
+
+  if (Number.isFinite(promptCaseLimit) && promptCaseLimit > 0) {
+    return filteredCases.slice(0, promptCaseLimit);
+  }
+
+  return filteredCases;
 }
 
 async function readSse(response) {
@@ -159,6 +172,12 @@ async function runCase(testCase) {
 
 const cases = await loadCases();
 const results = [];
+
+if (cases.length === 0) {
+  fail("No regression cases matched the current filter/limit.");
+}
+
+console.log(`Running ${cases.length} regression case(s).`);
 
 for (const testCase of cases) {
   process.stdout.write(`Running ${testCase.entryId}/${testCase.name}... `);
