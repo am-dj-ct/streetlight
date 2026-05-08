@@ -298,6 +298,10 @@ export function ConversationClient({
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const conversationHref = buildConversationHref({
+    entryId,
+    languageCode: currentLanguageCode,
+  });
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -1295,10 +1299,7 @@ export function ConversationClient({
         entryId={entryId}
         languageCode={currentLanguageCode}
         regionScope={regionScope}
-        sourcePath={buildConversationHref({
-          entryId,
-          languageCode: currentLanguageCode,
-        })}
+        sourcePath={conversationHref}
       />
     </main>
   );

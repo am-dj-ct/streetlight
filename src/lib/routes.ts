@@ -1,6 +1,8 @@
 import type { ConversationEntryId, WeakCategory } from "./chat-types";
 import type { SupportedLanguageCode } from "./languages";
 
+export type InternalAppPath = `/${string}`;
+
 type FindHumanHrefOptions = {
   category?: null | WeakCategory;
   entryId?: null | string;
@@ -11,21 +13,45 @@ type ReportProblemHrefOptions = {
   area?: null | string;
   entryId?: null | string;
   languageCode: SupportedLanguageCode;
-  sourcePath?: null | string;
+  sourcePath?: InternalAppPath | null;
 };
+
+const allowedSourcePathnames = [
+  "/",
+  "/about",
+  "/conversation",
+  "/find-human",
+  "/privacy",
+  "/report-problem",
+] as const;
 
 export function sanitizeInternalSourcePath(
   sourcePath?: null | string,
-): null | string {
+): InternalAppPath | null {
   if (!sourcePath || !sourcePath.startsWith("/") || sourcePath.startsWith("//")) {
     return null;
   }
 
-  return sourcePath;
+  try {
+    const normalized = new URL(sourcePath, "http://access-tool.local");
+    const isAllowedPathname = allowedSourcePathnames.some((pathname) =>
+      pathname === "/conversation"
+        ? normalized.pathname.startsWith("/conversation/")
+        : normalized.pathname === pathname,
+    );
+
+    if (!isAllowedPathname) {
+      return null;
+    }
+
+    return `${normalized.pathname}${normalized.search}${normalized.hash}` as InternalAppPath;
+  } catch {
+    return null;
+  }
 }
 
 export function buildHomeHref(languageCode: SupportedLanguageCode) {
-  return `/?lang=${languageCode}`;
+  return `/?lang=${languageCode}` as InternalAppPath;
 }
 
 export function buildConversationHref({
@@ -35,15 +61,15 @@ export function buildConversationHref({
   entryId: ConversationEntryId;
   languageCode: SupportedLanguageCode;
 }) {
-  return `/conversation/${entryId}?lang=${languageCode}`;
+  return `/conversation/${entryId}?lang=${languageCode}` as InternalAppPath;
 }
 
 export function buildAboutHref(languageCode: SupportedLanguageCode) {
-  return `/about?lang=${languageCode}`;
+  return `/about?lang=${languageCode}` as InternalAppPath;
 }
 
 export function buildPrivacyHref(languageCode: SupportedLanguageCode) {
-  return `/privacy?lang=${languageCode}`;
+  return `/privacy?lang=${languageCode}` as InternalAppPath;
 }
 
 export function buildFindHumanHref({
@@ -63,7 +89,7 @@ export function buildFindHumanHref({
 
   params.set("lang", languageCode);
 
-  return `/find-human?${params.toString()}`;
+  return `/find-human?${params.toString()}` as InternalAppPath;
 }
 
 export function buildReportProblemHref({
@@ -88,5 +114,5 @@ export function buildReportProblemHref({
     params.set("source", safeSourcePath);
   }
 
-  return `/report-problem?${params.toString()}`;
+  return `/report-problem?${params.toString()}` as InternalAppPath;
 }

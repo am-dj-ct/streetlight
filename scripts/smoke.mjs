@@ -279,12 +279,8 @@ async function runCase(testCase) {
 }
 
 async function checkInvalidChatEntryId() {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  await expectInvalidChatRequestShape(
+    {
       entryId: "not-a-real-entry",
       language: "en",
       messages: [
@@ -294,27 +290,14 @@ async function checkInvalidChatEntryId() {
           text: "hello",
         },
       ],
-    }),
-  });
-
-  if (response.status !== 400) {
-    fail(`Expected 400 from /api/chat for invalid entryId, got ${response.status}.`);
-  }
-
-  const payload = await response.json().catch(() => null);
-
-  if (payload?.error !== "Invalid request shape.") {
-    fail("Unexpected invalid-entry response body from /api/chat.");
-  }
+    },
+    "invalid entryId",
+  );
 }
 
 async function checkInvalidChatLanguage() {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  await expectInvalidChatRequestShape(
+    {
       entryId: "understand-letter-or-form",
       language: "not-a-real-language",
       messages: [
@@ -324,27 +307,14 @@ async function checkInvalidChatLanguage() {
           text: "hello",
         },
       ],
-    }),
-  });
-
-  if (response.status !== 400) {
-    fail(`Expected 400 from /api/chat for invalid language, got ${response.status}.`);
-  }
-
-  const payload = await response.json().catch(() => null);
-
-  if (payload?.error !== "Invalid request shape.") {
-    fail("Unexpected invalid-language response body from /api/chat.");
-  }
+    },
+    "invalid language",
+  );
 }
 
 async function checkInvalidTurnstileToken() {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  await expectInvalidChatRequestShape(
+    {
       entryId: "understand-letter-or-form",
       language: "en",
       messages: [
@@ -355,17 +325,28 @@ async function checkInvalidTurnstileToken() {
         },
       ],
       turnstileToken: { nope: true },
-    }),
+    },
+    "invalid turnstileToken",
+  );
+}
+
+async function expectInvalidChatRequestShape(body, label) {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 
   if (response.status !== 400) {
-    fail(`Expected 400 from /api/chat for invalid turnstileToken, got ${response.status}.`);
+    fail(`Expected 400 from /api/chat for ${label}, got ${response.status}.`);
   }
 
   const payload = await response.json().catch(() => null);
 
   if (payload?.error !== "Invalid request shape.") {
-    fail("Unexpected invalid-turnstile response body from /api/chat.");
+    fail(`Unexpected ${label} response body from /api/chat.`);
   }
 }
 
@@ -388,6 +369,28 @@ async function checkUnsafeReportProblemSource() {
 
   if (html.includes('href="https://evil.example/phish"')) {
     fail("Unsafe external source link rendered on /report-problem.");
+  }
+}
+
+async function checkDisallowedInternalReportProblemSource() {
+  const disallowedSource = encodeURIComponent("/api/chat?lang=en");
+  const response = await fetch(
+    new URL(`/report-problem?lang=en&source=${disallowedSource}`, baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /report-problem with disallowed internal source.`);
+  }
+
+  const html = await response.text();
+
+  if (html.includes("Source route:<!-- --> <!-- -->/api/chat?lang=en")) {
+    fail("Disallowed internal source path rendered on /report-problem.");
   }
 }
 
@@ -421,6 +424,38 @@ async function checkBlankChatMessage() {
   }
 }
 
+async function checkMissingMessagesArray() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: {
+        id: "smoke-invalid-messages",
+        role: "user",
+        text: "hello",
+      },
+    },
+    "non-array messages",
+  );
+}
+
+async function checkInvalidMessageTextShape() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-invalid-text",
+          role: "user",
+          text: 42,
+        },
+      ],
+    },
+    "non-string message text",
+  );
+}
+
 async function checkInvalidReportProblemEntryId() {
   const response = await fetch(
     new URL("/report-problem?lang=en&entryId=not-a-real-entry", baseUrl),
@@ -442,6 +477,27 @@ async function checkInvalidReportProblemEntryId() {
   }
 }
 
+async function checkInvalidReportProblemArea() {
+  const response = await fetch(
+    new URL("/report-problem?lang=en&area=not-real", baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /report-problem with invalid area.`);
+  }
+
+  const html = await response.text();
+
+  if (!html.includes('<option value="conversation" selected="">Conversation</option>')) {
+    fail("Invalid report-problem area did not fall back to Conversation.");
+  }
+}
+
 const health = await getHealth({
   baseUrl,
   fail,
@@ -460,10 +516,18 @@ await checkInvalidTurnstileToken();
 console.log("Invalid turnstileToken handling ok (/api/chat rejects bad token shapes).");
 await checkUnsafeReportProblemSource();
 console.log("Unsafe source handling ok (/report-problem ignores external source links).");
+await checkDisallowedInternalReportProblemSource();
+console.log("Disallowed internal source handling ok (/report-problem ignores unsafe app paths).");
 await checkBlankChatMessage();
 console.log("Blank message handling ok (/api/chat rejects all-whitespace messages).");
+await checkMissingMessagesArray();
+console.log("Malformed messages handling ok (/api/chat rejects non-array messages).");
+await checkInvalidMessageTextShape();
+console.log("Malformed message text handling ok (/api/chat rejects non-string text).");
 await checkInvalidReportProblemEntryId();
 console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
+await checkInvalidReportProblemArea();
+console.log("Invalid report area handling ok (/report-problem falls back cleanly).");
 
 const smokeCases = await loadCases();
 const results = [];

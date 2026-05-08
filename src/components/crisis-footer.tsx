@@ -7,6 +7,7 @@ import {
   buildFindHumanHref,
   buildPrivacyHref,
   buildReportProblemHref,
+  type InternalAppPath,
 } from "../lib/routes";
 import { getUiCopy } from "../lib/ui-copy";
 
@@ -21,7 +22,7 @@ export function CrisisFooter({
   entryId?: string;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;
-  sourcePath?: string;
+  sourcePath?: InternalAppPath;
 }) {
   const copy = getUiCopy(languageCode);
   const crisisResources = getCrisisResources(regionScope);

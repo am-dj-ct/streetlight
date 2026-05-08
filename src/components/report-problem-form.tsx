@@ -15,6 +15,7 @@ import {
   languageOptions,
   type SupportedLanguageCode,
 } from "../lib/languages";
+import type { InternalAppPath } from "../lib/routes";
 import type { UiCopy } from "../lib/ui-copy";
 
 type ReportAreaOption = {
@@ -58,7 +59,7 @@ type ReportProblemFormProps = {
   initialArea?: ReportArea;
   languageCode: SupportedLanguageCode;
   regionScope: RegionScope;
-  sourcePath?: string;
+  sourcePath?: InternalAppPath;
 };
 
 function getChatModeLabel(chatMode: ChatMode, copy: UiCopy) {

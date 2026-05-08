@@ -3,13 +3,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
 import { ReportProblemForm } from "../../components/report-problem-form";
-import { isConversationEntryId } from "../../lib/chat-types";
 import { getPageRequestContext } from "../../lib/request-context";
-import { isReportArea } from "../../lib/report-problem";
+import { sanitizeReportProblemSearchParams } from "../../lib/report-problem";
 import {
   buildHomeHref,
   buildReportProblemHref,
-  sanitizeInternalSourcePath,
 } from "../../lib/routes";
 import { getRuntimeState } from "../../lib/runtime-state";
 import { makeTitle } from "../../lib/site-metadata";
@@ -54,16 +52,22 @@ export default async function ReportProblemPage({
     requestedLanguageCode: lang,
   });
   const runtimeState = getRuntimeState();
-  const safeSourcePath = sanitizeInternalSourcePath(source);
-  const safeEntryId = isConversationEntryId(entryId) ? entryId : undefined;
-  const safeArea = isReportArea(area) ? area : undefined;
+  const {
+    area: safeArea,
+    entryId: safeEntryId,
+    sourcePath: safeSourcePath,
+  } = sanitizeReportProblemSearchParams({
+    area,
+    entryId,
+    sourcePath: source,
+  });
 
   return (
     <InfoPageShell
       area="other"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
-      sourcePath={safeSourcePath ?? undefined}
+      sourcePath={safeSourcePath}
       title={copy.reportPageTitle}
       lastUpdated="2026-05-08"
       getLanguageHref={(nextLanguageCode) =>
@@ -84,7 +88,7 @@ export default async function ReportProblemPage({
         initialArea={safeArea}
         languageCode={languageCode}
         regionScope={regionScope}
-        sourcePath={safeSourcePath ?? undefined}
+        sourcePath={safeSourcePath}
       />
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
         {safeSourcePath ? (
