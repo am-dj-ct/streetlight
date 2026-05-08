@@ -6,6 +6,7 @@ import Script from "next/script";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
+import { getConversationContentEntry } from "../lib/conversation-content";
 import { getWeakCategoryLabel } from "../lib/referrals";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
@@ -199,7 +200,20 @@ function appendToMessage(
   });
 }
 
-function formatConversationForExport(messages: ClientChatMessage[]) {
+function formatConversationForExport(
+  messages: ClientChatMessage[],
+  {
+    entryLabel,
+    languageLabel,
+  }: {
+    entryLabel: string;
+    languageLabel: string;
+  },
+) {
+  const exportedAt = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date());
   const body = messages
     .filter((message) => message.text.trim().length > 0)
     .map((message) => {
@@ -208,10 +222,16 @@ function formatConversationForExport(messages: ClientChatMessage[]) {
     })
     .join("\n\n");
 
-  return `Access Tool conversation\n\n${body}\n`;
+  return `Access Tool conversation
+Saved: ${exportedAt}
+Started from: ${entryLabel}
+Language: ${languageLabel}
+
+${body}
+`;
 }
 
-function makeExportFilename() {
+function makeExportFilename(entryId: ConversationEntryId) {
   const now = new Date();
   const timestamp = [
     now.getFullYear(),
@@ -222,7 +242,7 @@ function makeExportFilename() {
     String(now.getMinutes()).padStart(2, "0"),
   ].join("");
 
-  return `access-tool-${timestamp}.txt`;
+  return `access-tool-${entryId}-${timestamp}.txt`;
 }
 
 function setMessageWeakCategory(
@@ -441,6 +461,7 @@ export function ConversationClient({
     voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ?? "Default";
   const speechUnavailable = speechSupported === false;
   const micUnavailable = micSupported === false;
+  const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
 
   function resetTurnstileToken() {
     setTurnstileToken(null);
@@ -471,13 +492,16 @@ export function ConversationClient({
       return;
     }
 
-    const fileContents = formatConversationForExport(messages);
+    const fileContents = formatConversationForExport(messages, {
+      entryLabel: exportEntryLabel,
+      languageLabel: currentLanguageLabel,
+    });
     const blob = new Blob([fileContents], { type: "text/plain;charset=utf-8" });
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
 
     anchor.href = objectUrl;
-    anchor.download = makeExportFilename();
+    anchor.download = makeExportFilename(entryId);
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -490,7 +514,12 @@ export function ConversationClient({
     }
 
     const subject = encodeURIComponent("Access Tool conversation");
-    const body = encodeURIComponent(formatConversationForExport(messages));
+    const body = encodeURIComponent(
+      formatConversationForExport(messages, {
+        entryLabel: exportEntryLabel,
+        languageLabel: currentLanguageLabel,
+      }),
+    );
 
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }
