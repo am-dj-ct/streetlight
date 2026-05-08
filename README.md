@@ -28,10 +28,14 @@ when the build is ready.
 - [What this tool will not do](docs/forbidden.md) — the "no" list.
 - [Translation handoff](docs/translation_handoff.md) — where human
   translation work lives and how to audit completeness.
+- [Translation worklist](docs/translation_worklist.md) — generated
+  per-language missing-key checklist for human translators.
 - [Operational runbook](OPERATIONAL_RUNBOOK.md) — dashboard-first incident
   and pause procedures.
 - [Partner bug report template](docs/partners/bug-report.md) — structured
   no-content issue intake for frontline partners.
+- [Partner launch packet](docs/partners/launch-packet.md) — ready-to-send
+  framing, limits, and bug-report links for soft launch.
 
 ## Project structure
 
@@ -44,6 +48,7 @@ this. Code stays public on GitHub regardless.
 - `npm run lint`
 - `npm run build`
 - `npm run check:locales`
+- `npm run build:translation-worklist`
 - `npm run smoke` — runs a small synthetic end-to-end chat check against
   `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
 - `npm run regression:prompts` — runs the starter synthetic prompt set in
