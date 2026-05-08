@@ -1,13 +1,4 @@
-const weakCategories = new Set([
-  "legal_procedure",
-  "medical_dosing",
-  "benefits_eligibility",
-  "immigration",
-  "drug_interactions",
-  "specific_deadlines",
-  "specific_dollar_amounts",
-  "none",
-]);
+import { isWeakCategory } from "./taxonomy.mjs";
 
 export function isChatStreamEvent(value) {
   if (!value || typeof value !== "object") {
@@ -19,7 +10,7 @@ export function isChatStreamEvent(value) {
   }
 
   if (value.type === "classifier") {
-    return typeof value.category === "string" && weakCategories.has(value.category);
+    return typeof value.category === "string" && isWeakCategory(value.category);
   }
 
   if (value.type === "error") {

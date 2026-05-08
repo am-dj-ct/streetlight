@@ -1,14 +1,4 @@
-const supportedLanguages = new Set(["en", "es", "vi", "so", "ru", "am", "zh"]);
-const weakCategories = new Set([
-  "legal_procedure",
-  "medical_dosing",
-  "benefits_eligibility",
-  "immigration",
-  "drug_interactions",
-  "specific_deadlines",
-  "specific_dollar_amounts",
-  "none",
-]);
+import { isSupportedLanguageCode, isWeakCategory } from "./taxonomy.mjs";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -45,7 +35,7 @@ export function validateSmokeCases(value, label) {
       throw new Error(`${caseLabel} must include a non-empty entryId.`);
     }
 
-    if (!supportedLanguages.has(testCase.language)) {
+    if (!isSupportedLanguageCode(testCase.language)) {
       throw new Error(`${caseLabel} must include a supported language code.`);
     }
   }
@@ -62,7 +52,7 @@ export function validateRegressionCases(value, label) {
 
     if (
       testCase.expectedClassifier !== undefined &&
-      !weakCategories.has(testCase.expectedClassifier)
+      !isWeakCategory(testCase.expectedClassifier)
     ) {
       throw new Error(`${caseLabel} has an invalid expectedClassifier.`);
     }

@@ -1,34 +1,17 @@
 import path from "node:path";
 import { readJsonFile } from "./lib/json-file.mjs";
+import {
+  isReferralCategory,
+  referralCoverageCategories,
+} from "./lib/taxonomy.mjs";
 
 const cwd = process.cwd();
 
 const referralPath = path.join(cwd, "src/data/referrals.json");
 const crisisPath = path.join(cwd, "src/data/crisis-resources.json");
 
-const validWeakCategories = new Set([
-  "legal_procedure",
-  "medical_dosing",
-  "benefits_eligibility",
-  "immigration",
-  "drug_interactions",
-  "specific_deadlines",
-  "specific_dollar_amounts",
-  "none",
-]);
-
-const validReferralCategories = new Set(["all", ...validWeakCategories]);
 const validRegions = new Set(["king", "fallback"]);
 const staleAfterDays = 180;
-const requiredReferralCoverageCategories = [
-  "legal_procedure",
-  "medical_dosing",
-  "benefits_eligibility",
-  "immigration",
-  "drug_interactions",
-  "specific_deadlines",
-  "specific_dollar_amounts",
-];
 
 function fail(message) {
   throw new Error(message);
@@ -132,7 +115,7 @@ function validateReferrals(referrals) {
   const regionCoverage = new Map(
     [...validRegions].map((region) => [
       region,
-      new Map(requiredReferralCoverageCategories.map((category) => [category, 0])),
+      new Map(referralCoverageCategories.map((category) => [category, 0])),
     ]),
   );
   const warnings = [];
@@ -191,7 +174,7 @@ function validateReferrals(referrals) {
     const seenCategories = new Set();
 
     for (const category of referral.categories) {
-      if (!validReferralCategories.has(category)) {
+      if (!isReferralCategory(category)) {
         fail(
           `Referral "${referral.id}" contains invalid category "${category}".`,
         );
@@ -215,7 +198,7 @@ function validateReferrals(referrals) {
         continue;
       }
 
-      for (const category of requiredReferralCoverageCategories) {
+      for (const category of referralCoverageCategories) {
         if (seenCategories.has("all") || seenCategories.has(category)) {
           coverageForRegion.set(category, (coverageForRegion.get(category) ?? 0) + 1);
         }
@@ -230,7 +213,7 @@ function validateReferrals(referrals) {
       continue;
     }
 
-    for (const category of requiredReferralCoverageCategories) {
+    for (const category of referralCoverageCategories) {
       if ((coverageForRegion.get(category) ?? 0) === 0) {
         fail(`Referral coverage is missing for region "${region}" and category "${category}".`);
       }
