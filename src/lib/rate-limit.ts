@@ -20,7 +20,7 @@ type RateLimitResult =
       reason: "limit_reached";
     };
 
-function getClientIp(request: Request): null | string {
+export function getClientIp(request: Request): null | string {
   const forwardedFor = request.headers.get("x-forwarded-for");
 
   if (forwardedFor) {

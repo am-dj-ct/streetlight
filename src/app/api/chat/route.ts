@@ -10,6 +10,7 @@ import {
 import { checkPerIpRateLimit } from "../../../lib/rate-limit";
 import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
+import { validateTurnstileToken } from "../../../lib/turnstile";
 import type { ChatRequestBody, ClientChatMessage } from "../../../lib/chat-types";
 
 function isClientChatMessage(value: unknown): value is ClientChatMessage {
@@ -69,6 +70,18 @@ export async function POST(request: Request) {
             "The tool is paused right now while the person who runs it checks on something. Try again later today.\n\nIf you need help right now: 988 for crisis, 211 for resources, 911 for emergencies.",
         },
         { status: 503 },
+      );
+    }
+
+    const turnstile = await validateTurnstileToken({
+      request,
+      token: body.turnstileToken,
+    });
+
+    if (!turnstile.allowed) {
+      return NextResponse.json(
+        { error: "Please try again." },
+        { status: 403 },
       );
     }
 

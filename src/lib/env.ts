@@ -42,6 +42,14 @@ export function getClassifierModel(): string {
   return readEnv("CLASSIFIER_MODEL");
 }
 
+export function getTurnstileSecretKey(): string {
+  return readEnv("TURNSTILE_SECRET_KEY");
+}
+
+export function getTurnstileSiteKey(): null | string {
+  return readOptionalEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY");
+}
+
 export function getHashedIpSalt(): string {
   return readEnv("HASHED_IP_SALT");
 }
@@ -78,4 +86,8 @@ export function getClassifierModelInputCostPerMillionUsd(): null | number {
 
 export function getClassifierModelOutputCostPerMillionUsd(): null | number {
   return readOptionalNumberEnv("CLASSIFIER_MODEL_OUTPUT_COST_PER_MILLION_USD");
+}
+
+export function hasTurnstileSecret(): boolean {
+  return Boolean(readOptionalEnv("TURNSTILE_SECRET_KEY"));
 }

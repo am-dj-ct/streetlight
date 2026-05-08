@@ -31,6 +31,7 @@ export type ChatRequestBody = {
   entryId: ConversationEntryId;
   language: string;
   messages: ClientChatMessage[];
+  turnstileToken?: string;
 };
 
 export type ChatStreamEvent =

@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-07
-**Last meaningful change:** 2026-05-07 (soft/hard pause and daily spend cap landed; Turnstile still pending)
+**Last meaningful change:** 2026-05-07 (Turnstile validation landed; full metadata-log schema still pending)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -338,8 +338,8 @@ Every hop a user message takes from the moment they tap send to the moment a res
 subset of this target flow: browser memory state, backend `/api/chat`, the
 main Anthropic Messages API call, the Haiku classifier pass, the inline
 weak-category UI note, KV-backed per-IP rate limiting, daily spend tracking,
-and the soft/hard pause controls. Turnstile validation and the full
-metadata-log schema are not landed yet and must be completed before
+the soft/hard pause controls, and Cloudflare Turnstile validation. The full
+fixed-schema metadata log is still not landed and must be completed before
 partner-facing use.
 
 ### User Action: Tap Send
@@ -352,15 +352,15 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Has access to:** Full conversation history for the current session (in-memory state), user's typed/dictated message, button selection that started the conversation, language setting, optional saved conversations (only if user explicitly saved — `localStorage` or generated text file/screenshot the user kept).
 - **Logs by default:** Browser console (dev tools only). Browser history records the URL but not message content (we never put content in URL params).
 - **Override:** No analytics/telemetry SDK is loaded. No Google Analytics, no Vercel Analytics, no Sentry, no PostHog. Page loads zero tracking pixels.
-- **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), language code, button-selection metadata, Cloudflare Turnstile token. No user identifier, no session ID, no cookie.
+- **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), language code, button-selection metadata, and a Cloudflare Turnstile token when Turnstile is configured. In local development without Turnstile keys, no token is sent. No user identifier, no session ID, no cookie.
 
 ### Hop 2 — Cloudflare Edge (Turnstile Only)
 
-- **Runs:** Cloudflare's Turnstile validates the invisible captcha token. **Script-only mode — Cloudflare is not proxying the full request.** Turnstile token validation happens by JS on the page calling Cloudflare's verification endpoint with the token; the user's actual request body never passes through a Cloudflare proxy.
-- **Has access to:** The Turnstile token only. Not the request body.
+- **Runs:** Cloudflare's Turnstile validates the invisible captcha token when our Vercel function calls Cloudflare's `siteverify` endpoint. **Script-only mode — Cloudflare is not proxying the full chat request.** The user's actual message body never passes through a Cloudflare proxy.
+- **Has access to:** The Turnstile token and the source IP attached to the verification call. Not the request body.
 - **Logs by default:** Cloudflare keeps standard Turnstile validation logs (token validity, source IP at the moment of the validation call). Not configurable to "off."
 - **Override:** No Cloudflare Workers in the body path. No Logpush. Standard Turnstile-only deployment.
-- **What leaves this hop:** A validation result (token valid / invalid). The original request body proceeds directly from the browser to Vercel.
+- **What leaves this hop:** A validation result (token valid / invalid) back to Vercel. If Turnstile keys are absent, this hop is inactive and the request proceeds without a token.
 
 ### Hop 3 — Vercel Edge / Serverless Function (`/api/chat`)
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
@@ -12,6 +13,28 @@ import type {
   ConversationEntryId,
   WeakCategory,
 } from "../lib/chat-types";
+
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      size: "invisible";
+      theme: "light";
+      callback: (token: string) => void;
+      "error-callback": () => void;
+      "expired-callback": () => void;
+    },
+  ) => string;
+  reset: (widgetId?: string) => void;
+  remove: (widgetId: string) => void;
+};
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
 
 type ConversationClientProps = {
   currentLanguageLabel: string;
@@ -178,8 +201,11 @@ export function ConversationClient({
   initialAssistantMessage,
   initialSuggestions,
 }: ConversationClientProps) {
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
@@ -222,6 +248,8 @@ export function ConversationClient({
   });
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -292,6 +320,50 @@ export function ConversationClient({
     window.localStorage.setItem("access-tool-speech-rate", String(speechRate));
   }, [selectedVoiceUri, speechRate]);
 
+  useEffect(() => {
+    if (
+      !turnstileSiteKey ||
+      !turnstileScriptReady ||
+      !turnstileContainerRef.current ||
+      turnstileWidgetIdRef.current ||
+      typeof window === "undefined" ||
+      !window.turnstile
+    ) {
+      return;
+    }
+
+    turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+      sitekey: turnstileSiteKey,
+      size: "invisible",
+      theme: "light",
+      callback: (token) => {
+        setTurnstileToken(token);
+      },
+      "error-callback": () => {
+        setTurnstileToken(null);
+      },
+      "expired-callback": () => {
+        setTurnstileToken(null);
+      },
+    });
+
+    return () => {
+      if (typeof window === "undefined" || !window.turnstile) {
+        return;
+      }
+
+      const widgetId = turnstileWidgetIdRef.current;
+
+      if (!widgetId) {
+        return;
+      }
+
+      window.turnstile.remove(widgetId);
+      turnstileWidgetIdRef.current = null;
+      setTurnstileToken(null);
+    };
+  }, [turnstileScriptReady, turnstileSiteKey]);
+
   const voiceLanguage = getSpeechLanguage(currentLanguageLabel);
   const voiceOptions = getVoiceOptions(availableVoices, voiceLanguage);
   const effectiveVoiceUri =
@@ -300,6 +372,21 @@ export function ConversationClient({
     "";
   const selectedVoiceName =
     voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ?? "Default";
+
+  function resetTurnstileToken() {
+    setTurnstileToken(null);
+
+    if (
+      !turnstileSiteKey ||
+      typeof window === "undefined" ||
+      !window.turnstile ||
+      !turnstileWidgetIdRef.current
+    ) {
+      return;
+    }
+
+    window.turnstile.reset(turnstileWidgetIdRef.current);
+  }
 
   function handlePlayAloud(messageId: string, text: string) {
     if (
@@ -355,6 +442,11 @@ export function ConversationClient({
       return;
     }
 
+    if (turnstileSiteKey && !turnstileToken) {
+      setErrorMessage("Still checking that you're human. Please try again in a moment.");
+      return;
+    }
+
     const nextUserMessage: ClientChatMessage = {
       id: makeMessageId("user"),
       role: "user",
@@ -388,6 +480,7 @@ export function ConversationClient({
             entryId,
             language: "en",
             messages: nextMessages,
+            turnstileToken: turnstileSiteKey ? turnstileToken : undefined,
           }),
         });
 
@@ -487,6 +580,7 @@ export function ConversationClient({
         );
         setErrorMessage("The response did not come through. Please try again.");
       } finally {
+        resetTurnstileToken();
         setIsStreaming(false);
       }
     })();
@@ -494,6 +588,14 @@ export function ConversationClient({
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
+      {turnstileSiteKey ? (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+          onLoad={() => setTurnstileScriptReady(true)}
+        />
+      ) : null}
+
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3">
         <header className="flex items-center justify-between pb-3">
           <Link
@@ -620,6 +722,14 @@ export function ConversationClient({
 
             {errorMessage ? (
               <p className="text-[15px] leading-6 text-[#9a3f2f]">{errorMessage}</p>
+            ) : null}
+
+            {turnstileSiteKey ? (
+              <div
+                ref={turnstileContainerRef}
+                aria-hidden="true"
+                className="min-h-0 overflow-hidden opacity-0"
+              />
             ) : null}
           </div>
         </section>
