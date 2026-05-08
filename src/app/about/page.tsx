@@ -5,8 +5,7 @@ import { InfoPageShell } from "../../components/info-page-shell";
 import { getRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
-  getPreferredLanguageCode,
-  languageHeaderName,
+  getRequestLanguageCode,
 } from "../../lib/languages";
 import { getStaticPageContent } from "../../lib/static-pages";
 import { makeTitle } from "../../lib/site-metadata";
@@ -23,10 +22,9 @@ export async function generateMetadata({
 }: AboutPageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
   const page = getStaticPageContent("about", languageCode);
@@ -40,10 +38,9 @@ export async function generateMetadata({
 export default async function AboutPage({ searchParams }: AboutPageProps) {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);

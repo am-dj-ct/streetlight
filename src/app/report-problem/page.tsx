@@ -11,8 +11,7 @@ import {
 import { getRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
-  getPreferredLanguageCode,
-  languageHeaderName,
+  getRequestLanguageCode,
 } from "../../lib/languages";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
@@ -31,10 +30,9 @@ export async function generateMetadata({
 }: ReportProblemPageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
 
@@ -49,10 +47,9 @@ export default async function ReportProblemPage({
 }: ReportProblemPageProps) {
   const requestHeaders = await headers();
   const { area, entryId, lang, source } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);

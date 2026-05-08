@@ -8,8 +8,7 @@ import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getRegionScope } from "../lib/geo";
 import {
   getLanguageOption,
-  getPreferredLanguageCode,
-  languageHeaderName,
+  getRequestLanguageCode,
 } from "../lib/languages";
 import { defaultDescription } from "../lib/site-metadata";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
@@ -25,10 +24,9 @@ export async function generateMetadata({
 }: HomePageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
 
@@ -40,10 +38,9 @@ export async function generateMetadata({
 export default async function Home({ searchParams }: HomePageProps) {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const currentLanguage = getLanguageOption(languageCode);
   const promptButtons = getPromptButtons(currentLanguage.code);

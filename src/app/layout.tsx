@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import { appTitle, defaultDescription } from "../lib/site-metadata";
-import { getPreferredLanguageCode, languageHeaderName } from "../lib/languages";
+import { getRequestLanguageCode } from "../lib/languages";
 
 export const metadata: Metadata = {
   title: appTitle,
@@ -15,10 +15,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const requestHeaders = await headers();
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
-  });
+  const languageCode = getRequestLanguageCode({ requestHeaders });
 
   return (
     <html lang={languageCode}>

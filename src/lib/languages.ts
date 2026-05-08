@@ -70,3 +70,19 @@ export function getPreferredLanguageCode({
 
   return defaultLanguageCode;
 }
+
+export function getRequestLanguageCode({
+  requestHeaders,
+  requestedLanguageCode,
+}: {
+  requestHeaders: {
+    get(name: string): null | string;
+  };
+  requestedLanguageCode?: null | string;
+}): SupportedLanguageCode {
+  return getPreferredLanguageCode({
+    acceptLanguageHeader: requestHeaders.get("accept-language"),
+    requestedLanguageCode,
+    storedLanguageCode: requestHeaders.get(languageHeaderName),
+  });
+}

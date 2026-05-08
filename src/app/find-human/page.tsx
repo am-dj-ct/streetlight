@@ -6,8 +6,7 @@ import { LanguageStripLinks } from "../../components/language-strip-links";
 import { getRegionScope } from "../../lib/geo";
 import {
   getLanguageOption,
-  getPreferredLanguageCode,
-  languageHeaderName,
+  getRequestLanguageCode,
 } from "../../lib/languages";
 import {
   formatTelephoneHref,
@@ -34,10 +33,9 @@ export async function generateMetadata({
 }: FindHumanPageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const copy = getUiCopy(languageCode);
 
@@ -52,10 +50,9 @@ export default async function FindHumanPage({
 }: FindHumanPageProps) {
   const requestHeaders = await headers();
   const { category: rawCategory, entryId, lang } = await searchParams;
-  const languageCode = getPreferredLanguageCode({
-    acceptLanguageHeader: requestHeaders.get("accept-language"),
+  const languageCode = getRequestLanguageCode({
+    requestHeaders,
     requestedLanguageCode: lang,
-    storedLanguageCode: requestHeaders.get(languageHeaderName),
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);
