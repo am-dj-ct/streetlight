@@ -22,6 +22,10 @@ function parseIsoDate(value, label) {
     fail(`${label} must be a valid calendar date.`);
   }
 
+  if (parsed > Date.now()) {
+    fail(`${label} cannot be in the future.`);
+  }
+
   return parsed;
 }
 

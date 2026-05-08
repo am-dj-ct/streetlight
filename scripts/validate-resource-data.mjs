@@ -63,6 +63,10 @@ function assertIsoDate(value, label) {
   if (Number.isNaN(parsed)) {
     fail(`${label} must be a valid calendar date.`);
   }
+
+  if (parsed > Date.now()) {
+    fail(`${label} cannot be in the future.`);
+  }
 }
 
 function collectStaleWarning(lastVerified, label, warnings) {

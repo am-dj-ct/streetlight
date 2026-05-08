@@ -220,6 +220,11 @@ async function checkResourceFreshness(failures) {
         continue;
       }
 
+      if (parsed > Date.now()) {
+        addFailure(failures, `${label}: lastVerified cannot be in the future.`);
+        continue;
+      }
+
       const ageInDays = Math.floor(
         (Date.now() - parsed) / (1000 * 60 * 60 * 24),
       );
