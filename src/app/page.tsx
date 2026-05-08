@@ -9,16 +9,22 @@ export default function Home() {
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4">
         <nav
           aria-label="Choose language"
-          className="-mx-1 flex flex-wrap gap-1 pb-3"
+          className="flex flex-wrap items-center gap-x-1 gap-y-1 pb-4 text-[15px] leading-6 text-[#314036]"
         >
-          {languageOptions.map((language) => (
-            <button
-              key={language.code}
-              type="button"
-              className="min-h-10 shrink-0 rounded-lg border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036]"
-            >
-              {language.label}
-            </button>
+          {languageOptions.map((language, i) => (
+            <span key={language.code} className="flex items-center gap-x-1">
+              <button
+                type="button"
+                className="min-h-10 px-1 font-medium underline-offset-4 hover:underline"
+              >
+                {language.label}
+              </button>
+              {i < languageOptions.length - 1 && (
+                <span aria-hidden="true" className="text-[#8a9b8f]">
+                  ·
+                </span>
+              )}
+            </span>
           ))}
         </nav>
 
@@ -38,8 +44,6 @@ export default function Home() {
                 {button.label}
               </button>
             ))}
-
-            <div className="my-1 h-px bg-[#dbe2dc]" aria-hidden="true" />
 
             {alternateActions.map((label) => (
               <button
