@@ -52,6 +52,11 @@ export default async function FindHumanPage({
   const category =
     rawCategory && isWeakCategory(rawCategory) ? rawCategory : undefined;
   const referrals = getReferralsForCategory({ category, regionScope });
+  const formatResourceDate = (value: string) =>
+    new Intl.DateTimeFormat(currentLanguage.code, {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    }).format(new Date(`${value}T00:00:00Z`));
   const checkedThroughDate = getCheckedThroughDate(referrals);
   const backHref = getBackHrefForReferrals({
     entryId,
@@ -59,9 +64,7 @@ export default async function FindHumanPage({
   });
   const categoryLabel = category ? getWeakCategoryLabel(category) : "";
   const formattedCheckedThroughDate = checkedThroughDate
-    ? new Intl.DateTimeFormat(currentLanguage.code, {
-        dateStyle: "medium",
-      }).format(new Date(`${checkedThroughDate}T00:00:00Z`))
+    ? formatResourceDate(checkedThroughDate)
     : null;
 
   return (
@@ -140,58 +143,73 @@ export default async function FindHumanPage({
         ) : null}
 
         <section className="flex flex-1 flex-col gap-3 pb-4">
-          {referrals.map((resource) => (
-            <article
-              key={resource.id}
-              className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-[18px] font-semibold leading-6 text-[#1f2923]">
-                  {resource.name}
-                </h2>
-                {isReferralSpecificToCategory(resource, category) ? (
-                  <span className="shrink-0 rounded-full bg-[#edf3ef] px-3 py-1 text-[12px] font-semibold text-[#2d5c45]">
-                    {copy.referralsBestFit}
-                  </span>
-                ) : null}
-              </div>
-              <p className="pt-2 text-[15px] leading-6 text-[#47564d]">
-                {resource.description}
-              </p>
+          {referrals.map((resource) => {
+            const formattedVerifiedDate = formatResourceDate(
+              resource.lastVerified,
+            );
 
-              <div className="pt-4 flex flex-wrap gap-2">
-                {resource.phone ? (
+            return (
+              <article
+                key={resource.id}
+                className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-[18px] font-semibold leading-6 text-[#1f2923]">
+                    {resource.name}
+                  </h2>
+                  {isReferralSpecificToCategory(resource, category) ? (
+                    <span className="shrink-0 rounded-full bg-[#edf3ef] px-3 py-1 text-[12px] font-semibold text-[#2d5c45]">
+                      {copy.referralsBestFit}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="pt-2 text-[15px] leading-6 text-[#47564d]">
+                  {resource.description}
+                </p>
+
+                <div className="pt-4 flex flex-wrap gap-2">
+                  {resource.phone ? (
+                    <a
+                      href={formatTelephoneHref(resource.phone)}
+                      aria-label={`${copy.referralsCallLabel} ${resource.name} ${resource.phone}`}
+                      className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                    >
+                      {copy.referralsCallLabel} {resource.phone}
+                    </a>
+                  ) : null}
+
+                  {resource.secondaryPhone ? (
+                    <a
+                      href={formatTelephoneHref(resource.secondaryPhone)}
+                      aria-label={`${copy.referralsAltLabel} ${resource.name} ${resource.secondaryPhone}`}
+                      className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                    >
+                      {copy.referralsAltLabel} {resource.secondaryPhone}
+                    </a>
+                  ) : null}
+
                   <a
-                    href={formatTelephoneHref(resource.phone)}
-                    aria-label={`${copy.referralsCallLabel} ${resource.name} ${resource.phone}`}
-                    className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                    href={resource.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${copy.referralsWebsiteLabel} ${resource.name}`}
+                    className="flex min-h-11 items-center rounded-full bg-[#1f5f43] px-4 text-[15px] font-semibold text-white"
                   >
-                    {copy.referralsCallLabel} {resource.phone}
+                    {copy.referralsWebsiteLabel}
                   </a>
-                ) : null}
+                </div>
 
-                {resource.secondaryPhone ? (
-                  <a
-                    href={formatTelephoneHref(resource.secondaryPhone)}
-                    aria-label={`${copy.referralsAltLabel} ${resource.name} ${resource.secondaryPhone}`}
-                    className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
-                  >
-                    {copy.referralsAltLabel} {resource.secondaryPhone}
-                  </a>
-                ) : null}
-
-                <a
-                  href={resource.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`${copy.referralsWebsiteLabel} ${resource.name}`}
-                  className="flex min-h-11 items-center rounded-full bg-[#1f5f43] px-4 text-[15px] font-semibold text-white"
-                >
-                  {copy.referralsWebsiteLabel}
-                </a>
-              </div>
-            </article>
-          ))}
+                <div className="mt-4 border-t border-[#e7ece8] pt-4 text-[13px] leading-5 text-[#5f6d64]">
+                  <p>
+                    {copy.referralsSourceLabel} {resource.sourceName}
+                  </p>
+                  <p className="pt-1">
+                    {copy.referralsVerifiedLabel} {formattedVerifiedDate}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
         </section>
       </div>
 

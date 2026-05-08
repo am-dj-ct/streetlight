@@ -57,6 +57,8 @@
     "referralsIntroKing": "These are real services, not model-generated suggestions. Resources are curated for King County.",
     "referralsIntroFallback": "These are real services, not model-generated suggestions. You are seeing the fallback list for outside King County.",
     "referralsCheckedThroughLabel": "Resource list checked through:",
+    "referralsSourceLabel": "Source:",
+    "referralsVerifiedLabel": "Verified:",
     "referralsFilteredPrefix": "This list is filtered for",
     "referralsShowAll": "Show all resources",
     "referralsBestFit": "Best fit",

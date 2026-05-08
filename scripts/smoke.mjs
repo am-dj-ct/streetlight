@@ -22,7 +22,11 @@ const pageChecks = [
   },
   {
     expectedText: "Find a human",
-    extraExpectedText: ["Resource list checked through:"],
+    extraExpectedText: [
+      "Resource list checked through:",
+      "Source:",
+      "Verified:",
+    ],
     path: "/find-human?entryId=understand-letter-or-form&lang=en",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
