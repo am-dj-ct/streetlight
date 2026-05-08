@@ -16,17 +16,17 @@ const eslintConfig = defineConfig([
         },
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name='messages']",
-          message: "Do not log conversation messages.",
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name=/^(body|parsedBody|requestBody|messages)$/]",
+          message: "Do not log request bodies or conversation messages.",
         },
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name=/^(request|response|completion)$/]",
-          message: "Do not log raw request, response, or completion objects.",
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name=/^(request|response|completion|classifierResponse|finalMessage|stream)$/]",
+          message: "Do not log raw request, response, stream, or completion objects.",
         },
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name='error'][arguments.length=1][arguments.0.type='Identifier'][arguments.0.name='error']",
+            "CallExpression[callee.object.name='console'][callee.property.name='error'][arguments.length=1][arguments.0.type='Identifier'][arguments.0.name=/^(cause|err|error)$/]",
           message: "Do not pass raw error objects to console.error.",
         },
       ],
