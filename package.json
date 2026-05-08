@@ -9,6 +9,7 @@
     "lint": "eslint",
     "check:locales": "node scripts/report-missing-locales.mjs",
     "check:launch": "node scripts/check-launch-readiness.mjs",
+    "cost:status": "node scripts/print-cost-mode.mjs",
     "build:translation-worklist": "node scripts/build-translation-worklist.mjs",
     "validate:data": "node scripts/validate-resource-data.mjs",
     "smoke": "node scripts/smoke.mjs",
