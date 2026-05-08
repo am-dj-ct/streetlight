@@ -60,6 +60,8 @@ this. Code stays public on GitHub regardless.
   placeholders, translations, and env contract
 - `npm run check:forbidden-integrations` — fails if forbidden analytics,
   error-reporting, or log-forwarding packages are added
+- `npm run check:no-tracked-secrets` — scans tracked files for common
+  secret-shaped values before push
 - `npm run check:ops` — dry-run validation for the incident and ops helper
   scripts
 - `npm run check:translation-worklist` — verifies that the generated

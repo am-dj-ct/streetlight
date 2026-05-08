@@ -40,6 +40,15 @@ if (!forbiddenIntegrationsOutput.includes("Forbidden integration check passed.")
   fail("forbidden integration check did not include the expected pass output.");
 }
 
+const noTrackedSecretsOutput = runNodeScript(
+  "scripts/check-no-tracked-secrets.mjs",
+  [],
+);
+
+if (!noTrackedSecretsOutput.includes("Tracked secret check passed.")) {
+  fail("tracked secret check did not include the expected pass output.");
+}
+
 if (
   !newIncidentOutput.includes("Would create incidents/") ||
   !newIncidentOutput.includes("Severity: Sev-1")
