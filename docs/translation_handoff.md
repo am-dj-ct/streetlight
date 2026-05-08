@@ -75,10 +75,13 @@ Run:
 
 ```bash
 npm run check:locales
+npm run build:translation-worklist
 ```
 
 The script reports missing keys by directory and ends each section with a
 summary count.
+The worklist command writes `docs/translation_worklist.md`, grouped by
+language.
 
 ## Translation workflow
 

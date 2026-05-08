@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:locales": "node scripts/report-missing-locales.mjs",
+    "build:translation-worklist": "node scripts/build-translation-worklist.mjs",
     "smoke": "node scripts/smoke.mjs",
     "regression:prompts": "node scripts/regression.mjs",
     "verify": "npm run lint && npm run build && npm run check:locales && npm run smoke && npm run regression:prompts"
