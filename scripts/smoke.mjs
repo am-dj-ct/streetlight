@@ -466,6 +466,50 @@ async function checkDisallowedInternalReportProblemSource() {
   }
 }
 
+async function checkMalformedInternalReportProblemSource() {
+  const malformedSource = encodeURIComponent("//evil.example/path");
+  const response = await fetch(
+    new URL(`/report-problem?lang=en&source=${malformedSource}`, baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /report-problem with malformed internal source.`);
+  }
+
+  const html = await response.text();
+
+  if (html.includes("Source route:<!-- --> <!-- -->//evil.example/path")) {
+    fail("Malformed internal source path rendered on /report-problem.");
+  }
+}
+
+async function checkIncompleteConversationReportProblemSource() {
+  const incompleteSource = encodeURIComponent("/conversation");
+  const response = await fetch(
+    new URL(`/report-problem?lang=en&source=${incompleteSource}`, baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /report-problem with incomplete conversation source.`);
+  }
+
+  const html = await response.text();
+
+  if (html.includes("Source route:<!-- --> <!-- -->/conversation")) {
+    fail("Incomplete conversation source path rendered on /report-problem.");
+  }
+}
+
 async function checkBlankChatMessage() {
   const response = await fetch(endpoint, {
     method: "POST",
@@ -682,6 +726,10 @@ await checkUnsafeReportProblemSource();
 console.log("Unsafe source handling ok (/report-problem ignores external source links).");
 await checkDisallowedInternalReportProblemSource();
 console.log("Disallowed internal source handling ok (/report-problem ignores unsafe app paths).");
+await checkMalformedInternalReportProblemSource();
+console.log("Malformed internal source handling ok (/report-problem ignores protocol-style paths).");
+await checkIncompleteConversationReportProblemSource();
+console.log("Incomplete conversation source handling ok (/report-problem ignores bare conversation paths).");
 await checkBlankChatMessage();
 console.log("Blank message handling ok (/api/chat rejects all-whitespace messages).");
 await checkEmptyMessagesArray();
