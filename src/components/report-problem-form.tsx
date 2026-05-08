@@ -97,7 +97,7 @@ export function ReportProblemForm({
   const entryLabel = entryId
     ? getConversationContentEntry(
         entryId as ConversationEntryId,
-        languageCode,
+        conversationLanguage,
       ).label
     : null;
   const chatModeLabel = getChatModeLabel(chatMode, copy);
