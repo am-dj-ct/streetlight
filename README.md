@@ -46,6 +46,8 @@ this. Code stays public on GitHub regardless.
 - `npm run check:locales`
 - `npm run smoke` — runs a small synthetic end-to-end chat check against
   `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
+- `npm run regression:prompts` — runs the starter synthetic prompt set in
+  `tests/prompts/`
 
 ## License
 

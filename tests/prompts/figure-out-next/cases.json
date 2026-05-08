@@ -1,0 +1,7 @@
+[
+  {
+    "name": "benefits-proof",
+    "text": "My food benefits letter says I need to send proof by next Tuesday or they may stop. What should I do first?",
+    "expectedClassifier": "benefits_eligibility"
+  }
+]

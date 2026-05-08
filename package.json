@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:locales": "node scripts/report-missing-locales.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "regression:prompts": "node scripts/regression.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

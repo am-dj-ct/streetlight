@@ -1,0 +1,7 @@
+[
+  {
+    "name": "deadline-letter",
+    "text": "I got a letter saying I need to send proof by Friday or my benefits may stop. Tell me what it is asking for.",
+    "expectedClassifier": "benefits_eligibility"
+  }
+]
