@@ -1,6 +1,14 @@
 import Link from "next/link";
 
-export function CrisisFooter() {
+export function CrisisFooter({
+  entryId,
+}: {
+  entryId?: string;
+}) {
+  const findHumanHref = entryId
+    ? `/find-human?entryId=${encodeURIComponent(entryId)}`
+    : "/find-human";
+
   return (
     <footer
       id="crisis-resources"
@@ -12,7 +20,7 @@ export function CrisisFooter() {
         <span>Call 911 for danger now</span>
         {/* TODO: Replace with maintained King County crisis numbers JSON. */}
         <span>King County crisis numbers coming soon</span>
-        <Link href="#crisis-resources" className="font-semibold underline">
+        <Link href={findHumanHref} className="font-semibold underline">
           Find a human
         </Link>
       </div>

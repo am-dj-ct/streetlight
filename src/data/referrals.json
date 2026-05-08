@@ -1,0 +1,51 @@
+[
+  {
+    "id": "king-county-211",
+    "name": "King County 211",
+    "description": "Start here for housing, shelter, food, transportation, benefits, and local service referrals in King County.",
+    "phone": "211",
+    "secondaryPhone": "800-621-4636",
+    "website": "https://www.crisisconnections.org/king-county-2-1-1/",
+    "categories": ["all", "legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration"]
+  },
+  {
+    "id": "washington-poison-center",
+    "name": "Washington Poison Center",
+    "description": "Free expert help with medication mistakes, drug interactions, overdoses, and toxic exposures.",
+    "phone": "800-222-1222",
+    "secondaryPhone": "206-526-2121",
+    "website": "https://www.wapc.org/helpline/",
+    "categories": ["medical_dosing", "drug_interactions"]
+  },
+  {
+    "id": "nwirp",
+    "name": "Northwest Immigrant Rights Project",
+    "description": "Free or low-cost immigration legal help in Washington for many low-income immigrants, asylum-seekers, and refugees.",
+    "phone": "206-587-4025",
+    "website": "https://www.nwirp.org/get-help/?lang=english",
+    "categories": ["immigration"]
+  },
+  {
+    "id": "dshs-community-services",
+    "name": "DSHS Community Services",
+    "description": "Help with Basic Food, cash assistance, documents, interviews, and benefit questions.",
+    "phone": "877-501-2233",
+    "website": "https://www.dshs.wa.gov/esa/community-services-offices/how-apply-services",
+    "categories": ["benefits_eligibility", "specific_deadlines", "specific_dollar_amounts"]
+  },
+  {
+    "id": "wa-healthplanfinder",
+    "name": "Washington Healthplanfinder",
+    "description": "Human help with Apple Health and health coverage questions. Interpreter support is available in many languages.",
+    "phone": "855-923-4633",
+    "website": "https://www.wahealthplanfinder.org/us/en/tools-and-resources/connect-with-us/contact-us.html",
+    "categories": ["benefits_eligibility", "medical_dosing"]
+  },
+  {
+    "id": "washington-lawhelp",
+    "name": "Washington LawHelp",
+    "description": "Plain-language Washington legal information, including eviction, notices, and court steps. Good if you need to read before you call someone.",
+    "website": "https://www.washingtonlawhelp.org/topics/housing/eviction",
+    "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"]
+  }
+]

@@ -6,6 +6,7 @@ import Script from "next/script";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
+import { getWeakCategoryLabel } from "../lib/referrals";
 import type {
   ChatErrorBody,
   ChatStreamEvent,
@@ -171,28 +172,6 @@ function setMessageWeakCategory(
       weakCategory,
     };
   });
-}
-
-function getWeakCategoryLabel(category: WeakCategory): string {
-  switch (category) {
-    case "legal_procedure":
-      return "legal procedure";
-    case "medical_dosing":
-      return "medical dosing";
-    case "benefits_eligibility":
-      return "benefits eligibility";
-    case "immigration":
-      return "immigration";
-    case "drug_interactions":
-      return "drug interactions";
-    case "specific_deadlines":
-      return "specific deadlines";
-    case "specific_dollar_amounts":
-      return "specific dollar amounts";
-    case "none":
-    default:
-      return "";
-  }
 }
 
 export function ConversationClient({
@@ -664,14 +643,17 @@ export function ConversationClient({
                     {isAssistant && !isEmptyAssistant ? (
                       <div className="mt-3 space-y-3">
                         {weakCategory ? (
-                          <div className="rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]">
+                          <Link
+                            href={`/find-human?category=${weakCategory}&entryId=${entryId}`}
+                            className="block rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]"
+                          >
                             <span className="font-semibold">AI sometimes gets this wrong.</span>{" "}
                             Worth verifying with a person who does{" "}
                             <span className="font-semibold">
                               {getWeakCategoryLabel(weakCategory)}
                             </span>
                             .
-                          </div>
+                          </Link>
                         ) : null}
 
                         <div className="flex flex-wrap gap-2">
@@ -692,7 +674,11 @@ export function ConversationClient({
                           Voice
                         </button>
                         <Link
-                          href="#crisis-resources"
+                          href={
+                            weakCategory
+                              ? `/find-human?category=${weakCategory}&entryId=${entryId}`
+                              : `/find-human?entryId=${entryId}`
+                          }
                           className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                         >
                           Find a human for this
@@ -834,7 +820,7 @@ export function ConversationClient({
         </div>
       ) : null}
 
-      <CrisisFooter />
+      <CrisisFooter entryId={entryId} />
     </main>
   );
 }
