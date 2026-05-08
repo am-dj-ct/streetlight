@@ -30,6 +30,8 @@ when the build is ready.
   translation work lives and how to audit completeness.
 - [Translation worklist](docs/translation_worklist.md) — generated
   per-language missing-key checklist for human translators.
+- [Resource maintenance](docs/resource_maintenance.md) — how the hand-curated
+  human-help lists are verified and kept fresh.
 - [Operational runbook](OPERATIONAL_RUNBOOK.md) — dashboard-first incident
   and pause procedures.
 - [Partner bug report template](docs/partners/bug-report.md) — structured

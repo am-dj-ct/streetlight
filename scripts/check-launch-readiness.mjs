@@ -12,6 +12,7 @@ const requiredFiles = [
   "docs/partners/launch-packet.md",
   "docs/partners/launch_checklist.md",
   "docs/partners/one-sentence-framing.md",
+  "docs/resource_maintenance.md",
   "docs/translation_handoff.md",
   "docs/translation_worklist.md",
   "incidents/log.md",
