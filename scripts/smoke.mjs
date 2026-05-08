@@ -4,6 +4,7 @@ import path from "node:path";
 const cwd = process.cwd();
 const baseUrl = process.env.ACCESS_TOOL_BASE_URL ?? "http://localhost:3000";
 const endpoint = new URL("/api/chat", baseUrl).toString();
+const healthEndpoint = new URL("/healthz", baseUrl).toString();
 const casesPath = path.join(cwd, "tests/prompts/smoke-cases.json");
 
 function fail(message) {
@@ -12,6 +13,24 @@ function fail(message) {
 
 async function loadCases() {
   return JSON.parse(await readFile(casesPath, "utf8"));
+}
+
+async function checkHealth() {
+  const response = await fetch(healthEndpoint, {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /healthz.`);
+  }
+
+  const body = await response.json().catch(() => null);
+
+  if (!body || body.ok !== true || body.service !== "access-tool") {
+    fail("Unexpected /healthz response body.");
+  }
 }
 
 async function parseSseResponse(response) {
@@ -127,6 +146,9 @@ async function runCase(testCase) {
     textLength: result.text.length,
   };
 }
+
+await checkHealth();
+console.log("Health check ok (/healthz).");
 
 const smokeCases = await loadCases();
 const results = [];
