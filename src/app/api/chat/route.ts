@@ -18,14 +18,6 @@ function isClientChatMessage(value: unknown): value is ClientChatMessage {
   );
 }
 
-function extractTextBlocks(response: Anthropic.Messages.Message): string {
-  return response.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text.trim())
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 export async function POST(request: Request) {
   let body: ChatRequestBody;
 
@@ -65,26 +57,71 @@ export async function POST(request: Request) {
       apiKey: getAnthropicApiKey(),
     });
     model = getMainModel();
-    const response = await anthropic.messages.create({
+    const stream = anthropic.messages.stream({
       model,
       max_tokens: 900,
       system: getSystemPrompt(body.entryId),
       messages,
     });
-    const text = extractTextBlocks(response);
+    const encoder = new TextEncoder();
 
-    if (!text) {
-      return NextResponse.json(
-        { error: "The model returned no text." },
-        { status: 502 },
-      );
-    }
+    const readable = new ReadableStream({
+      async start(controller) {
+        let sentAnyText = false;
 
-    return NextResponse.json({
-      message: {
-        id: response.id,
-        role: "assistant",
-        text,
+        try {
+          for await (const event of stream) {
+            if (event.type !== "content_block_delta" || event.delta.type !== "text_delta") {
+              continue;
+            }
+
+            sentAnyText = true;
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: "delta", text: event.delta.text })}\n\n`),
+            );
+          }
+
+          if (!sentAnyText) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "error", error: "The model returned no text." })}\n\n`,
+              ),
+            );
+          }
+
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (error: unknown) {
+          const responseTimeMs = Date.now() - requestStartedAt;
+          const apiError = error instanceof Anthropic.APIError ? error : null;
+
+          console.error({
+            code: "anthropic_stream_failed",
+            errorType: apiError?.name ?? "UnknownError",
+            status: apiError?.status ?? 500,
+            model,
+            responseTimeMs,
+          });
+
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "error",
+                error: "The response did not come through. Please try again.",
+              })}\n\n`,
+            ),
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
       },
     });
   } catch (error: unknown) {
@@ -103,7 +140,7 @@ export async function POST(request: Request) {
     const apiError = error instanceof Anthropic.APIError ? error : null;
 
     console.error({
-      code: "anthropic_request_failed",
+      code: "anthropic_request_setup_failed",
       errorType: apiError?.name ?? "UnknownError",
       status: apiError?.status ?? 500,
       model,

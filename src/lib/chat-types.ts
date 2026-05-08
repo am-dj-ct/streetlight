@@ -22,6 +22,16 @@ export type ChatRequestBody = {
   messages: ClientChatMessage[];
 };
 
-export type ChatResponseBody = {
-  message: ClientChatMessage;
+export type ChatStreamEvent =
+  | {
+      type: "delta";
+      text: string;
+    }
+  | {
+      type: "error";
+      error: string;
+    };
+
+export type ChatErrorBody = {
+  error: string;
 };

@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
-import type { ClientChatMessage, ConversationEntryId, ChatResponseBody } from "../lib/chat-types";
+import type {
+  ChatErrorBody,
+  ChatStreamEvent,
+  ClientChatMessage,
+  ConversationEntryId,
+} from "../lib/chat-types";
 
 type ConversationClientProps = {
   currentLanguageLabel: string;
@@ -18,6 +23,37 @@ function makeMessageId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+function stripMarkdownForSpeech(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/\n{2,}/g, ". ")
+    .replace(/\n/g, " ")
+    .trim();
+}
+
+function appendToMessage(
+  messages: ClientChatMessage[],
+  messageId: string,
+  chunk: string,
+  replace: boolean,
+): ClientChatMessage[] {
+  return messages.map((message) => {
+    if (message.id !== messageId) {
+      return message;
+    }
+
+    return {
+      ...message,
+      text: replace ? chunk : `${message.text}${chunk}`,
+    };
+  });
+}
+
 export function ConversationClient({
   currentLanguageLabel,
   entryId,
@@ -26,6 +62,7 @@ export function ConversationClient({
 }: ConversationClientProps) {
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
       id: "assistant-seed",
@@ -36,7 +73,14 @@ export function ConversationClient({
   const [draft, setDraft] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [speechSupported] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window &&
+      "SpeechSynthesisUtterance" in window,
+  );
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -46,7 +90,7 @@ export function ConversationClient({
     }
 
     thread.scrollTop = thread.scrollHeight;
-  }, [messages, errorMessage, isPending]);
+  }, [messages, errorMessage, isStreaming]);
 
   useEffect(() => {
     const composer = composerRef.current;
@@ -59,10 +103,59 @@ export function ConversationClient({
     composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
   }, [draft]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    return () => {
+      if (!("speechSynthesis" in window)) {
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+      setSpeakingMessageId(null);
+    };
+  }, []);
+
+  function handlePlayAloud(messageId: string, text: string) {
+    if (
+      !speechSupported ||
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window)
+    ) {
+      return;
+    }
+
+    if (speakingMessageId === messageId) {
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
+    utteranceRef.current = utterance;
+    utterance.onend = () => {
+      utteranceRef.current = null;
+      setSpeakingMessageId(null);
+    };
+    utterance.onerror = () => {
+      utteranceRef.current = null;
+      setSpeakingMessageId(null);
+    };
+
+    setSpeakingMessageId(messageId);
+    window.speechSynthesis.speak(utterance);
+  }
+
   function sendMessage(text: string) {
     const trimmed = text.trim();
 
-    if (!trimmed || isPending) {
+    if (!trimmed || isStreaming) {
       return;
     }
 
@@ -71,14 +164,23 @@ export function ConversationClient({
       role: "user",
       text: trimmed,
     };
+    const pendingAssistantId = makeMessageId("assistant");
+    const pendingAssistantMessage: ClientChatMessage = {
+      id: pendingAssistantId,
+      role: "assistant",
+      text: "",
+    };
     const nextMessages = [...messages, nextUserMessage];
 
-    setMessages(nextMessages);
+    setMessages([...nextMessages, pendingAssistantMessage]);
     setDraft("");
     setErrorMessage(null);
     setShowSuggestions(false);
+    setIsStreaming(true);
 
-    startTransition(async () => {
+    void (async () => {
+      let receivedAnyText = false;
+
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -93,23 +195,84 @@ export function ConversationClient({
         });
 
         if (!response.ok) {
-          const errorBody = (await response.json().catch(() => null)) as
-            | { error?: string }
-            | null;
+          const errorBody = (await response.json().catch(() => null)) as ChatErrorBody | null;
 
+          setMessages(nextMessages);
           setErrorMessage(
             errorBody?.error ?? "The response did not come through. Please try again.",
           );
           return;
         }
 
-        const data = (await response.json()) as ChatResponseBody;
+        const reader = response.body?.getReader();
 
-        setMessages((currentMessages) => [...currentMessages, data.message]);
+        if (!reader) {
+          setMessages(nextMessages);
+          setErrorMessage("The response did not come through. Please try again.");
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+
+          buffer += decoder.decode(value, { stream: !done });
+
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
+
+          for (const eventBlock of events) {
+            const dataLine = eventBlock
+              .split("\n")
+              .find((line) => line.startsWith("data: "));
+
+            if (!dataLine) {
+              continue;
+            }
+
+            const payload = dataLine.slice(6);
+
+            if (payload === "[DONE]") {
+              setIsStreaming(false);
+              return;
+            }
+
+            const event = JSON.parse(payload) as ChatStreamEvent;
+
+            if (event.type === "error") {
+              if (!receivedAnyText) {
+                setMessages(nextMessages);
+              }
+
+              setErrorMessage(event.error);
+              setIsStreaming(false);
+              return;
+            }
+
+            if (event.type === "delta") {
+              const replace = !receivedAnyText;
+              receivedAnyText = true;
+              setMessages((currentMessages) =>
+                appendToMessage(currentMessages, pendingAssistantId, event.text, replace),
+              );
+            }
+          }
+
+          if (done) {
+            break;
+          }
+        }
       } catch {
+        setMessages((currentMessages) =>
+          currentMessages.filter((message) => message.id !== pendingAssistantId || message.text.length > 0),
+        );
         setErrorMessage("The response did not come through. Please try again.");
+      } finally {
+        setIsStreaming(false);
       }
-    });
+    })();
   }
 
   return (
@@ -136,66 +299,67 @@ export function ConversationClient({
           <div className="flex flex-col gap-5">
             {messages.map((message) => {
               const isAssistant = message.role === "assistant";
+              const isEmptyAssistant = isAssistant && message.text.length === 0;
 
               return (
                 <div
                   key={message.id}
                   className={`flex ${isAssistant ? "justify-start" : "justify-end"}`}
                 >
-                  <article
-                    className={`max-w-[88%] px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
-                      isAssistant
-                        ? "rounded-[18px] rounded-bl-[6px] bg-white text-[#1f2923]"
-                        : "rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
-                    }`}
-                  >
-                    {isAssistant ? (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                          ol: ({ children }) => (
-                            <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
-                          ),
-                          li: ({ children }) => <li>{children}</li>,
-                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                        }}
-                      >
-                        {message.text}
-                      </ReactMarkdown>
-                    ) : (
-                      message.text
-                    )}
-                  </article>
+                  <div className="max-w-[88%]">
+                    <article
+                      className={`px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
+                        isAssistant
+                          ? "rounded-[18px] rounded-bl-[6px] bg-white text-[#1f2923]"
+                          : "rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
+                      }`}
+                    >
+                      {isEmptyAssistant ? (
+                        <p className="text-[#65736b]">Thinking...</p>
+                      ) : isAssistant ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                            ol: ({ children }) => (
+                              <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
+                            ),
+                            li: ({ children }) => <li>{children}</li>,
+                            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          }}
+                        >
+                          {message.text}
+                        </ReactMarkdown>
+                      ) : (
+                        message.text
+                      )}
+                    </article>
+
+                    {isAssistant && !isEmptyAssistant ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handlePlayAloud(message.id, message.text)}
+                          disabled={!speechSupported}
+                          className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
+                        >
+                          {speakingMessageId === message.id ? "Stop reading" : "Play aloud"}
+                        </button>
+                        <Link
+                          href="#crisis-resources"
+                          className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                        >
+                          Find a human for this
+                        </Link>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
-
-            {isPending ? (
-              <div className="flex justify-start">
-                <article className="max-w-[88%] rounded-[18px] rounded-bl-[6px] bg-white px-4 py-3 text-[18px] leading-7 text-[#65736b] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
-                  Thinking...
-                </article>
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
-              >
-                Play aloud
-              </button>
-              <Link
-                href="#crisis-resources"
-                className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
-              >
-                Find a human for this
-              </Link>
-            </div>
 
             {showSuggestions ? (
               <div className="flex flex-wrap gap-2">
@@ -249,7 +413,7 @@ export function ConversationClient({
             <button
               type="submit"
               aria-label="Send message"
-              disabled={isPending || draft.trim().length === 0}
+              disabled={isStreaming || draft.trim().length === 0}
               className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] bg-[#1f5f43] text-[20px] font-semibold text-white disabled:opacity-60"
             >
               ^
