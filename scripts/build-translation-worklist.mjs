@@ -1,5 +1,6 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
 const generatedAt = new Date().toISOString().slice(0, 10);
@@ -19,10 +20,6 @@ const directories = [
     relativeDir: "src/data/static-pages",
   },
 ];
-
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
-}
 
 function getMissingKeys(baseValue, compareValue, prefix = "") {
   return Object.entries(baseValue).flatMap(([key, value]) => {
@@ -47,7 +44,7 @@ async function collectMissingByLanguage() {
   for (const directory of directories) {
     const directoryPath = path.join(cwd, directory.relativeDir);
     const files = (await readdir(directoryPath)).filter((name) => name.endsWith(".json"));
-    const baseDocument = await readJson(path.join(directoryPath, "en.json"));
+    const baseDocument = await readJsonFile(path.join(directoryPath, "en.json"));
 
     for (const fileName of files) {
       if (fileName === "en.json") {
@@ -55,7 +52,7 @@ async function collectMissingByLanguage() {
       }
 
       const languageCode = fileName.replace(/\.json$/, "");
-      const document = await readJson(path.join(directoryPath, fileName));
+      const document = await readJsonFile(path.join(directoryPath, fileName));
       const missingKeys = getMissingKeys(baseDocument, document);
 
       if (!missingByLanguage.has(languageCode)) {

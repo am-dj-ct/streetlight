@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readJsonFile } from "./json-file.mjs";
 
 export const localeDirectories = [
   "src/data/ui-copy",
@@ -92,7 +93,7 @@ export function parseIsoDate(value) {
 }
 
 async function readJsonFromCwd(cwd, relativePath) {
-  return JSON.parse(await readFile(path.join(cwd, relativePath), "utf8"));
+  return readJsonFile(path.join(cwd, relativePath));
 }
 
 export async function collectLaunchDocPlaceholderIssues(cwd) {

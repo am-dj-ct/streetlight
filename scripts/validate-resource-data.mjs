@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
 
@@ -32,10 +32,6 @@ const requiredReferralCoverageCategories = [
 
 function fail(message) {
   throw new Error(message);
-}
-
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
 }
 
 function isNonEmptyString(value) {
@@ -305,8 +301,8 @@ function validateCrisisResources(resources) {
 }
 
 const [referrals, crisisResources] = await Promise.all([
-  readJson(referralPath),
-  readJson(crisisPath),
+  readJsonFile(referralPath),
+  readJsonFile(crisisPath),
 ]);
 
 validateReferrals(referrals);

@@ -1,13 +1,9 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
 const summaryOnly = process.argv.includes("--summary");
-
-async function readJson(filePath) {
-  const contents = await readFile(filePath, "utf8");
-  return JSON.parse(contents);
-}
 
 function flattenObject(obj, prefix = "") {
   return Object.entries(obj).flatMap(([key, value]) => {
@@ -41,7 +37,7 @@ function getMissingKeys(baseValue, compareValue, prefix = "") {
 async function reportDirectory(relativeDir, baseFileName) {
   const directoryPath = path.join(cwd, relativeDir);
   const files = (await readdir(directoryPath)).filter((name) => name.endsWith(".json"));
-  const baseDocument = await readJson(path.join(directoryPath, baseFileName));
+  const baseDocument = await readJsonFile(path.join(directoryPath, baseFileName));
   let totalMissing = 0;
   let incompleteFiles = 0;
   const incompleteSummaries = [];
@@ -49,7 +45,7 @@ async function reportDirectory(relativeDir, baseFileName) {
   console.log(`\n[${relativeDir}]`);
 
   for (const fileName of files) {
-    const document = await readJson(path.join(directoryPath, fileName));
+    const document = await readJsonFile(path.join(directoryPath, fileName));
     const missing = getMissingKeys(baseDocument, document);
 
     if (fileName === baseFileName) {

@@ -1,7 +1,8 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
 import { isChatStreamEvent } from "./lib/chat-stream.mjs";
+import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -18,10 +19,6 @@ function fail(message) {
   throw new Error(message);
 }
 
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
-}
-
 async function loadCases() {
   const directories = await readdir(fixturesRoot, { withFileTypes: true });
   const allCases = [];
@@ -33,7 +30,7 @@ async function loadCases() {
 
     const entryId = entry.name;
     const filePath = path.join(fixturesRoot, entryId, "cases.json");
-    const cases = await readJson(filePath);
+    const cases = await readJsonFile(filePath);
 
     for (const testCase of cases) {
       allCases.push({

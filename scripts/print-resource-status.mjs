@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readJsonFile } from "./lib/json-file.mjs";
 
 const staleAfterDays = 180;
 const resourceFiles = [
@@ -29,10 +29,6 @@ function parseIsoDate(value, label) {
   return parsed;
 }
 
-async function readJson(fileUrl) {
-  return JSON.parse(await readFile(fileUrl, "utf8"));
-}
-
 function summarizeResources(resources) {
   return resources
     .map((resource) => {
@@ -58,7 +54,7 @@ console.log("Access Tool resource status");
 console.log("");
 
 for (const resourceFile of resourceFiles) {
-  const resources = await readJson(resourceFile.path);
+  const resources = await readJsonFile(resourceFile.path);
 
   if (!Array.isArray(resources) || resources.length === 0) {
     fail(`${resourceFile.label} must contain a non-empty array.`);
