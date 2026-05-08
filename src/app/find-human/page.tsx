@@ -133,7 +133,16 @@ export default async function FindHumanPage({
             <span className="font-semibold">{categoryLabel}</span>.
             <div className="pt-2">
               <Link
-                href={`/find-human?entryId=${entryId ?? ""}&lang=${languageCode}`}
+                href={(() => {
+                  const params = new URLSearchParams();
+
+                  if (entryId) {
+                    params.set("entryId", entryId);
+                  }
+
+                  params.set("lang", languageCode);
+                  return `/find-human?${params.toString()}`;
+                })()}
                 className="font-semibold underline"
               >
                 {copy.referralsShowAll}

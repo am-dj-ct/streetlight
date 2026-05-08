@@ -32,6 +32,15 @@ const pageChecks = [
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
   },
   {
+    expectedText: "Show all resources",
+    extraExpectedText: [
+      "href=\"/find-human?entryId=understand-letter-or-form&amp;lang=en\"",
+    ],
+    path: "/find-human?category=benefits_eligibility&entryId=understand-letter-or-form&lang=en",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3Fcategory%3Dbenefits_eligibility%26entryId%3Dunderstand-letter-or-form%26lang%3Den",
+  },
+  {
     expectedText: "About",
     path: "/about?lang=en",
     reportLinkSnippet:
