@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
 import type { ClientChatMessage, ConversationEntryId, ChatResponseBody } from "../lib/chat-types";
 
@@ -22,6 +24,7 @@ export function ConversationClient({
   initialAssistantMessage,
   initialSuggestions,
 }: ConversationClientProps) {
+  const threadRef = useRef<HTMLElement | null>(null);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
       id: "assistant-seed",
@@ -33,6 +36,16 @@ export function ConversationClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const thread = threadRef.current;
+
+    if (!thread) {
+      return;
+    }
+
+    thread.scrollTop = thread.scrollHeight;
+  }, [messages, errorMessage, isPending]);
 
   function sendMessage(text: string) {
     const trimmed = text.trim();
@@ -107,7 +120,7 @@ export function ConversationClient({
           </button>
         </header>
 
-        <section className="min-h-0 flex-1 overflow-y-auto pb-4">
+        <section ref={threadRef} className="min-h-0 flex-1 overflow-y-auto pb-4">
           <div className="flex flex-col gap-5">
             {messages.map((message) => {
               const isAssistant = message.role === "assistant";
@@ -124,11 +137,38 @@ export function ConversationClient({
                         : "rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
                     }`}
                   >
-                    {message.text}
+                    {isAssistant ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                          ol: ({ children }) => (
+                            <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
+                          ),
+                          li: ({ children }) => <li>{children}</li>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        }}
+                      >
+                        {message.text}
+                      </ReactMarkdown>
+                    ) : (
+                      message.text
+                    )}
                   </article>
                 </div>
               );
             })}
+
+            {isPending ? (
+              <div className="flex justify-start">
+                <article className="max-w-[88%] rounded-[18px] rounded-bl-[6px] bg-white px-4 py-3 text-[18px] leading-7 text-[#65736b] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
+                  Thinking...
+                </article>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap gap-2">
               <button
