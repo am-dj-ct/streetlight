@@ -37,6 +37,7 @@ Tie-break rules:
 - Landlord, eviction, lease, repair-rights, and housing-procedure guidance should usually be legal_procedure, not benefits_eligibility.
 - Benefits letters about renewals, proof, or eligibility should usually be benefits_eligibility, even if a deadline is mentioned.
 - General urgency is not enough for specific_deadlines. "Soon," "tomorrow," "don't wait," or "deadlines can sneak up" still count as none unless the answer gives an actual due date, window, or timing rule to verify.
+- If the answer only says that a letter or situation might contain a deadline, or that the user should check for one, that still counts as none unless the answer states the actual deadline, window, or rule.
 - Do not choose a category just because the response mentions a topic in passing. Choose it only when the answer gives concrete guidance in that area.
 
 Return the label only. No punctuation. No explanation.`;

@@ -3,5 +3,11 @@
     "name": "late-text",
     "text": "Write a short text to my case manager saying the bus is late and I may arrive 10 minutes late.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "spanish-late-text",
+    "language": "es",
+    "text": "Escribe un mensaje corto a mi trabajadora social diciendo que el autobus viene tarde y que llegare 10 minutos tarde.",
+    "expectedClassifier": "none"
   }
 ]

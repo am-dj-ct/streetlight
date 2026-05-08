@@ -113,7 +113,7 @@ async function runCase(testCase) {
     },
     body: JSON.stringify({
       entryId: testCase.entryId,
-      language: "en",
+      language: testCase.language ?? "en",
       messages: [
         {
           id: `regression-${testCase.entryId}-${testCase.name}`,

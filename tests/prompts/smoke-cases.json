@@ -16,5 +16,11 @@
     "entryId": "figure-out-next",
     "language": "en",
     "text": "My food benefits letter says I need to send proof by next Tuesday or they may stop. What should I do first?"
+  },
+  {
+    "name": "spanish-benefits-letter",
+    "entryId": "understand-letter-or-form",
+    "language": "es",
+    "text": "Recibi una carta que dice que tengo que mandar prueba de ingresos antes del viernes para no perder mis beneficios. Ayudame a entenderla."
   }
 ]

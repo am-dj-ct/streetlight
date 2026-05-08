@@ -10,6 +10,7 @@ Each case contains:
 
 - `name`
 - `text`
+- optional `language` (defaults to `en`)
 - optional `expectedClassifier`
 
 These are synthetic prompts only. Never copy real user content here.

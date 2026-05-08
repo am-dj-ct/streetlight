@@ -3,5 +3,11 @@
     "name": "deadline-letter",
     "text": "My letter says: 'To keep your food benefits, send proof of income by Friday or your benefits may stop.' Tell me what it is asking for.",
     "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "spanish-benefits-renewal",
+    "language": "es",
+    "text": "Mi carta dice: 'Para mantener sus beneficios de comida, mande prueba de ingresos antes del viernes o sus beneficios pueden parar.' Dime que me esta pidiendo.",
+    "expectedClassifier": "benefits_eligibility"
   }
 ]
