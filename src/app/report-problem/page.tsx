@@ -73,6 +73,13 @@ export default async function ReportProblemPage({
         sourcePath={source}
       />
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
+        {source ? (
+          <p className="pb-2">
+            <Link href={source} className="font-semibold underline">
+              {copy.backLabel}
+            </Link>
+          </p>
+        ) : null}
         <p>
           {copy.goBackPrefix}{" "}
           <Link href={`/?lang=${languageCode}`} className="font-semibold underline">
