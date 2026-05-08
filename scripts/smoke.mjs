@@ -46,6 +46,16 @@ const pageChecks = [
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
   },
   {
+    expectedText: "Find a human",
+    extraExpectedText: [
+      '<html lang="en">',
+      'href="/conversation/understand-letter-or-form?lang=en"',
+    ],
+    path: "/find-human?entryId=understand-letter-or-form&lang=not-a-real-language",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
+  },
+  {
     expectedText: "Show all resources",
     extraExpectedText: [
       "href=\"/find-human?entryId=understand-letter-or-form&amp;lang=en\"",
@@ -79,14 +89,34 @@ const pageChecks = [
       "/report-problem?lang=en&amp;area=about&amp;source=%2Fabout%3Flang%3Den",
   },
   {
+    expectedText: "About",
+    extraExpectedText: ['<html lang="en">'],
+    path: "/about?lang=not-a-real-language",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=about&amp;source=%2Fabout%3Flang%3Den",
+  },
+  {
     expectedText: "Privacy",
     path: "/privacy?lang=en",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=privacy&amp;source=%2Fprivacy%3Flang%3Den",
   },
   {
+    expectedText: "Privacy",
+    extraExpectedText: ['<html lang="en">'],
+    path: "/privacy?lang=not-a-real-language",
+    reportLinkSnippet:
+      "/report-problem?lang=en&amp;area=privacy&amp;source=%2Fprivacy%3Flang%3Den",
+  },
+  {
     expectedText: "Report a problem",
     path: "/report-problem?lang=en",
+    reportLinkSnippet: "/report-problem?lang=en&amp;area=other",
+  },
+  {
+    expectedText: "Report a problem",
+    extraExpectedText: ['<html lang="en">'],
+    path: "/report-problem?lang=not-a-real-language",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=other",
   },
   {
