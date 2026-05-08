@@ -6,6 +6,7 @@ import {
   fetchHtmlPage,
   getHealth,
 } from "./lib/access-tool-http.mjs";
+import { isChatStreamEvent } from "./lib/chat-stream.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 
@@ -261,6 +262,10 @@ async function parseSseResponse(response) {
       }
 
       const event = JSON.parse(payload);
+
+      if (!isChatStreamEvent(event)) {
+        fail(`Unexpected stream event payload: ${payload}`);
+      }
 
       if (event.type === "error") {
         fail(`Stream returned error event: ${event.error}`);

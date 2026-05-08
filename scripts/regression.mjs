@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
+import { isChatStreamEvent } from "./lib/chat-stream.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
@@ -94,6 +95,10 @@ async function readSse(response) {
       }
 
       const event = JSON.parse(payload);
+
+      if (!isChatStreamEvent(event)) {
+        fail(`Unexpected stream event payload: ${payload}`);
+      }
 
       if (event.type === "error") {
         fail(`Stream error for ${payload}`);
