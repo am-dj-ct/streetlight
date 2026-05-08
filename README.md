@@ -52,6 +52,8 @@ this. Code stays public on GitHub regardless.
 - `npm run check:locales`
 - `npm run check:launch` — static soft-launch readiness check for docs,
   placeholders, translations, and env contract
+- `npm run check:translation-worklist` — verifies that the generated
+  translation worklist is current
 - `npm run cost:status` — shows the local model pair and whether cheap local
   mode is active
 - `npm run build:translation-worklist`

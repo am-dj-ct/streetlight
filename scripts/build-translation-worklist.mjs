@@ -3,6 +3,7 @@ import path from "node:path";
 
 const cwd = process.cwd();
 const generatedAt = new Date().toISOString().slice(0, 10);
+const checkOnly = process.argv.includes("--check");
 
 const directories = [
   {
@@ -117,5 +118,17 @@ const outputPath = path.join(cwd, "docs/translation_worklist.md");
 const missingByLanguage = await collectMissingByLanguage();
 const markdown = buildMarkdown(missingByLanguage);
 
-await writeFile(outputPath, markdown, "utf8");
-console.log(`Wrote ${path.relative(cwd, outputPath)}`);
+if (checkOnly) {
+  const existing = await readFile(outputPath, "utf8").catch(() => null);
+
+  if (existing !== markdown) {
+    console.log("docs/translation_worklist.md is out of date.");
+    console.log("Run: npm run build:translation-worklist");
+    process.exit(1);
+  }
+
+  console.log("docs/translation_worklist.md is up to date.");
+} else {
+  await writeFile(outputPath, markdown, "utf8");
+  console.log(`Wrote ${path.relative(cwd, outputPath)}`);
+}

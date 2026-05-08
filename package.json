@@ -9,6 +9,7 @@
     "lint": "eslint",
     "check:locales": "node scripts/report-missing-locales.mjs",
     "check:launch": "node scripts/check-launch-readiness.mjs",
+    "check:translation-worklist": "node scripts/build-translation-worklist.mjs --check",
     "cost:status": "node scripts/print-cost-mode.mjs",
     "build:translation-worklist": "node scripts/build-translation-worklist.mjs",
     "validate:data": "node scripts/validate-resource-data.mjs",
@@ -16,8 +17,8 @@
     "smoke:quick": "SMOKE_CASE_LIMIT=2 node scripts/smoke.mjs",
     "regression:prompts": "node scripts/regression.mjs",
     "regression:quick": "PROMPT_CASE_LIMIT=3 node scripts/regression.mjs",
-    "verify:quick": "npm run lint && npm run build && npm run check:locales && npm run validate:data && npm run smoke:quick",
-    "verify": "npm run lint && npm run build && npm run check:locales && npm run validate:data && npm run smoke && npm run regression:prompts"
+    "verify:quick": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run validate:data && npm run smoke:quick",
+    "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run validate:data && npm run smoke && npm run regression:prompts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
