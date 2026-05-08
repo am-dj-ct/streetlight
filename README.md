@@ -30,6 +30,8 @@ when the build is ready.
   translation work lives and how to audit completeness.
 - [Operational runbook](OPERATIONAL_RUNBOOK.md) — dashboard-first incident
   and pause procedures.
+- [Partner bug report template](docs/partners/bug-report.md) — structured
+  no-content issue intake for frontline partners.
 
 ## Project structure
 
