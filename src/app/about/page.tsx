@@ -62,7 +62,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
 
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
         <Link
-          href={`/report-problem?lang=${languageCode}&area=about`}
+          href={`/report-problem?lang=${languageCode}&area=about&source=${encodeURIComponent(`/about?lang=${languageCode}`)}`}
           className="font-semibold underline"
         >
           {copy.reportProblemByEmail}
