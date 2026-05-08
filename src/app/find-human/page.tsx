@@ -13,6 +13,7 @@ import {
   isReferralSpecificToCategory,
   isWeakCategory,
 } from "../../lib/referrals";
+import { getUiCopy } from "../../lib/ui-copy";
 
 type FindHumanPageProps = {
   searchParams: Promise<{
@@ -32,6 +33,7 @@ export default async function FindHumanPage({
     requestedLanguageCode: lang,
   });
   const currentLanguage = getLanguageOption(languageCode);
+  const copy = getUiCopy(languageCode);
   const regionScope = getRegionScope({
     countryHeader: requestHeaders.get("x-vercel-ip-country"),
     regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
@@ -68,21 +70,28 @@ export default async function FindHumanPage({
           </div>
 
           <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
-            <span className="block">Find a human</span>
-            <span className="block">who can help with this</span>
+            <span className="block">{copy.referralsHeadingLineOne}</span>
+            <span className="block">{copy.referralsHeadingLineTwo}</span>
           </h1>
           <p className="pt-3 text-[16px] leading-6 text-[#47564d]">
-            These are real services, not model-generated suggestions.
             {regionScope === "king"
-              ? " Resources are curated for King County."
-              : " You are seeing the fallback list for outside King County."}
+              ? copy.referralsIntroKing
+              : copy.referralsIntroFallback}
           </p>
         </header>
 
         {category && category !== "none" ? (
           <section className="mb-4 rounded-[18px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[15px] leading-6 text-[#6a4c12]">
-            This list is filtered for{" "}
+            {copy.referralsFilteredPrefix}{" "}
             <span className="font-semibold">{categoryLabel}</span>.
+            <div className="pt-2">
+              <Link
+                href={`/find-human?entryId=${entryId ?? ""}&lang=${languageCode}`}
+                className="font-semibold underline"
+              >
+                {copy.referralsShowAll}
+              </Link>
+            </div>
           </section>
         ) : null}
 
@@ -98,7 +107,7 @@ export default async function FindHumanPage({
                 </h2>
                 {isReferralSpecificToCategory(resource, category) ? (
                   <span className="shrink-0 rounded-full bg-[#edf3ef] px-3 py-1 text-[12px] font-semibold text-[#2d5c45]">
-                    Best fit
+                    {copy.referralsBestFit}
                   </span>
                 ) : null}
               </div>

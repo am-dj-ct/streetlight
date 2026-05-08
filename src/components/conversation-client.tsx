@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
 import { getWeakCategoryLabel } from "../lib/referrals";
+import { getUiCopy } from "../lib/ui-copy";
 import type {
   ChatErrorBody,
   ChatStreamEvent,
@@ -250,6 +251,7 @@ export function ConversationClient({
   regionScope,
 }: ConversationClientProps) {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+  const copy = getUiCopy(currentLanguageCode);
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
@@ -642,7 +644,7 @@ export function ConversationClient({
     }
 
     if (turnstileSiteKey && !turnstileToken) {
-      setErrorMessage("Still checking that you're human. Please try again in a moment.");
+      setErrorMessage(copy.turnstileWait);
       return;
     }
 
@@ -700,7 +702,7 @@ export function ConversationClient({
           } else {
             setMessages(nextMessages);
             setErrorMessage(
-              errorBody?.error ?? "The response did not come through. Please try again.",
+              errorBody?.error ?? copy.sendFailure,
             );
           }
           return;
@@ -710,7 +712,7 @@ export function ConversationClient({
 
         if (!reader) {
           setMessages(nextMessages);
-          setErrorMessage("The response did not come through. Please try again.");
+          setErrorMessage(copy.sendFailure);
           return;
         }
 
@@ -777,7 +779,7 @@ export function ConversationClient({
         setMessages((currentMessages) =>
           currentMessages.filter((message) => message.id !== pendingAssistantId || message.text.length > 0),
         );
-        setErrorMessage("The response did not come through. Please try again.");
+        setErrorMessage(copy.sendFailure);
       } finally {
         resetTurnstileToken();
         setIsStreaming(false);
@@ -838,7 +840,7 @@ export function ConversationClient({
                       }`}
                     >
                       {isEmptyAssistant ? (
-                        <p className="text-[#65736b]">Thinking...</p>
+                        <p className="text-[#65736b]">{copy.thinking}</p>
                       ) : isAssistant ? (
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
@@ -884,7 +886,7 @@ export function ConversationClient({
                           disabled={!speechSupported}
                           className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
                         >
-                          {speakingMessageId === message.id ? "Stop reading" : "Play aloud"}
+                          {speakingMessageId === message.id ? copy.stopReading : copy.playAloud}
                         </button>
                         <button
                           type="button"
@@ -892,7 +894,7 @@ export function ConversationClient({
                           disabled={!speechSupported}
                           className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
                         >
-                          Voice
+                          {copy.voiceTitle}
                         </button>
                         <Link
                           href={
@@ -902,7 +904,7 @@ export function ConversationClient({
                           }
                           className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                         >
-                          Find a human for this
+                          {copy.findHumanForThis}
                         </Link>
                         </div>
                       </div>
@@ -948,7 +950,7 @@ export function ConversationClient({
               onClick={handleSavePress}
               className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
             >
-              Save · stays on this phone
+              {copy.saveButton}
             </button>
             <button
               type="button"
@@ -956,7 +958,7 @@ export function ConversationClient({
               onClick={() => setShowSaveModal(true)}
               className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#b7c7bd] bg-white px-3 text-[15px] font-semibold text-[#1d2a22]"
             >
-              ?
+              {copy.saveExplainButton}
             </button>
           </div>
 
@@ -976,7 +978,7 @@ export function ConversationClient({
                 rows={1}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="Type here"
+                placeholder={copy.composerPlaceholder}
                 className="max-h-40 min-h-14 w-full resize-none overflow-y-auto rounded-[18px] border border-[#b7c7bd] bg-white px-4 py-[15px] text-[17px] leading-6 text-[#1f2923] outline-none placeholder:text-[#7c8a82]"
               />
             </label>
@@ -987,7 +989,7 @@ export function ConversationClient({
               disabled={!micSupported}
               className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22]"
             >
-              {isListening ? "Stop" : "Mic"}
+              {isListening ? copy.micStopLabel : copy.micLabel}
             </button>
             <button
               type="submit"
@@ -1015,13 +1017,13 @@ export function ConversationClient({
                 onClick={() => setShowVoiceSettings(false)}
                 className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
               >
-                Done
+                {copy.voiceDone}
               </button>
             </div>
 
             <div className="space-y-4">
               <label className="block">
-                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">Voice option</span>
+                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">{copy.voiceOptionLabel}</span>
                 <select
                   value={effectiveVoiceUri}
                   onChange={(event) => setSelectedVoiceUri(event.target.value)}
@@ -1037,7 +1039,7 @@ export function ConversationClient({
 
               <label className="block">
                 <div className="mb-2 flex items-center justify-between text-[15px] font-medium text-[#1f2923]">
-                  <span>Speed</span>
+                  <span>{copy.voiceSpeedLabel}</span>
                   <span>{speechRate.toFixed(2)}x</span>
                 </div>
                 <input
@@ -1053,7 +1055,7 @@ export function ConversationClient({
 
               {voiceOptions.length <= 1 ? (
                 <p className="text-[14px] leading-6 text-[#5f6d64]">
-                  This browser is only exposing one voice for this language.
+                  {copy.voiceOnlyOneOption}
                 </p>
               ) : null}
             </div>
@@ -1068,10 +1070,10 @@ export function ConversationClient({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-[18px] font-semibold text-[#1f2923]">
-                  Language
+                  {copy.languageSheetTitle}
                 </h2>
                 <p className="text-[14px] text-[#5f6d64]">
-                  Changing language starts a fresh conversation.
+                  {copy.languageSheetFreshStart}
                 </p>
               </div>
               <button
@@ -1079,7 +1081,7 @@ export function ConversationClient({
                 onClick={() => setShowLanguageSheet(false)}
                 className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
               >
-                Done
+                {copy.languageSheetDone}
               </button>
             </div>
 
@@ -1095,7 +1097,7 @@ export function ConversationClient({
                   }`}
                 >
                   <span>{language.label}</span>
-                  {language.code === currentLanguageCode ? <span>Current</span> : null}
+                  {language.code === currentLanguageCode ? <span>{copy.languageSheetCurrent}</span> : null}
                 </Link>
               ))}
             </div>
@@ -1108,20 +1110,12 @@ export function ConversationClient({
           <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <h2 className="text-[20px] font-semibold text-[#1f2923]">
-              Save this conversation?
+              {copy.saveTitle}
             </h2>
             <div className="pt-4 space-y-4 text-[16px] leading-7 text-[#3c4b42]">
-              <p>
-                This will save a copy on this phone. If someone else uses this
-                phone, they could see it.
-              </p>
-              <p>
-                If this is your phone and only you use it: probably fine.
-              </p>
-              <p>
-                If this is a shared phone, library computer, or borrowed phone:
-                don&apos;t save here. You can email it to yourself instead.
-              </p>
+              <p>{copy.saveBodyOne}</p>
+              <p>{copy.saveBodyTwo}</p>
+              <p>{copy.saveBodyThree}</p>
             </div>
 
             <div className="pt-5 flex flex-col gap-2">
@@ -1130,21 +1124,21 @@ export function ConversationClient({
                 onClick={handleSaveHere}
                 className="min-h-12 rounded-[16px] bg-[#1f5f43] px-4 text-[16px] font-semibold text-white"
               >
-                Save here
+                {copy.saveHere}
               </button>
               <button
                 type="button"
                 onClick={handleEmailToSelf}
                 className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
               >
-                Send it to myself instead
+                {copy.saveEmail}
               </button>
               <button
                 type="button"
                 onClick={() => setShowSaveModal(false)}
                 className="min-h-12 rounded-[16px] border border-[#e1e8e2] bg-[#f7f8f4] px-4 text-[16px] font-medium text-[#47564d]"
               >
-                Cancel
+                {copy.saveCancel}
               </button>
             </div>
           </div>

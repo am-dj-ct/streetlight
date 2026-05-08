@@ -1,29 +1,46 @@
 import type { SupportedLanguageCode } from "./languages";
+import en from "../data/ui-copy/en.json";
+import es from "../data/ui-copy/es.json";
+import vi from "../data/ui-copy/vi.json";
+import so from "../data/ui-copy/so.json";
+import ru from "../data/ui-copy/ru.json";
+import am from "../data/ui-copy/am.json";
+import zh from "../data/ui-copy/zh.json";
 
-export type UiCopy = {
-  footerHeading: string;
-  footerFindHuman: string;
-  footerEmergency: string;
-  footerDangerNow: string;
-  footerLocalPlaceholder: string;
-  footerFallbackPlaceholder: string;
-  landingHeadingLineOne: string;
-  landingHeadingLineTwo: string;
+export type UiCopy = typeof en.strings;
+
+type LocaleCopyDocument = {
+  meta: {
+    translated: boolean;
+    languageCode: SupportedLanguageCode;
+    inherits?: SupportedLanguageCode;
+  };
+  strings: Partial<UiCopy>;
 };
 
-const englishCopy: UiCopy = {
-  footerHeading: "Crisis help:",
-  footerFindHuman: "Find a human",
-  footerEmergency: "Call or text 988",
-  footerDangerNow: "Call 911 for danger now",
-  footerLocalPlaceholder: "King County crisis numbers coming soon",
-  footerFallbackPlaceholder: "Local crisis numbers may be different where you are",
-  landingHeadingLineOne: "What do you need?",
-  landingHeadingLineTwo: "Pick one to start.",
+function asLocaleCopyDocument(value: unknown): LocaleCopyDocument {
+  return value as LocaleCopyDocument;
+}
+
+const localeDocuments: Record<SupportedLanguageCode, LocaleCopyDocument> = {
+  en: asLocaleCopyDocument(en),
+  es: asLocaleCopyDocument(es),
+  vi: asLocaleCopyDocument(vi),
+  so: asLocaleCopyDocument(so),
+  ru: asLocaleCopyDocument(ru),
+  am: asLocaleCopyDocument(am),
+  zh: asLocaleCopyDocument(zh),
 };
 
 export function getUiCopy(languageCode: SupportedLanguageCode): UiCopy {
-  // TODO: Replace with professionally translated static JSON per language.
-  void languageCode;
-  return englishCopy;
+  const localeDocument = localeDocuments[languageCode];
+
+  return {
+    ...en.strings,
+    ...localeDocument.strings,
+  };
+}
+
+export function hasTranslatedUiCopy(languageCode: SupportedLanguageCode) {
+  return localeDocuments[languageCode].meta.translated;
 }

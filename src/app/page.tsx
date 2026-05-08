@@ -8,7 +8,7 @@ import {
   getPreferredLanguageCode,
   languageOptions,
 } from "../lib/languages";
-import { getUiCopy } from "../lib/ui-copy";
+import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -29,6 +29,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
   });
   const copy = getUiCopy(languageCode);
+  const hasTranslatedCopy = hasTranslatedUiCopy(languageCode);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
@@ -61,6 +62,14 @@ export default async function Home({ searchParams }: HomePageProps) {
             <span className="block">{copy.landingHeadingLineOne}</span>
             <span className="block">{copy.landingHeadingLineTwo}</span>
           </h1>
+          <p className="pt-3 max-w-[28rem] text-[15px] leading-6 text-[#4d5c53]">
+            {copy.landingScopeNote}
+          </p>
+          {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
+            <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+              Full UI translation is still being added for this language. The chat itself can still work in your language.
+            </p>
+          ) : null}
 
           <div className="mt-5 flex flex-col gap-2.5">
             {promptButtons.map((button) => (
