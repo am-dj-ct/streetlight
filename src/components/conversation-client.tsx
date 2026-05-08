@@ -15,7 +15,10 @@ import type {
   WeakCategory,
 } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
-import type { SupportedLanguageCode } from "../lib/languages";
+import {
+  languageOptions,
+  type SupportedLanguageCode,
+} from "../lib/languages";
 
 type TurnstileApi = {
   render: (
@@ -299,6 +302,7 @@ export function ConversationClient({
       : 0.92;
   });
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(() => {
     if (typeof window === "undefined") {
@@ -803,6 +807,7 @@ export function ConversationClient({
 
           <button
             type="button"
+            onClick={() => setShowLanguageSheet(true)}
             className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036]"
           >
             {currentLanguageLabel}
@@ -1051,6 +1056,48 @@ export function ConversationClient({
                   This browser is only exposing one voice for this language.
                 </p>
               ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showLanguageSheet ? (
+        <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
+          <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-[18px] font-semibold text-[#1f2923]">
+                  Language
+                </h2>
+                <p className="text-[14px] text-[#5f6d64]">
+                  Changing language starts a fresh conversation.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLanguageSheet(false)}
+                className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+              >
+                Done
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {languageOptions.map((language) => (
+                <Link
+                  key={language.code}
+                  href={`/conversation/${entryId}?lang=${language.code}`}
+                  className={`flex min-h-12 items-center justify-between rounded-[16px] border px-4 text-[16px] font-medium ${
+                    language.code === currentLanguageCode
+                      ? "border-[#1f5f43] bg-[#edf3ef] text-[#1f5f43]"
+                      : "border-[#cfd7cf] bg-white text-[#1d2a22]"
+                  }`}
+                >
+                  <span>{language.label}</span>
+                  {language.code === currentLanguageCode ? <span>Current</span> : null}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
