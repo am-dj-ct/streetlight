@@ -121,6 +121,13 @@ function getContentContractSummary() {
     .trim();
 }
 
+function getSafetyCheckSummary() {
+  runNodeScript("scripts/check-forbidden-integrations.mjs");
+  runNodeScript("scripts/check-no-tracked-secrets.mjs");
+
+  return "forbidden integrations and tracked secrets ok";
+}
+
 const [
   health,
   envSnapshot,
@@ -129,6 +136,7 @@ const [
   resourceFreshnessSummary,
   translationSummary,
   contentContractSummary,
+  safetyCheckSummary,
 ] = await Promise.all([
   fetchHealth({ baseUrl, fail }),
   getEnvSnapshot(),
@@ -137,6 +145,7 @@ const [
   getResourceFreshnessSummary(),
   getTranslationSummary(),
   Promise.resolve(getContentContractSummary()),
+  Promise.resolve(getSafetyCheckSummary()),
 ]);
 
 console.log("Access Tool ops status");
@@ -168,6 +177,7 @@ for (const summary of resourceFreshnessSummary) {
 
 console.log("");
 console.log(`Content contracts: ${contentContractSummary}`);
+console.log(`Safety checks: ${safetyCheckSummary}`);
 console.log("");
 const incompleteTranslations = translationSummary.filter(
   (summary) => summary.sections.length > 0,
