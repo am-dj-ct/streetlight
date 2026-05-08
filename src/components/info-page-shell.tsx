@@ -14,7 +14,7 @@ type InfoPageShellProps = {
   sourcePath?: InternalAppPath;
   title: string;
   lastUpdated: string;
-  getLanguageHref: (languageCode: SupportedLanguageCode) => string;
+  getLanguageHref: (languageCode: SupportedLanguageCode) => InternalAppPath;
   children: React.ReactNode;
 };
 

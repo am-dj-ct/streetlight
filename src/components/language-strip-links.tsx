@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { InternalAppPath } from "../lib/routes";
 import { getUiCopy } from "../lib/ui-copy";
 import { languageOptions, type SupportedLanguageCode } from "../lib/languages";
 
@@ -8,7 +9,7 @@ export function LanguageStripLinks({
   align = "start",
 }: {
   currentLanguageCode: SupportedLanguageCode;
-  getHref: (languageCode: SupportedLanguageCode) => string;
+  getHref: (languageCode: SupportedLanguageCode) => InternalAppPath;
   align?: "end" | "start";
 }) {
   const copy = getUiCopy(currentLanguageCode);

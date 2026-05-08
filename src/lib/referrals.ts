@@ -7,7 +7,11 @@ import {
 } from "./chat-types";
 import type { RegionScope } from "./geo";
 import type { SupportedLanguageCode } from "./languages";
-import { buildConversationHref, buildHomeHref } from "./routes";
+import {
+  buildConversationHref,
+  buildHomeHref,
+  type InternalAppPath,
+} from "./routes";
 
 type ReferralCategory = WeakCategory | "all";
 type ReferralRegion = "king" | "fallback";
@@ -115,18 +119,16 @@ export function getBackHrefForReferrals({
   languageCode,
 }: {
   entryId?: null | string;
-  languageCode?: null | SupportedLanguageCode;
-}) {
+  languageCode: SupportedLanguageCode;
+}): InternalAppPath {
   if (!isConversationEntryId(entryId)) {
-    return languageCode ? buildHomeHref(languageCode) : "/";
+    return buildHomeHref(languageCode);
   }
 
-  return languageCode
-    ? buildConversationHref({
-        entryId,
-        languageCode,
-      })
-    : `/conversation/${entryId}`;
+  return buildConversationHref({
+    entryId,
+    languageCode,
+  });
 }
 
 export function sanitizeFindHumanSearchParams({
