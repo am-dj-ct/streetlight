@@ -66,9 +66,14 @@ export async function POST(request: Request) {
       content: message.text.trim(),
     }))
     .filter((message) => message.content.length > 0);
+  const latestMessage = messages.at(-1);
 
   if (messages.length === 0) {
     return NextResponse.json({ error: "No messages to send." }, { status: 400 });
+  }
+
+  if (latestMessage?.role !== "user") {
+    return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
   }
 
   const requestStartedAt = Date.now();

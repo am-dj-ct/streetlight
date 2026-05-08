@@ -617,6 +617,23 @@ async function checkBlankMessageId() {
   );
 }
 
+async function checkAssistantOnlyMessages() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "assistant-only",
+          role: "assistant",
+          text: "Previously generated text.",
+        },
+      ],
+    },
+    "assistant-only messages",
+  );
+}
+
 async function checkInvalidReportProblemEntryId() {
   const response = await fetch(
     new URL("/report-problem?lang=en&entryId=not-a-real-entry", baseUrl),
@@ -742,6 +759,8 @@ await checkInvalidMessageRole();
 console.log("Malformed message role handling ok (/api/chat rejects invalid roles).");
 await checkBlankMessageId();
 console.log("Malformed message id handling ok (/api/chat rejects blank ids).");
+await checkAssistantOnlyMessages();
+console.log("Assistant-only message handling ok (/api/chat requires a real user turn).");
 await checkInvalidReportProblemEntryId();
 console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
 await checkInvalidFindHumanCategory();
