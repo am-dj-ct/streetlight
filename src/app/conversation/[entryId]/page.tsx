@@ -7,13 +7,8 @@ import {
   conversationSeeds,
   getLocalizedConversationSeed,
 } from "../../../lib/conversation-shell";
-import { getRequestRegionScope } from "../../../lib/geo";
-import {
-  getLanguageOption,
-  getRequestLanguageCode,
-} from "../../../lib/languages";
+import { getPageRequestContext } from "../../../lib/request-context";
 import { makeTitle } from "../../../lib/site-metadata";
-import { getUiCopy } from "../../../lib/ui-copy";
 
 type ConversationPageProps = {
   params: Promise<{
@@ -37,11 +32,10 @@ export async function generateMetadata({
   const requestHeaders = await headers();
   const { entryId } = await params;
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const { copy, languageCode } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const copy = getUiCopy(languageCode);
   const seed = getLocalizedConversationSeed(entryId, languageCode);
 
   return {
@@ -59,7 +53,7 @@ export default async function ConversationPage({
   const requestHeaders = await headers();
   const { entryId } = await params;
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const { currentLanguage, languageCode, regionScope } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
@@ -68,9 +62,6 @@ export default async function ConversationPage({
   if (!seed) {
     notFound();
   }
-
-  const currentLanguage = getLanguageOption(languageCode);
-  const regionScope = getRequestRegionScope({ requestHeaders });
 
   return (
     <>

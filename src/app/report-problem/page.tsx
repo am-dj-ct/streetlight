@@ -8,17 +8,12 @@ import {
   getDeployEnvironment,
   isDevMockChatEnabled,
 } from "../../lib/env";
-import { getRequestRegionScope } from "../../lib/geo";
-import {
-  getLanguageOption,
-  getRequestLanguageCode,
-} from "../../lib/languages";
+import { getPageRequestContext } from "../../lib/request-context";
 import {
   buildHomeHref,
   buildReportProblemHref,
 } from "../../lib/routes";
 import { makeTitle } from "../../lib/site-metadata";
-import { getUiCopy } from "../../lib/ui-copy";
 
 type ReportProblemPageProps = {
   searchParams: Promise<{
@@ -34,11 +29,10 @@ export async function generateMetadata({
 }: ReportProblemPageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const { copy } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const copy = getUiCopy(languageCode);
 
   return {
     title: makeTitle(copy.reportPageTitle),
@@ -51,16 +45,18 @@ export default async function ReportProblemPage({
 }: ReportProblemPageProps) {
   const requestHeaders = await headers();
   const { area, entryId, lang, source } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const {
+    copy,
+    currentLanguage,
+    languageCode,
+    regionScope,
+  } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const currentLanguage = getLanguageOption(languageCode);
-  const copy = getUiCopy(languageCode);
   const chatMode = isDevMockChatEnabled() ? "mock-local" : "live-model";
   const commitSha = getDeployCommitSha();
   const deployEnv = getDeployEnvironment();
-  const regionScope = getRequestRegionScope({ requestHeaders });
 
   return (
     <InfoPageShell

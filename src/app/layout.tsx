@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import { getLanguageRequestContext } from "../lib/request-context";
 import { appTitle, defaultDescription } from "../lib/site-metadata";
-import { getRequestLanguageCode } from "../lib/languages";
 
 export const metadata: Metadata = {
   title: appTitle,
@@ -15,7 +15,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const requestHeaders = await headers();
-  const languageCode = getRequestLanguageCode({ requestHeaders });
+  const { languageCode } = getLanguageRequestContext({ requestHeaders });
 
   return (
     <html lang={languageCode}>

@@ -3,11 +3,7 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { CrisisFooter } from "../../components/crisis-footer";
 import { LanguageStripLinks } from "../../components/language-strip-links";
-import { getRequestRegionScope } from "../../lib/geo";
-import {
-  getLanguageOption,
-  getRequestLanguageCode,
-} from "../../lib/languages";
+import { getPageRequestContext } from "../../lib/request-context";
 import {
   formatTelephoneHref,
   getBackHrefForReferrals,
@@ -19,7 +15,6 @@ import {
 } from "../../lib/referrals";
 import { buildFindHumanHref } from "../../lib/routes";
 import { makeTitle } from "../../lib/site-metadata";
-import { getUiCopy, hasTranslatedUiCopy } from "../../lib/ui-copy";
 
 type FindHumanPageProps = {
   searchParams: Promise<{
@@ -34,11 +29,10 @@ export async function generateMetadata({
 }: FindHumanPageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const { copy } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const copy = getUiCopy(languageCode);
 
   return {
     title: makeTitle(copy.referralsHeadingLineOne),
@@ -51,14 +45,16 @@ export default async function FindHumanPage({
 }: FindHumanPageProps) {
   const requestHeaders = await headers();
   const { category: rawCategory, entryId, lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const {
+    copy,
+    currentLanguage,
+    hasTranslatedCopy,
+    languageCode,
+    regionScope,
+  } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const currentLanguage = getLanguageOption(languageCode);
-  const copy = getUiCopy(languageCode);
-  const hasTranslatedCopy = hasTranslatedUiCopy(languageCode);
-  const regionScope = getRequestRegionScope({ requestHeaders });
   const category =
     rawCategory && isWeakCategory(rawCategory) ? rawCategory : undefined;
   const referrals = getReferralsForCategory({ category, regionScope });

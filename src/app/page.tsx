@@ -5,14 +5,9 @@ import { CrisisFooter } from "../components/crisis-footer";
 import { LanguageStripLinks } from "../components/language-strip-links";
 import { LocalDevBadge } from "../components/local-dev-badge";
 import { getAlternateActions, getPromptButtons } from "../lib/buttons";
-import { getRequestRegionScope } from "../lib/geo";
-import {
-  getLanguageOption,
-  getRequestLanguageCode,
-} from "../lib/languages";
+import { getPageRequestContext } from "../lib/request-context";
 import { buildConversationHref, buildHomeHref } from "../lib/routes";
 import { defaultDescription } from "../lib/site-metadata";
-import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -25,11 +20,10 @@ export async function generateMetadata({
 }: HomePageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const { copy } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const copy = getUiCopy(languageCode);
 
   return {
     description: copy.metaDefaultDescription ?? defaultDescription,
@@ -39,16 +33,17 @@ export async function generateMetadata({
 export default async function Home({ searchParams }: HomePageProps) {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const {
+    copy,
+    currentLanguage,
+    hasTranslatedCopy,
+    regionScope,
+  } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const currentLanguage = getLanguageOption(languageCode);
   const promptButtons = getPromptButtons(currentLanguage.code);
   const alternateActions = getAlternateActions(currentLanguage.code);
-  const regionScope = getRequestRegionScope({ requestHeaders });
-  const copy = getUiCopy(languageCode);
-  const hasTranslatedCopy = hasTranslatedUiCopy(languageCode);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">

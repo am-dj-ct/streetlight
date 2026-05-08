@@ -2,18 +2,13 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
-import { getRequestRegionScope } from "../../lib/geo";
-import {
-  getLanguageOption,
-  getRequestLanguageCode,
-} from "../../lib/languages";
+import { getPageRequestContext } from "../../lib/request-context";
 import {
   buildAboutHref,
   buildReportProblemHref,
 } from "../../lib/routes";
 import { getStaticPageContent } from "../../lib/static-pages";
 import { makeTitle } from "../../lib/site-metadata";
-import { getUiCopy } from "../../lib/ui-copy";
 
 type AboutPageProps = {
   searchParams: Promise<{
@@ -26,11 +21,10 @@ export async function generateMetadata({
 }: AboutPageProps): Promise<Metadata> {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const { copy, languageCode } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const copy = getUiCopy(languageCode);
   const page = getStaticPageContent("about", languageCode);
 
   return {
@@ -42,13 +36,15 @@ export async function generateMetadata({
 export default async function AboutPage({ searchParams }: AboutPageProps) {
   const requestHeaders = await headers();
   const { lang } = await searchParams;
-  const languageCode = getRequestLanguageCode({
+  const {
+    copy,
+    currentLanguage,
+    languageCode,
+    regionScope,
+  } = getPageRequestContext({
     requestHeaders,
     requestedLanguageCode: lang,
   });
-  const currentLanguage = getLanguageOption(languageCode);
-  const copy = getUiCopy(languageCode);
-  const regionScope = getRequestRegionScope({ requestHeaders });
   const page = getStaticPageContent("about", languageCode);
 
   return (
