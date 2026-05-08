@@ -50,6 +50,8 @@
     "saveBodyThree": "If this is a shared phone, library computer, or borrowed phone: don't save here. You can email it to yourself instead.",
     "savePrivacyLink": "Read the privacy page",
     "saveHere": "Save here",
+    "saveShare": "Share from this phone",
+    "saveShareFailed": "Share did not open here. Try Copy text instead.",
     "saveCopy": "Copy text instead",
     "saveCopied": "Copied. You can paste it wherever you need.",
     "saveCopyFailed": "Copy did not work here. Try Save here or email instead.",

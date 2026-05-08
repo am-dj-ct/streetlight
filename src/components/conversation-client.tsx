@@ -302,6 +302,7 @@ export function ConversationClient({
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
+  const [shareSupported, setShareSupported] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -345,6 +346,7 @@ export function ConversationClient({
     setHasSeenSaveWarning(
       window.localStorage.getItem("access-tool-save-warning-seen") === "true",
     );
+    setShareSupported(typeof navigator.share === "function");
 
     const savedSpeechRate = Number(
       window.localStorage.getItem("access-tool-speech-rate") ?? "0.92",
@@ -548,6 +550,26 @@ export function ConversationClient({
     setSaveStatusMessage(null);
     setShowSaveModal(false);
     emailConversationToSelf();
+  }
+
+  async function handleShareConversation() {
+    if (typeof window === "undefined" || typeof navigator.share !== "function") {
+      setSaveStatusMessage(copy.saveShareFailed);
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: "Access Tool conversation",
+        text: formatConversationForExport(messages, {
+          entryLabel: exportEntryLabel,
+          languageLabel: currentLanguageLabel,
+        }),
+      });
+      setSaveStatusMessage(null);
+    } catch {
+      setSaveStatusMessage(copy.saveShareFailed);
+    }
   }
 
   async function handleCopyConversation() {
@@ -1217,6 +1239,17 @@ export function ConversationClient({
               >
                 {copy.saveHere}
               </button>
+              {shareSupported ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleShareConversation();
+                  }}
+                  className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
+                >
+                  {copy.saveShare}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
