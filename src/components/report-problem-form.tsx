@@ -6,8 +6,8 @@ import type { RegionScope } from "../lib/geo";
 import { getConversationContentEntry } from "../lib/conversation-content";
 import {
   isReportArea,
-  type ReportArea,
 } from "../lib/report-problem";
+import { reportAreas, type ReportArea } from "../lib/report-areas";
 import type { ChatMode } from "../lib/runtime-state";
 import { buildMailtoHref } from "../lib/support";
 import {
@@ -28,16 +28,21 @@ type ProblemOption = {
   copyKey: keyof UiCopy;
 };
 
-const whereOptions: readonly ReportAreaOption[] = [
-  { value: "main-screen", copyKey: "reportAreaMainScreen" },
-  { value: "conversation", copyKey: "reportAreaConversation" },
-  { value: "find-human", copyKey: "reportAreaFindHuman" },
-  { value: "saving", copyKey: "reportAreaSaving" },
-  { value: "voice-or-mic", copyKey: "reportAreaVoiceOrMic" },
-  { value: "privacy", copyKey: "reportAreaPrivacy" },
-  { value: "about", copyKey: "reportAreaAbout" },
-  { value: "other", copyKey: "reportAreaOther" },
-];
+const reportAreaCopyKeys: Record<ReportArea, keyof UiCopy> = {
+  "main-screen": "reportAreaMainScreen",
+  conversation: "reportAreaConversation",
+  "find-human": "reportAreaFindHuman",
+  saving: "reportAreaSaving",
+  "voice-or-mic": "reportAreaVoiceOrMic",
+  privacy: "reportAreaPrivacy",
+  about: "reportAreaAbout",
+  other: "reportAreaOther",
+};
+
+const whereOptions: readonly ReportAreaOption[] = reportAreas.map((value) => ({
+  value,
+  copyKey: reportAreaCopyKeys[value],
+}));
 
 const problemOptions: readonly ProblemOption[] = [
   { value: "wrong-facts", copyKey: "reportWrongFacts" },
@@ -94,11 +99,7 @@ export function ReportProblemForm({
   const [details, setDetails] = useState("");
   const [selectedProblems, setSelectedProblems] = useState<string[]>([]);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  const whereLabel =
-    copy[
-      whereOptions.find((option) => option.value === where)?.copyKey ??
-        "reportAreaOther"
-    ];
+  const whereLabel = copy[reportAreaCopyKeys[where]];
   const conversationLanguageLabel = getLanguageOption(conversationLanguage).label;
   const entryLabel = entryId
     ? getConversationContentEntry(entryId, conversationLanguage).label
