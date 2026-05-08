@@ -301,6 +301,7 @@ export function ConversationClient({
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -525,6 +526,8 @@ export function ConversationClient({
   }
 
   function handleSavePress() {
+    setSaveStatusMessage(null);
+
     if (hasSeenSaveWarning) {
       downloadConversation();
       return;
@@ -535,14 +538,57 @@ export function ConversationClient({
 
   function handleSaveHere() {
     markSaveWarningSeen();
+    setSaveStatusMessage(null);
     setShowSaveModal(false);
     downloadConversation();
   }
 
   function handleEmailToSelf() {
     markSaveWarningSeen();
+    setSaveStatusMessage(null);
     setShowSaveModal(false);
     emailConversationToSelf();
+  }
+
+  async function handleCopyConversation() {
+    if (typeof window === "undefined") {
+      setSaveStatusMessage(copy.saveCopyFailed);
+      return;
+    }
+
+    const exportText = formatConversationForExport(messages, {
+      entryLabel: exportEntryLabel,
+      languageLabel: currentLanguageLabel,
+    });
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(exportText);
+        setSaveStatusMessage(copy.saveCopied);
+        return;
+      }
+    } catch {
+      // Fall through to the textarea-based copy fallback below.
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = exportText;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      const copied = document.execCommand("copy");
+      textarea.remove();
+
+      setSaveStatusMessage(copied ? copy.saveCopied : copy.saveCopyFailed);
+    } catch {
+      setSaveStatusMessage(copy.saveCopyFailed);
+    }
   }
 
   function handlePlayAloud(messageId: string, text: string) {
@@ -1173,14 +1219,31 @@ export function ConversationClient({
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  void handleCopyConversation();
+                }}
+                className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
+              >
+                {copy.saveCopy}
+              </button>
+              <button
+                type="button"
                 onClick={handleEmailToSelf}
                 className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
               >
                 {copy.saveEmail}
               </button>
+              {saveStatusMessage ? (
+                <p role="status" className="px-1 text-[14px] leading-6 text-[#47564d]">
+                  {saveStatusMessage}
+                </p>
+              ) : null}
               <button
                 type="button"
-                onClick={() => setShowSaveModal(false)}
+                onClick={() => {
+                  setSaveStatusMessage(null);
+                  setShowSaveModal(false);
+                }}
                 className="min-h-12 rounded-[16px] border border-[#e1e8e2] bg-[#f7f8f4] px-4 text-[16px] font-medium text-[#47564d]"
               >
                 {copy.saveCancel}
