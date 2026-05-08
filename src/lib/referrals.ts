@@ -25,6 +25,8 @@ export type ReferralResource = {
 
 const referrals = referralsData as ReferralResource[];
 
+export { isWeakCategory } from "./chat-types";
+
 function isSpecificCategoryMatch(
   resource: ReferralResource,
   category?: null | WeakCategory,
@@ -34,19 +36,6 @@ function isSpecificCategoryMatch(
       category !== "none" &&
       resource.categories.includes(category),
   );
-}
-
-export function isWeakCategory(value: string): value is WeakCategory {
-  return [
-    "legal_procedure",
-    "medical_dosing",
-    "benefits_eligibility",
-    "immigration",
-    "drug_interactions",
-    "specific_deadlines",
-    "specific_dollar_amounts",
-    "none",
-  ].includes(value);
 }
 
 export function getWeakCategoryLabel(category: WeakCategory): string {

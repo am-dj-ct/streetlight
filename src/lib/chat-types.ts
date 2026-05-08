@@ -39,6 +39,23 @@ export type WeakCategory =
   | "specific_dollar_amounts"
   | "none";
 
+export const weakCategories: readonly WeakCategory[] = [
+  "legal_procedure",
+  "medical_dosing",
+  "benefits_eligibility",
+  "immigration",
+  "drug_interactions",
+  "specific_deadlines",
+  "specific_dollar_amounts",
+  "none",
+];
+
+export function isWeakCategory(
+  value: null | string | undefined,
+): value is WeakCategory {
+  return weakCategories.includes(value as WeakCategory);
+}
+
 export type ClientChatMessage = {
   id: string;
   role: "user" | "assistant";
