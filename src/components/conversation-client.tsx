@@ -106,6 +106,14 @@ function chooseBestVoice(voices: SpeechSynthesisVoice[], language: string) {
   );
 }
 
+function getVoiceOptions(voices: SpeechSynthesisVoice[], language: string) {
+  const matchingVoices = voices.filter((voice) =>
+    voice.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase()),
+  );
+
+  return matchingVoices.length > 0 ? matchingVoices : voices;
+}
+
 function appendToMessage(
   messages: ClientChatMessage[],
   messageId: string,
@@ -151,7 +159,29 @@ export function ConversationClient({
       "SpeechSynthesisUtterance" in window,
   );
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceUri, setSelectedVoiceUri] = useState(
+    () =>
+      (typeof window !== "undefined" &&
+        window.localStorage.getItem("access-tool-voice-uri")) ||
+      "",
+  );
+  const [speechRate, setSpeechRate] = useState(() => {
+    if (typeof window === "undefined") {
+      return 0.92;
+    }
+
+    const savedSpeechRate = Number(
+      window.localStorage.getItem("access-tool-speech-rate") ?? "0.92",
+    );
+
+    return !Number.isNaN(savedSpeechRate) &&
+      savedSpeechRate >= 0.7 &&
+      savedSpeechRate <= 1.1
+      ? savedSpeechRate
+      : 0.92;
+  });
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -210,6 +240,27 @@ export function ConversationClient({
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (selectedVoiceUri) {
+      window.localStorage.setItem("access-tool-voice-uri", selectedVoiceUri);
+    }
+
+    window.localStorage.setItem("access-tool-speech-rate", String(speechRate));
+  }, [selectedVoiceUri, speechRate]);
+
+  const voiceLanguage = getSpeechLanguage(currentLanguageLabel);
+  const voiceOptions = getVoiceOptions(availableVoices, voiceLanguage);
+  const effectiveVoiceUri =
+    selectedVoiceUri ||
+    chooseBestVoice(voiceOptions, voiceLanguage)?.voiceURI ||
+    "";
+  const selectedVoiceName =
+    voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ?? "Default";
+
   function handlePlayAloud(messageId: string, text: string) {
     if (
       !speechSupported ||
@@ -227,15 +278,17 @@ export function ConversationClient({
     }
 
     window.speechSynthesis.cancel();
-    const language = getSpeechLanguage(currentLanguageLabel);
+    const language = voiceLanguage;
 
     const utterance = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
     utterance.lang = language;
-    utterance.rate = 0.92;
+    utterance.rate = speechRate;
     utterance.pitch = 1;
     utterance.volume = 1;
 
-    const preferredVoice = chooseBestVoice(availableVoices, language);
+    const preferredVoice =
+      voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri) ??
+      chooseBestVoice(voiceOptions, language);
 
     if (preferredVoice) {
       utterance.voice = preferredVoice;
@@ -451,6 +504,14 @@ export function ConversationClient({
                         >
                           {speakingMessageId === message.id ? "Stop reading" : "Play aloud"}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowVoiceSettings(true)}
+                          disabled={!speechSupported}
+                          className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
+                        >
+                          Voice
+                        </button>
                         <Link
                           href="#crisis-resources"
                           className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
@@ -524,6 +585,66 @@ export function ConversationClient({
           </form>
         </section>
       </div>
+
+      {showVoiceSettings ? (
+        <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
+          <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-[18px] font-semibold text-[#1f2923]">Voice</h2>
+                <p className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVoiceSettings(false)}
+                className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+              >
+                Done
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">Voice option</span>
+                <select
+                  value={effectiveVoiceUri}
+                  onChange={(event) => setSelectedVoiceUri(event.target.value)}
+                  className="min-h-12 w-full rounded-[16px] border border-[#cfd7cf] bg-white px-4 text-[16px] text-[#1f2923]"
+                >
+                  {voiceOptions.map((voice) => (
+                    <option key={voice.voiceURI} value={voice.voiceURI}>
+                      {voice.name} ({voice.lang})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <div className="mb-2 flex items-center justify-between text-[15px] font-medium text-[#1f2923]">
+                  <span>Speed</span>
+                  <span>{speechRate.toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.7"
+                  max="1.1"
+                  step="0.02"
+                  value={speechRate}
+                  onChange={(event) => setSpeechRate(Number(event.target.value))}
+                  className="w-full accent-[#1f5f43]"
+                />
+              </label>
+
+              {voiceOptions.length <= 1 ? (
+                <p className="text-[14px] leading-6 text-[#5f6d64]">
+                  This browser is only exposing one voice for this language.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <CrisisFooter />
     </main>
