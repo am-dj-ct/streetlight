@@ -9,6 +9,8 @@ const reportEndpoint = new URL(
   `/report-problem?lang=en&area=conversation&entryId=understand-letter-or-form&source=${encodeURIComponent(sampleSourcePath)}`,
   baseUrl,
 ).toString();
+const spanishHomeEndpoint = new URL("/?lang=es", baseUrl).toString();
+const privacyEndpoint = new URL("/privacy", baseUrl).toString();
 
 function fail(message) {
   throw new Error(message);
@@ -19,6 +21,11 @@ function extractValue(html, label) {
   const pattern = new RegExp(`${normalizedLabel}:\\s*(?:<!-- -->\\s*)*([^<]+)`, "i");
   const match = html.match(pattern);
   return match?.[1]?.trim() ?? null;
+}
+
+function extractHtmlLang(html) {
+  const match = html.match(/<html lang="([^"]+)"/i);
+  return match?.[1] ?? null;
 }
 
 const healthResponse = await fetch(healthEndpoint, {
@@ -48,6 +55,11 @@ const referralsResponse = await fetch(referralsEndpoint, {
     Accept: "text/html",
   },
 });
+const spanishHomeResponse = await fetch(spanishHomeEndpoint, {
+  headers: {
+    Accept: "text/html",
+  },
+});
 
 if (!reportResponse.ok) {
   fail(`HTTP ${reportResponse.status} from /report-problem.`);
@@ -57,8 +69,29 @@ if (!referralsResponse.ok) {
   fail(`HTTP ${referralsResponse.status} from /find-human.`);
 }
 
+if (!spanishHomeResponse.ok) {
+  fail(`HTTP ${spanishHomeResponse.status} from /?lang=es.`);
+}
+
 const reportHtml = await reportResponse.text();
 const referralsHtml = await referralsResponse.text();
+const spanishHomeHtml = await spanishHomeResponse.text();
+const persistedLanguageCookie = spanishHomeResponse.headers
+  .get("set-cookie")
+  ?.split(";")[0]
+  ?.trim();
+const persistedPrivacyResponse = await fetch(privacyEndpoint, {
+  headers: {
+    Accept: "text/html",
+    ...(persistedLanguageCookie ? { Cookie: persistedLanguageCookie } : {}),
+  },
+});
+
+if (!persistedPrivacyResponse.ok) {
+  fail(`HTTP ${persistedPrivacyResponse.status} from /privacy with persisted language cookie.`);
+}
+
+const persistedPrivacyHtml = await persistedPrivacyResponse.text();
 const reportChatMode = extractValue(reportHtml, "Current chat mode");
 const reportDeployEnv = extractValue(reportHtml, "Current deploy environment");
 const reportCommit = extractValue(reportHtml, "Current commit");
@@ -71,6 +104,8 @@ const referralsCheckedThrough = extractValue(
 );
 const referralsTopSource = extractValue(referralsHtml, "Source");
 const referralsTopVerified = extractValue(referralsHtml, "Verified");
+const spanishHomeHtmlLang = extractHtmlLang(spanishHomeHtml);
+const persistedPrivacyHtmlLang = extractHtmlLang(persistedPrivacyHtml);
 
 console.log("Access Tool local diagnostics");
 console.log("");
@@ -79,6 +114,11 @@ console.log(`Health chatMode: ${health.chatMode}`);
 console.log(`Health deployEnv: ${health.deployEnv}`);
 console.log(`Health commitSha: ${health.commitSha ?? "local-dev"}`);
 console.log(`Health deployConfigOk: ${health.deployConfigOk === true ? "true" : "false"}`);
+console.log("");
+console.log("Language snapshot");
+console.log(`- /?lang=es html lang: ${spanishHomeHtmlLang ?? "(missing)"}`);
+console.log(`- language cookie set: ${persistedLanguageCookie ?? "(missing)"}`);
+console.log(`- /privacy with cookie html lang: ${persistedPrivacyHtmlLang ?? "(missing)"}`);
 console.log("");
 console.log("Report page snapshot");
 console.log(`- chat mode: ${reportChatMode ?? "(missing)"}`);
