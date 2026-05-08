@@ -1,6 +1,7 @@
 [
   {
     "name": "too-many-problems",
-    "text": "I have an appointment tomorrow, my phone is almost dead, and I still have not opened a letter from housing. Help me sort out what matters first."
+    "text": "I have an appointment tomorrow, my phone is almost dead, and I still have not opened a letter from housing. Help me sort out what matters first.",
+    "expectedClassifier": "none"
   }
 ]

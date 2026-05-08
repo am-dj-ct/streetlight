@@ -1,6 +1,7 @@
 [
   {
     "name": "speakable-steps",
-    "text": "Talk me through the first steps I should take after getting a benefits warning letter."
+    "text": "Talk me through the first steps I should take after getting a benefits warning letter.",
+    "expectedClassifier": "benefits_eligibility"
   }
 ]

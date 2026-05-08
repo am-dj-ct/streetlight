@@ -1,6 +1,7 @@
 [
   {
     "name": "late-text",
-    "text": "Write a short text to my case manager saying the bus is late and I may arrive 10 minutes late."
+    "text": "Write a short text to my case manager saying the bus is late and I may arrive 10 minutes late.",
+    "expectedClassifier": "none"
   }
 ]

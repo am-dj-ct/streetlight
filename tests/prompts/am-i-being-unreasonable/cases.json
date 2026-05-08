@@ -1,6 +1,7 @@
 [
   {
     "name": "repair-demand",
-    "text": "My landlord has ignored broken heat for two weeks and I want to tell them I am not paying until it is fixed. Am I being unreasonable?"
+    "text": "My landlord has ignored broken heat for two weeks and I want to tell them I am not paying until it is fixed. Am I being unreasonable?",
+    "expectedClassifier": "legal_procedure"
   }
 ]
