@@ -95,3 +95,7 @@ export function getClassifierModelOutputCostPerMillionUsd(): null | number {
 export function hasTurnstileSecret(): boolean {
   return Boolean(readOptionalEnv("TURNSTILE_SECRET_KEY"));
 }
+
+export function isDevMockChatEnabled(): boolean {
+  return readOptionalBooleanEnv("DEV_MOCK_CHAT");
+}

@@ -5,10 +5,12 @@ import {
   getAnthropicApiKey,
   getClassifierModel,
   getMainModel,
+  isDevMockChatEnabled,
   isSoftPauseEnabled,
 } from "../../../lib/env";
 import { checkPerIpRateLimit, getHashedIp } from "../../../lib/rate-limit";
 import { logChatTurnMetadata } from "../../../lib/metadata-log";
+import { buildMockChatTurn } from "../../../lib/mock-chat";
 import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
@@ -195,6 +197,52 @@ export async function POST(request: Request) {
           },
         },
       );
+    }
+
+    if (isDevMockChatEnabled()) {
+      model = "mock-local-main";
+      classifierModel = "mock-local-classifier";
+      const { classifierCategory, responseText } = buildMockChatTurn(body);
+      const encoder = new TextEncoder();
+      const chunks = responseText.match(/.{1,120}(\s|$)/g) ?? [responseText];
+
+      const readable = new ReadableStream({
+        async start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "delta", text: chunk })}\n\n`,
+              ),
+            );
+          }
+
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "classifier",
+                category: classifierCategory,
+              })}\n\n`,
+            ),
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+
+          logTurnMetadataOnce({
+            classifierCategory,
+            classifierResponseTimeMs: 0,
+            classifierStatus: "completed",
+            mainStatus: "completed",
+          });
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
     }
 
     const anthropic = new Anthropic({

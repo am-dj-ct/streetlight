@@ -42,26 +42,32 @@ try {
 const envEntries = parseEnvFile(contents);
 const mainModel = envEntries.get("MAIN_MODEL") ?? "(unset)";
 const classifierModel = envEntries.get("CLASSIFIER_MODEL") ?? "(unset)";
+const devMockChat = envEntries.get("DEV_MOCK_CHAT") === "true";
 
 console.log("Access Tool cost mode");
 console.log("");
 console.log(`MAIN_MODEL=${mainModel}`);
 console.log(`CLASSIFIER_MODEL=${classifierModel}`);
+console.log(`DEV_MOCK_CHAT=${devMockChat ? "true" : "false"}`);
 console.log("");
 
-if (
+if (devMockChat) {
+  console.log("Status: zero-cost local mock mode is active.");
+} else if (
   mainModel === recommendedMainModel &&
   classifierModel === recommendedClassifierModel
 ) {
-  console.log("Status: low-cost local mode is active.");
+  console.log("Status: low-cost local model mode is active.");
 } else {
   console.log("Status: not in the recommended low-cost local mode.");
   console.log(`Recommended MAIN_MODEL=${recommendedMainModel}`);
   console.log(`Recommended CLASSIFIER_MODEL=${recommendedClassifierModel}`);
+  console.log("Recommended DEV_MOCK_CHAT=true for zero-cost UI work.");
 }
 
 console.log("");
 console.log("Cheaper local commands:");
+console.log("- npm run dev:mock");
 console.log("- npm run smoke:quick");
 console.log("- npm run regression:quick");
 console.log("- npm run verify:quick");

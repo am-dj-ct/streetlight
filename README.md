@@ -48,6 +48,7 @@ this. Code stays public on GitHub regardless.
 ## Useful commands
 
 - `npm run lint`
+- `npm run dev:mock` — runs the app with zero-cost local mock chat replies
 - `npm run build`
 - `npm run check:locales`
 - `npm run check:launch` — static soft-launch readiness check for docs,
