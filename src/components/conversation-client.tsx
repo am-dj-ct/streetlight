@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
 import { getWeakCategoryLabel } from "../lib/referrals";
-import { getUiCopy } from "../lib/ui-copy";
+import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
   ChatErrorBody,
   ChatStreamEvent,
@@ -252,6 +252,7 @@ export function ConversationClient({
 }: ConversationClientProps) {
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
   const copy = getUiCopy(currentLanguageCode);
+  const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguageCode);
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
@@ -291,8 +292,12 @@ export function ConversationClient({
       return;
     }
 
+    if (messages.length === 1 && showSuggestions && !isStreaming && !errorMessage) {
+      return;
+    }
+
     thread.scrollTop = thread.scrollHeight;
-  }, [messages, errorMessage, isStreaming]);
+  }, [messages, errorMessage, isStreaming, showSuggestions]);
 
   useEffect(() => {
     const composer = composerRef.current;
@@ -806,6 +811,12 @@ export function ConversationClient({
 
         <section ref={threadRef} className="min-h-0 flex-1 overflow-y-auto pb-4">
           <div className="flex flex-col gap-5">
+            {!hasTranslatedCopy && currentLanguageCode !== "en" ? (
+              <div className="rounded-[16px] border border-[#d8e1db] bg-[#fdfefe] px-4 py-3 text-[14px] leading-6 text-[#5f6d64]">
+                {copy.translationNotice}
+              </div>
+            ) : null}
+
             {messages.map((message) => {
               const isAssistant = message.role === "assistant";
               const isEmptyAssistant = isAssistant && message.text.length === 0;

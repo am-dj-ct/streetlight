@@ -14,7 +14,7 @@ import {
   isReferralSpecificToCategory,
   isWeakCategory,
 } from "../../lib/referrals";
-import { getUiCopy } from "../../lib/ui-copy";
+import { getUiCopy, hasTranslatedUiCopy } from "../../lib/ui-copy";
 
 type FindHumanPageProps = {
   searchParams: Promise<{
@@ -35,6 +35,7 @@ export default async function FindHumanPage({
   });
   const currentLanguage = getLanguageOption(languageCode);
   const copy = getUiCopy(languageCode);
+  const hasTranslatedCopy = hasTranslatedUiCopy(languageCode);
   const regionScope = getRegionScope({
     countryHeader: requestHeaders.get("x-vercel-ip-country"),
     regionHeader: requestHeaders.get("x-vercel-ip-country-region"),
@@ -79,6 +80,11 @@ export default async function FindHumanPage({
               ? copy.referralsIntroKing
               : copy.referralsIntroFallback}
           </p>
+          {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
+            <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+              {copy.infoPageTranslationNotice}
+            </p>
+          ) : null}
         </header>
 
         {category && category !== "none" ? (
