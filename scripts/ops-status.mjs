@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { defaultBaseUrl, getHealth as fetchHealth } from "./lib/access-tool-http.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 
@@ -48,6 +49,23 @@ function classifyLaunchDocIssue(issue) {
   return issue.includes("placeholder") || issue.includes("screenshots")
     ? "external"
     : "internal";
+}
+
+function runNodeScript(scriptPath, args = []) {
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+
+  if (result.error) {
+    fail(`Failed to run ${scriptPath}: ${result.error.message}`);
+  }
+
+  if (result.status !== 0) {
+    fail(`${scriptPath} exited ${result.status}.\n${result.stderr || result.stdout}`);
+  }
+
+  return result.stdout.trim();
 }
 
 function readEnvValue(contents, variable) {
@@ -223,6 +241,12 @@ async function getTranslationSummary() {
   return summaries;
 }
 
+function getContentContractSummary() {
+  return runNodeScript("scripts/check-content-contracts.mjs")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const [
   health,
   envSnapshot,
@@ -230,6 +254,7 @@ const [
   placeholderSummary,
   resourceFreshnessSummary,
   translationSummary,
+  contentContractSummary,
 ] = await Promise.all([
   fetchHealth({ baseUrl, fail }),
   getEnvSnapshot(),
@@ -237,6 +262,7 @@ const [
   getPlaceholderSummary(),
   getResourceFreshnessSummary(),
   getTranslationSummary(),
+  Promise.resolve(getContentContractSummary()),
 ]);
 
 console.log("Access Tool ops status");
@@ -266,6 +292,8 @@ for (const summary of resourceFreshnessSummary) {
   );
 }
 
+console.log("");
+console.log(`Content contracts: ${contentContractSummary}`);
 console.log("");
 const incompleteTranslations = translationSummary.filter(
   (summary) => summary.sections.length > 0,

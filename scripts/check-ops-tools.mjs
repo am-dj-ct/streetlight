@@ -68,4 +68,13 @@ if (
   fail("print-resource-status output did not include the expected sections.");
 }
 
+const opsStatusOutput = runNodeScript("scripts/ops-status.mjs", []);
+
+if (
+  !opsStatusOutput.includes("Access Tool ops status") ||
+  !opsStatusOutput.includes("Content contracts: Content contracts ok")
+) {
+  fail("ops-status output did not include the expected content-contract summary.");
+}
+
 console.log("Ops helper checks passed.");
