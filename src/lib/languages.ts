@@ -1,3 +1,5 @@
+import { isOneOf } from "./is-one-of";
+
 export type SupportedLanguageCode =
   | "en"
   | "es"
@@ -15,6 +17,15 @@ export type LanguageOption = {
 export const defaultLanguageCode: SupportedLanguageCode = "en";
 export const languageCookieName = "access_tool_lang";
 export const languageHeaderName = "x-access-tool-lang";
+export const supportedLanguageCodes: readonly SupportedLanguageCode[] = [
+  "en",
+  "es",
+  "vi",
+  "so",
+  "ru",
+  "am",
+  "zh",
+];
 
 export const languageOptions: readonly LanguageOption[] = [
   { code: "en", label: "English" },
@@ -29,7 +40,7 @@ export const languageOptions: readonly LanguageOption[] = [
 export function isSupportedLanguageCode(
   value: null | string | undefined,
 ): value is SupportedLanguageCode {
-  return languageOptions.some((language) => language.code === value);
+  return isOneOf(supportedLanguageCodes, value);
 }
 
 export function getLanguageOption(code: SupportedLanguageCode): LanguageOption {

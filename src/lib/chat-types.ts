@@ -1,4 +1,5 @@
 import type { SupportedLanguageCode } from "./languages";
+import { isOneOf } from "./is-one-of";
 
 export type ConversationEntryId =
   | "understand-letter-or-form"
@@ -28,7 +29,7 @@ export const conversationEntryIds: readonly ConversationEntryId[] = [
 export function isConversationEntryId(
   value: null | string | undefined,
 ): value is ConversationEntryId {
-  return conversationEntryIds.includes(value as ConversationEntryId);
+  return isOneOf(conversationEntryIds, value);
 }
 
 export type WeakCategory =
@@ -55,7 +56,7 @@ export const weakCategories: readonly WeakCategory[] = [
 export function isWeakCategory(
   value: null | string | undefined,
 ): value is WeakCategory {
-  return weakCategories.includes(value as WeakCategory);
+  return isOneOf(weakCategories, value);
 }
 
 export type ClientChatMessage = {

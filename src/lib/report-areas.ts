@@ -1,3 +1,5 @@
+import { isOneOf } from "./is-one-of";
+
 export const reportAreas = [
   "main-screen",
   "conversation",
@@ -14,5 +16,5 @@ export type ReportArea = (typeof reportAreas)[number];
 export function isReportArea(
   value: null | string | undefined,
 ): value is ReportArea {
-  return reportAreas.includes(value as ReportArea);
+  return isOneOf(reportAreas, value);
 }
