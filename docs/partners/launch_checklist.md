@@ -41,3 +41,4 @@ When this checklist is complete, send the partner:
 - `docs/partners/one-sentence-framing.md`
 - `docs/partners/bug-report.md`
 - `docs/partners/current-limits.md`
+- `docs/partners/launch-packet.md`
