@@ -1,5 +1,6 @@
 import type { SupportedLanguageCode } from "./languages";
 import { isOneOf } from "./is-one-of";
+import { isSupportedLanguageCode } from "./languages";
 
 export type ConversationEntryId =
   | "understand-letter-or-form"
@@ -72,6 +73,40 @@ export type ChatRequestBody = {
   messages: ClientChatMessage[];
   turnstileToken?: string;
 };
+
+export function isClientChatMessage(value: unknown): value is ClientChatMessage {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ClientChatMessage>;
+  const hasValidId =
+    typeof candidate.id === "string" && candidate.id.trim().length > 0;
+
+  return (
+    hasValidId &&
+    (candidate.role === "user" || candidate.role === "assistant") &&
+    typeof candidate.text === "string"
+  );
+}
+
+export function isChatRequestBody(value: unknown): value is ChatRequestBody {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ChatRequestBody>;
+
+  return (
+    isConversationEntryId(candidate.entryId) &&
+    isSupportedLanguageCode(candidate.language) &&
+    (candidate.turnstileToken === undefined ||
+      typeof candidate.turnstileToken === "string") &&
+    Array.isArray(candidate.messages) &&
+    candidate.messages.length > 0 &&
+    candidate.messages.every(isClientChatMessage)
+  );
+}
 
 export type ChatStreamEvent =
   | {

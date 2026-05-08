@@ -15,49 +15,25 @@ import { buildMockChatTurn } from "../../../lib/mock-chat";
 import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
-import { isSupportedLanguageCode } from "../../../lib/languages";
 import {
-  isConversationEntryId,
+  isChatRequestBody,
   type ChatRequestBody,
-  type ClientChatMessage,
   type WeakCategory,
 } from "../../../lib/chat-types";
-
-function isClientChatMessage(value: unknown): value is ClientChatMessage {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as Partial<ClientChatMessage>;
-  const hasValidId =
-    typeof candidate.id === "string" && candidate.id.trim().length > 0;
-
-  return (
-    hasValidId &&
-    (candidate.role === "user" || candidate.role === "assistant") &&
-    typeof candidate.text === "string"
-  );
-}
 
 export async function POST(request: Request) {
   let body: ChatRequestBody;
 
   try {
-    body = (await request.json()) as ChatRequestBody;
+    const parsedBody = await request.json();
+
+    if (!isChatRequestBody(parsedBody)) {
+      return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
+    }
+
+    body = parsedBody;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-
-  if (
-    !body ||
-    !isConversationEntryId(body.entryId) ||
-    !isSupportedLanguageCode(body.language) ||
-    (body.turnstileToken !== undefined && typeof body.turnstileToken !== "string") ||
-    !Array.isArray(body.messages) ||
-    body.messages.length === 0 ||
-    !body.messages.every(isClientChatMessage)
-  ) {
-    return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
   }
 
   const messages = body.messages
