@@ -7,6 +7,7 @@ import { getPageRequestContext } from "../../lib/request-context";
 import {
   buildHomeHref,
   buildReportProblemHref,
+  sanitizeInternalSourcePath,
 } from "../../lib/routes";
 import { getRuntimeState } from "../../lib/runtime-state";
 import { makeTitle } from "../../lib/site-metadata";
@@ -51,13 +52,14 @@ export default async function ReportProblemPage({
     requestedLanguageCode: lang,
   });
   const runtimeState = getRuntimeState();
+  const safeSourcePath = sanitizeInternalSourcePath(source);
 
   return (
     <InfoPageShell
       area="other"
       currentLanguage={currentLanguage}
       regionScope={regionScope}
-      sourcePath={source}
+      sourcePath={safeSourcePath ?? undefined}
       title={copy.reportPageTitle}
       lastUpdated="2026-05-08"
       getLanguageHref={(nextLanguageCode) =>
@@ -65,7 +67,7 @@ export default async function ReportProblemPage({
           area,
           entryId,
           languageCode: nextLanguageCode,
-          sourcePath: source,
+          sourcePath: safeSourcePath,
         })
       }
     >
@@ -78,12 +80,12 @@ export default async function ReportProblemPage({
         initialArea={area}
         languageCode={languageCode}
         regionScope={regionScope}
-        sourcePath={source}
+        sourcePath={safeSourcePath ?? undefined}
       />
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
-        {source ? (
+        {safeSourcePath ? (
           <p className="pb-2">
-            <Link href={source} className="font-semibold underline">
+            <Link href={safeSourcePath} className="font-semibold underline">
               {copy.backLabel}
             </Link>
           </p>

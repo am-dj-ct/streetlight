@@ -14,6 +14,16 @@ type ReportProblemHrefOptions = {
   sourcePath?: null | string;
 };
 
+export function sanitizeInternalSourcePath(
+  sourcePath?: null | string,
+): null | string {
+  if (!sourcePath || !sourcePath.startsWith("/") || sourcePath.startsWith("//")) {
+    return null;
+  }
+
+  return sourcePath;
+}
+
 export function buildHomeHref(languageCode: SupportedLanguageCode) {
   return `/?lang=${languageCode}`;
 }
@@ -63,6 +73,7 @@ export function buildReportProblemHref({
   sourcePath,
 }: ReportProblemHrefOptions) {
   const params = new URLSearchParams();
+  const safeSourcePath = sanitizeInternalSourcePath(sourcePath);
   params.set("lang", languageCode);
 
   if (area) {
@@ -73,8 +84,8 @@ export function buildReportProblemHref({
     params.set("entryId", entryId);
   }
 
-  if (sourcePath) {
-    params.set("source", sourcePath);
+  if (safeSourcePath) {
+    params.set("source", safeSourcePath);
   }
 
   return `/report-problem?${params.toString()}`;

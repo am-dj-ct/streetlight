@@ -369,6 +369,28 @@ async function checkInvalidTurnstileToken() {
   }
 }
 
+async function checkUnsafeReportProblemSource() {
+  const unsafeSource = encodeURIComponent("https://evil.example/phish");
+  const response = await fetch(
+    new URL(`/report-problem?lang=en&source=${unsafeSource}`, baseUrl),
+    {
+      headers: {
+        Accept: "text/html",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    fail(`HTTP ${response.status} from /report-problem with unsafe source.`);
+  }
+
+  const html = await response.text();
+
+  if (html.includes('href="https://evil.example/phish"')) {
+    fail("Unsafe external source link rendered on /report-problem.");
+  }
+}
+
 const health = await getHealth({
   baseUrl,
   fail,
@@ -385,6 +407,8 @@ await checkInvalidChatLanguage();
 console.log("Invalid language handling ok (/api/chat rejects bad language codes).");
 await checkInvalidTurnstileToken();
 console.log("Invalid turnstileToken handling ok (/api/chat rejects bad token shapes).");
+await checkUnsafeReportProblemSource();
+console.log("Unsafe source handling ok (/report-problem ignores external source links).");
 
 const smokeCases = await loadCases();
 const results = [];
