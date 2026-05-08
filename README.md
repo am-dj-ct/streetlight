@@ -36,6 +36,8 @@ when the build is ready.
   no-content issue intake for frontline partners.
 - [Partner launch packet](docs/partners/launch-packet.md) — ready-to-send
   framing, limits, and bug-report links for soft launch.
+- [Partner materials index](docs/partners/README.md) — quick map of the
+  soft-launch docs set.
 
 ## Project structure
 
