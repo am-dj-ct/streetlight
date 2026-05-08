@@ -1,13 +1,18 @@
 # Incident Log
 
-One-paragraph entries for Sev-3 incidents. Sev-1 and Sev-2 get their own
-file in this directory: `YYYY-MM-DD-shortname.md`.
+Use this for small weirdness, near-misses, and Sev-3 notes that do not need a
+full write-up.
 
-Format for Sev-3 entries:
+## Template
 
-> **YYYY-MM-DD — shortname.** What happened, in plain language. What was
-> done. What changed (or explicitly didn't).
+- Date:
+- What happened:
+- First action taken:
+- Outcome:
+- Follow-up needed:
 
 ---
 
-*No incidents yet. Tool is pre-launch.*
+## Entries
+
+None yet.
