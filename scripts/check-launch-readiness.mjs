@@ -109,8 +109,11 @@ async function fileExists(relativePath) {
   }
 }
 
-function addFailure(failures, message) {
-  failures.push(message);
+function addFailure(failures, message, scope = "internal") {
+  failures.push({
+    message,
+    scope,
+  });
 }
 
 function parseIsoDate(value) {
@@ -158,7 +161,7 @@ async function checkPlaceholders(failures) {
       const matches = contents.match(check.pattern) ?? [];
 
       for (const match of matches) {
-        addFailure(failures, `${relativePath}: ${check.reason} (${match})`);
+        addFailure(failures, `${relativePath}: ${check.reason} (${match})`, "external");
       }
     }
   }
@@ -198,6 +201,7 @@ async function checkTranslations(failures) {
       addFailure(
         failures,
         `${languageCode}: ${incompleteSections.join("; ")}`,
+        "external",
       );
     }
   }
@@ -254,11 +258,16 @@ console.log("");
 if (failures.length === 0) {
   console.log("PASS: no blocking launch-readiness gaps found by this static check.");
 } else {
-  console.log(`FAIL: ${failures.length} blocking issue(s) found.`);
+  const internalFailures = failures.filter((failure) => failure.scope === "internal");
+  const externalFailures = failures.filter((failure) => failure.scope === "external");
+
+  console.log(
+    `FAIL: ${failures.length} blocking issue(s) found (${internalFailures.length} internal, ${externalFailures.length} external).`,
+  );
   console.log("");
 
   for (const failure of failures) {
-    console.log(`- ${failure}`);
+    console.log(`- [${failure.scope}] ${failure.message}`);
   }
 }
 
