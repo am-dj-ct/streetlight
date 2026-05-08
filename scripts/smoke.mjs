@@ -22,6 +22,7 @@ const pageChecks = [
   },
   {
     expectedText: "Find a human",
+    extraExpectedText: ["Resource list checked through:"],
     path: "/find-human?entryId=understand-letter-or-form&lang=en",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3FentryId%3Dunderstand-letter-or-form%26lang%3Den",
@@ -112,6 +113,12 @@ async function checkPages() {
 
     if (!html.includes(page.expectedText)) {
       fail(`Expected text not found on ${page.path}.`);
+    }
+
+    for (const extraExpectedText of page.extraExpectedText ?? []) {
+      if (!html.includes(extraExpectedText)) {
+        fail(`Expected extra text not found on ${page.path}: ${extraExpectedText}`);
+      }
     }
 
     if (page.reportLinkSnippet && !html.includes(page.reportLinkSnippet)) {
