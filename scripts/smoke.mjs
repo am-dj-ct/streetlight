@@ -23,6 +23,12 @@ const pageChecks = [
     reportLinkSnippet: "/report-problem?lang=es&amp;area=main-screen&amp;source=%2F%3Flang%3Des",
   },
   {
+    expectedText: "What do you need?",
+    extraExpectedText: ['<html lang="en">'],
+    path: "/?lang=not-a-real-language",
+    reportLinkSnippet: "/report-problem?lang=en&amp;area=main-screen&amp;source=%2F%3Flang%3Den",
+  },
+  {
     expectedText: "Paste the letter or form here",
     path: "/conversation/understand-letter-or-form?lang=en",
     reportLinkSnippet:
