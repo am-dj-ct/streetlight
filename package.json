@@ -9,7 +9,8 @@
     "lint": "eslint",
     "check:locales": "node scripts/report-missing-locales.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "regression:prompts": "node scripts/regression.mjs"
+    "regression:prompts": "node scripts/regression.mjs",
+    "verify": "npm run lint && npm run build && npm run check:locales && npm run smoke && npm run regression:prompts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

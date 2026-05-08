@@ -48,6 +48,7 @@ this. Code stays public on GitHub regardless.
   `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
 - `npm run regression:prompts` — runs the starter synthetic prompt set in
   `tests/prompts/`
+- `npm run verify` — runs the local pre-launch verification stack
 
 ## License
 
