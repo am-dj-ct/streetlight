@@ -611,6 +611,29 @@ async function checkInvalidMessageRole() {
   );
 }
 
+async function checkInvalidMessageWeakCategory() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-invalid-weak-category",
+          role: "assistant",
+          text: "Previously generated text.",
+          weakCategory: "not-a-real-category",
+        },
+        {
+          id: "smoke-valid-user-after-invalid-category",
+          role: "user",
+          text: "hello",
+        },
+      ],
+    },
+    "invalid message weakCategory",
+  );
+}
+
 async function checkMissingMessageRole() {
   await expectInvalidChatRequestShape(
     {
@@ -830,6 +853,8 @@ await checkMissingMessageText();
 console.log("Missing message text handling ok (/api/chat rejects messages without text).");
 await checkInvalidMessageRole();
 console.log("Malformed message role handling ok (/api/chat rejects invalid roles).");
+await checkInvalidMessageWeakCategory();
+console.log("Malformed message weakCategory handling ok (/api/chat rejects invalid classifier labels).");
 await checkMissingMessageRole();
 console.log("Missing message role handling ok (/api/chat rejects messages without roles).");
 await checkBlankMessageId();

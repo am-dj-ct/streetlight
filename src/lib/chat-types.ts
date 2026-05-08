@@ -86,7 +86,9 @@ export function isClientChatMessage(value: unknown): value is ClientChatMessage 
   return (
     hasValidId &&
     (candidate.role === "user" || candidate.role === "assistant") &&
-    typeof candidate.text === "string"
+    typeof candidate.text === "string" &&
+    (candidate.weakCategory === undefined ||
+      isWeakCategory(candidate.weakCategory))
   );
 }
 
