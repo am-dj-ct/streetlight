@@ -55,6 +55,14 @@ function isWhereOption(value: string | undefined): value is string {
   return whereOptions.some((option) => option.value === value);
 }
 
+function getChatModeLabel(chatMode: "live-model" | "mock-local") {
+  return chatMode === "mock-local" ? "local mock chat" : "live model";
+}
+
+function getRegionScopeLabel(regionScope: RegionScope) {
+  return regionScope === "king" ? "King County, WA" : "U.S. fallback";
+}
+
 export function ReportProblemForm({
   chatMode,
   commitSha,
@@ -84,6 +92,8 @@ export function ReportProblemForm({
   const entryLabel = entryId
     ? getConversationContentEntry(entryId as ConversationEntryId, "en").label
     : null;
+  const chatModeLabel = getChatModeLabel(chatMode);
+  const regionScopeLabel = getRegionScopeLabel(regionScope);
 
   const selectedProblemLabels = selectedProblems.map(
     (value) => problemOptions.find((option) => option.value === value)?.copyKey ?? "reportWrongOther",
@@ -95,20 +105,20 @@ export function ReportProblemForm({
       parts.push(entryLabel);
     }
 
-    parts.push(chatMode);
+    parts.push(chatModeLabel);
 
     return parts.join(" - ");
-  }, [chatMode, entryLabel, whereLabel]);
+  }, [chatModeLabel, entryLabel, whereLabel]);
 
   const reportBody = useMemo(() => {
     const lines = [
       "Access Tool problem report",
       "",
       `Where this happened: ${whereLabel}`,
-      `Chat mode: ${chatMode}`,
+      `Chat mode: ${chatModeLabel}`,
       `Deploy environment: ${deployEnv}`,
       `Commit SHA: ${commitSha ?? "local-dev"}`,
-      `Resource scope: ${regionScope}`,
+      `Resource scope: ${regionScopeLabel}`,
       `Source route: ${sourcePath ?? "not supplied"}`,
       `Conversation language: ${conversationLanguageLabel}`,
     ];
@@ -142,13 +152,13 @@ export function ReportProblemForm({
 
     return lines.join("\n");
   }, [
-    chatMode,
+    chatModeLabel,
     commitSha,
     copy,
     details,
     deployEnv,
     goal,
-    regionScope,
+    regionScopeLabel,
     reply,
     selectedProblemLabels,
     sourcePath,
@@ -190,7 +200,7 @@ export function ReportProblemForm({
           {copy.reportPageIntro}
         </p>
         <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
-          Current chat mode: {chatMode}
+          Current chat mode: {chatModeLabel}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
           Current deploy environment: {deployEnv}
@@ -199,7 +209,7 @@ export function ReportProblemForm({
           Current commit: {commitSha ?? "local-dev"}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-          Current resource scope: {regionScope}
+          Current resource scope: {regionScopeLabel}
         </p>
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
           Source route: {sourcePath ?? "not supplied"}
