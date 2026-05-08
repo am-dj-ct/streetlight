@@ -28,6 +28,8 @@ when the build is ready.
 - [What this tool will not do](docs/forbidden.md) — the "no" list.
 - [Translation handoff](docs/translation_handoff.md) — where human
   translation work lives and how to audit completeness.
+- [Operational runbook](OPERATIONAL_RUNBOOK.md) — dashboard-first incident
+  and pause procedures.
 
 ## Project structure
 
