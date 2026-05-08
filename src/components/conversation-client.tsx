@@ -150,6 +150,7 @@ export function ConversationClient({
       "speechSynthesis" in window &&
       "SpeechSynthesisUtterance" in window,
   );
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -178,12 +179,32 @@ export function ConversationClient({
       return;
     }
 
+    let loadVoices: (() => void) | null = null;
+
+    if ("speechSynthesis" in window) {
+      loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+
+        if (voices.length > 0) {
+          setAvailableVoices(voices);
+        }
+      };
+
+      loadVoices();
+      window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    }
+
     return () => {
       if (!("speechSynthesis" in window)) {
         return;
       }
 
       window.speechSynthesis.cancel();
+
+      if (loadVoices) {
+        window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+      }
+
       utteranceRef.current = null;
       setSpeakingMessageId(null);
     };
@@ -207,7 +228,6 @@ export function ConversationClient({
 
     window.speechSynthesis.cancel();
     const language = getSpeechLanguage(currentLanguageLabel);
-    const availableVoices = window.speechSynthesis.getVoices();
 
     const utterance = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
     utterance.lang = language;
