@@ -2,43 +2,15 @@ import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { defaultBaseUrl, getHealth as fetchHealth } from "./lib/access-tool-http.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
+import {
+  collectLaunchDocPlaceholderIssues,
+  getResourceFreshness,
+  getTranslationReadiness,
+  staleAfterDays,
+} from "./lib/repo-readiness.mjs";
 
 const baseUrl = defaultBaseUrl;
 const envLocalPath = new URL("../.env.local", import.meta.url);
-const localeDirectories = [
-  "src/data/ui-copy",
-  "src/data/conversation-content",
-  "src/data/static-pages",
-];
-const launchFiles = [
-  "README.md",
-  "OPERATIONAL_RUNBOOK.md",
-  "docs/partners/launch-packet.md",
-  "docs/partners/launch_checklist.md",
-];
-const resourceFiles = [
-  { label: "referrals", path: "src/data/referrals.json" },
-  { label: "crisis", path: "src/data/crisis-resources.json" },
-];
-const placeholderChecks = [
-  {
-    pattern: /\[Screenshot:[^\]]+\]/g,
-    reason: "runbook screenshots still missing",
-  },
-  {
-    pattern: /\bADD-LIVE-URL-HERE\b/g,
-    reason: "live URL placeholder still present",
-  },
-  {
-    pattern: /\[ADD-[A-Z0-9-]+\]/g,
-    reason: "launch contact placeholder still present",
-  },
-  {
-    pattern: /\bTBD\b/g,
-    reason: "TBD marker still present",
-  },
-];
-const staleAfterDays = 180;
 
 function fail(message) {
   console.error(message);
@@ -77,49 +49,6 @@ function summarizeBoolean(value) {
   return value ? "yes" : "no";
 }
 
-function parseIsoDate(value, label) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    fail(`${label} must use YYYY-MM-DD.`);
-  }
-
-  const parsed = Date.parse(`${value}T00:00:00Z`);
-
-  if (Number.isNaN(parsed)) {
-    fail(`${label} must be a valid calendar date.`);
-  }
-
-  return parsed;
-}
-
-function flattenObject(obj, prefix = "") {
-  return Object.entries(obj).flatMap(([key, value]) => {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      return flattenObject(value, nextKey);
-    }
-
-    return [nextKey];
-  });
-}
-
-function getMissingKeys(baseValue, compareValue, prefix = "") {
-  return Object.entries(baseValue).flatMap(([key, value]) => {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    const compareEntry = compareValue?.[key];
-
-    if (Array.isArray(value)) {
-      return Array.isArray(compareEntry) && compareEntry.length > 0 ? [] : [nextKey];
-    }
-
-    if (value && typeof value === "object") {
-      return getMissingKeys(value, compareEntry ?? {}, nextKey);
-    }
-
-    return compareEntry === undefined ? [nextKey] : [];
-  });
-}
-
 async function getEnvSnapshot() {
   try {
     const contents = await readFile(envLocalPath, "utf8");
@@ -149,96 +78,41 @@ async function getLanguageSnapshot() {
 }
 
 async function getPlaceholderSummary() {
-  const results = [];
+  const issues = await collectLaunchDocPlaceholderIssues(process.cwd());
 
-  for (const relativePath of launchFiles) {
-    const contents = await readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
-
-    for (const check of placeholderChecks) {
-      const matches = contents.match(check.pattern) ?? [];
-
-      if (matches.length > 0) {
-        results.push(`${relativePath}: ${check.reason} (${matches.length})`);
-      }
-    }
-  }
-
-  return results;
+  return issues.map(
+    (issue) => `${issue.relativePath}: ${issue.reason} (${issue.matches.length})`,
+  );
 }
 
 async function getResourceFreshnessSummary() {
-  const summaries = [];
+  const summaries = await getResourceFreshness(process.cwd());
 
-  for (const resourceFile of resourceFiles) {
-    const resources = JSON.parse(
-      await readFile(new URL(`../${resourceFile.path}`, import.meta.url), "utf8"),
-    );
-
-    if (!Array.isArray(resources) || resources.length === 0) {
-      fail(`${resourceFile.path} must contain a non-empty array.`);
+  for (const summary of summaries) {
+    if (summary.error) {
+      fail(summary.error);
     }
 
-    const ages = resources.map((resource) => {
-      const verifiedAt = parseIsoDate(
-        resource.lastVerified,
-        `${resource.id ?? "unknown-id"} lastVerified`,
-      );
-      const ageInDays = Math.floor(
-        (Date.now() - verifiedAt) / (1000 * 60 * 60 * 24),
-      );
-
-      return {
-        ageInDays,
-        id: resource.id ?? "unknown-id",
-      };
-    });
-
-    const oldest = ages.sort((left, right) => right.ageInDays - left.ageInDays)[0];
-    const staleCount = ages.filter((entry) => entry.ageInDays > staleAfterDays).length;
-
-    summaries.push({
-      label: resourceFile.label,
-      oldestAgeInDays: oldest.ageInDays,
-      oldestId: oldest.id,
-      staleCount,
-      total: ages.length,
-    });
+    if (summary.invalidDateCount > 0) {
+      fail(`${summary.path} contains ${summary.invalidDateCount} invalid lastVerified value(s).`);
+    }
   }
 
   return summaries;
 }
 
 async function getTranslationSummary() {
-  const localeFiles = ["es", "vi", "so", "ru", "am", "zh"];
-  const summaries = [];
+  const translationReadiness = await getTranslationReadiness(process.cwd());
 
-  for (const languageCode of localeFiles) {
-    const sectionSummaries = [];
-
-    for (const relativeDir of localeDirectories) {
-      const baseDocument = JSON.parse(
-        await readFile(new URL(`../${relativeDir}/en.json`, import.meta.url), "utf8"),
-      );
-      const localeDocument = JSON.parse(
-        await readFile(new URL(`../${relativeDir}/${languageCode}.json`, import.meta.url), "utf8"),
-      );
-      const missingKeys = getMissingKeys(baseDocument, localeDocument);
-      const baseKeys = flattenObject(baseDocument).length;
-
-      if (missingKeys.length > 0 || localeDocument.meta?.translated === false) {
-        sectionSummaries.push(
-          `${relativeDir} (${missingKeys.length} missing, translated=${localeDocument.meta?.translated === true ? "true" : "false"}, ${baseKeys} baseline keys)`,
-        );
-      }
-    }
-
-    summaries.push({
-      languageCode,
-      sections: sectionSummaries,
-    });
-  }
-
-  return summaries;
+  return translationReadiness.map((summary) => ({
+    languageCode: summary.languageCode,
+    sections: summary.sections
+      .filter((section) => section.missingKeys.length > 0 || !section.translated)
+      .map(
+        (section) =>
+          `${section.relativeDir} (${section.missingKeys.length} missing, translated=${section.translated ? "true" : "false"}, ${section.baseKeys} baseline keys)`,
+      ),
+  }));
 }
 
 function getContentContractSummary() {

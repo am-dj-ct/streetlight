@@ -1,5 +1,11 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  collectLaunchDocPlaceholderIssues,
+  getResourceFreshness,
+  getTranslationReadiness,
+  staleAfterDays as staleResourceThresholdDays,
+} from "./lib/repo-readiness.mjs";
 
 const cwd = process.cwd();
 
@@ -36,70 +42,6 @@ const requiredEnvVars = [
   "CLASSIFIER_MODEL_OUTPUT_COST_PER_MILLION_USD",
 ];
 
-const placeholderChecks = [
-  {
-    pattern: /\[Screenshot:[^\]]+\]/g,
-    reason: "Runbook screenshot still missing",
-  },
-  {
-    pattern: /\bADD-LIVE-URL-HERE\b/g,
-    reason: "Live URL placeholder still present",
-  },
-  {
-    pattern: /\[ADD-[A-Z0-9-]+\]/g,
-    reason: "Required launch detail placeholder still present",
-  },
-  {
-    pattern: /\bTBD\b/g,
-    reason: "TBD marker still present",
-  },
-];
-
-const localeDirectories = [
-  "src/data/ui-copy",
-  "src/data/conversation-content",
-  "src/data/static-pages",
-];
-const resourceFiles = [
-  "src/data/referrals.json",
-  "src/data/crisis-resources.json",
-];
-const staleResourceThresholdDays = 180;
-
-function flattenObject(obj, prefix = "") {
-  return Object.entries(obj).flatMap(([key, value]) => {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      return flattenObject(value, nextKey);
-    }
-
-    return [nextKey];
-  });
-}
-
-function getMissingKeys(baseValue, compareValue, prefix = "") {
-  return Object.entries(baseValue).flatMap(([key, value]) => {
-    const nextKey = prefix ? `${prefix}.${key}` : key;
-    const compareEntry = compareValue?.[key];
-
-    if (Array.isArray(value)) {
-      return Array.isArray(compareEntry) && compareEntry.length > 0 ? [] : [nextKey];
-    }
-
-    if (value && typeof value === "object") {
-      return getMissingKeys(value, compareEntry ?? {}, nextKey);
-    }
-
-    return compareEntry === undefined ? [nextKey] : [];
-  });
-}
-
-async function readJson(relativePath) {
-  const filePath = path.join(cwd, relativePath);
-  return JSON.parse(await readFile(filePath, "utf8"));
-}
-
 async function fileExists(relativePath) {
   try {
     await access(path.join(cwd, relativePath));
@@ -114,15 +56,6 @@ function addFailure(failures, message, scope = "internal") {
     message,
     scope,
   });
-}
-
-function parseIsoDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return null;
-  }
-
-  const parsed = Date.parse(`${value}T00:00:00Z`);
-  return Number.isNaN(parsed) ? null : parsed;
 }
 
 async function checkRequiredFiles(failures) {
@@ -147,52 +80,44 @@ async function checkEnvExample(failures) {
 }
 
 async function checkPlaceholders(failures) {
-  const filesToScan = [
-    "README.md",
-    "OPERATIONAL_RUNBOOK.md",
-    "docs/partners/launch-packet.md",
-    "docs/partners/launch_checklist.md",
-  ];
+  const issues = await collectLaunchDocPlaceholderIssues(cwd);
 
-  for (const relativePath of filesToScan) {
-    const contents = await readFile(path.join(cwd, relativePath), "utf8");
+  for (const issue of issues) {
+    for (const match of issue.matches) {
+      const reason =
+        issue.reason === "runbook screenshots still missing"
+          ? "Runbook screenshot still missing"
+          : issue.reason === "live URL placeholder still present"
+            ? "Live URL placeholder still present"
+            : issue.reason === "launch contact placeholder still present"
+              ? "Required launch detail placeholder still present"
+              : "TBD marker still present";
 
-    for (const check of placeholderChecks) {
-      const matches = contents.match(check.pattern) ?? [];
-
-      for (const match of matches) {
-        addFailure(failures, `${relativePath}: ${check.reason} (${match})`, "external");
-      }
+      addFailure(failures, `${issue.relativePath}: ${reason} (${match})`, issue.scope);
     }
   }
 }
 
 async function checkTranslations(failures) {
-  const localeFiles = ["es", "vi", "so", "ru", "am", "zh"];
+  const translationReadiness = await getTranslationReadiness(cwd);
 
-  for (const languageCode of localeFiles) {
+  for (const summary of translationReadiness) {
     const incompleteSections = [];
 
-    for (const relativeDir of localeDirectories) {
-      const baseDocument = await readJson(`${relativeDir}/en.json`);
-      const baseKeys = flattenObject(baseDocument).length;
-      const relativePath = `${relativeDir}/${languageCode}.json`;
-      const localeDocument = await readJson(relativePath);
-      const missingKeys = getMissingKeys(baseDocument, localeDocument);
-      const translatedFlag = localeDocument.meta?.translated;
+    for (const section of summary.sections) {
       const sectionIssues = [];
 
-      if (missingKeys.length > 0) {
-        sectionIssues.push(`${missingKeys.length} missing key(s)`);
+      if (section.missingKeys.length > 0) {
+        sectionIssues.push(`${section.missingKeys.length} missing key(s)`);
       }
 
-      if (translatedFlag === false) {
+      if (!section.translated) {
         sectionIssues.push("translated=false");
       }
 
       if (sectionIssues.length > 0) {
         incompleteSections.push(
-          `${relativeDir} (${sectionIssues.join(", ")}, ${baseKeys} baseline keys)`,
+          `${section.relativeDir} (${sectionIssues.join(", ")}, ${section.baseKeys} baseline keys)`,
         );
       }
     }
@@ -200,7 +125,7 @@ async function checkTranslations(failures) {
     if (incompleteSections.length > 0) {
       addFailure(
         failures,
-        `${languageCode}: ${incompleteSections.join("; ")}`,
+        `${summary.languageCode}: ${incompleteSections.join("; ")}`,
         "external",
       );
     }
@@ -208,38 +133,29 @@ async function checkTranslations(failures) {
 }
 
 async function checkResourceFreshness(failures) {
-  for (const relativePath of resourceFiles) {
-    const resources = await readJson(relativePath);
+  const resourceFreshness = await getResourceFreshness(cwd);
 
-    if (!Array.isArray(resources)) {
-      addFailure(failures, `${relativePath} must contain an array.`);
+  for (const summary of resourceFreshness) {
+    if (summary.error) {
+      addFailure(failures, summary.error);
       continue;
     }
 
-    for (const resource of resources) {
-      const label = `${relativePath} → ${resource.id ?? "unknown-id"}`;
-      const parsed = parseIsoDate(resource.lastVerified);
-
-      if (parsed === null) {
-        addFailure(failures, `${label}: lastVerified must use YYYY-MM-DD.`);
-        continue;
-      }
-
-      if (parsed > Date.now()) {
-        addFailure(failures, `${label}: lastVerified cannot be in the future.`);
-        continue;
-      }
-
-      const ageInDays = Math.floor(
-        (Date.now() - parsed) / (1000 * 60 * 60 * 24),
+    if (summary.invalidDateCount > 0) {
+      addFailure(
+        failures,
+        `${summary.path} contains ${summary.invalidDateCount} invalid lastVerified value(s).`,
       );
+    }
 
-      if (ageInDays > staleResourceThresholdDays) {
-        addFailure(
-          failures,
-          `${label}: lastVerified is ${ageInDays} days old (limit ${staleResourceThresholdDays}).`,
-        );
-      }
+    if (
+      summary.oldestAgeInDays !== null &&
+      summary.oldestAgeInDays > staleResourceThresholdDays
+    ) {
+      addFailure(
+        failures,
+        `${summary.path} → ${summary.oldestId}: lastVerified is ${summary.oldestAgeInDays} days old (limit ${staleResourceThresholdDays}).`,
+      );
     }
   }
 }
