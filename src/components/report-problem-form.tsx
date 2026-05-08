@@ -1,9 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ConversationEntryId } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
+import { getConversationContentEntry } from "../lib/conversation-content";
 import { buildMailtoHref } from "../lib/support";
-import { languageOptions, type SupportedLanguageCode } from "../lib/languages";
+import {
+  getLanguageOption,
+  languageOptions,
+  type SupportedLanguageCode,
+} from "../lib/languages";
 import type { UiCopy } from "../lib/ui-copy";
 
 type ReportOption = {
@@ -69,37 +75,46 @@ export function ReportProblemForm({
   const [details, setDetails] = useState("");
   const [selectedProblems, setSelectedProblems] = useState<string[]>([]);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const whereLabel =
+    copy[
+      whereOptions.find((option) => option.value === where)?.copyKey ??
+        "reportAreaOther"
+    ];
+  const conversationLanguageLabel = getLanguageOption(conversationLanguage).label;
+  const entryLabel = entryId
+    ? getConversationContentEntry(entryId as ConversationEntryId, "en").label
+    : null;
 
   const selectedProblemLabels = selectedProblems.map(
     (value) => problemOptions.find((option) => option.value === value)?.copyKey ?? "reportWrongOther",
   );
   const reportSubject = useMemo(() => {
-    const parts = ["Access Tool problem report", where];
+    const parts = ["Access Tool problem report", whereLabel];
 
-    if (entryId) {
-      parts.push(entryId);
+    if (entryLabel) {
+      parts.push(entryLabel);
     }
 
     parts.push(chatMode);
 
     return parts.join(" - ");
-  }, [chatMode, entryId, where]);
+  }, [chatMode, entryLabel, whereLabel]);
 
   const reportBody = useMemo(() => {
     const lines = [
       "Access Tool problem report",
       "",
-      `Where this happened: ${where}`,
+      `Where this happened: ${whereLabel}`,
       `Chat mode: ${chatMode}`,
       `Deploy environment: ${deployEnv}`,
       `Commit SHA: ${commitSha ?? "local-dev"}`,
       `Resource scope: ${regionScope}`,
       `Source route: ${sourcePath ?? "not supplied"}`,
-      `Conversation language: ${conversationLanguage}`,
+      `Conversation language: ${conversationLanguageLabel}`,
     ];
 
-    if (entryId) {
-      lines.push(`Entry button: ${entryId}`);
+    if (entryLabel) {
+      lines.push(`Entry button: ${entryLabel}`);
     }
 
     lines.push("");
@@ -129,17 +144,17 @@ export function ReportProblemForm({
   }, [
     chatMode,
     commitSha,
-    conversationLanguage,
     copy,
     details,
     deployEnv,
-    entryId,
     goal,
     regionScope,
     reply,
     selectedProblemLabels,
     sourcePath,
-    where,
+    conversationLanguageLabel,
+    entryLabel,
+    whereLabel,
   ]);
 
   const mailtoHref = useMemo(
@@ -189,6 +204,11 @@ export function ReportProblemForm({
         <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
           Source route: {sourcePath ?? "not supplied"}
         </p>
+        {entryLabel ? (
+          <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+            Entry button: {entryLabel}
+          </p>
+        ) : null}
         <p className="pt-3 text-[15px] leading-6 text-[#5f6d64]">
           {copy.reportPagePrivacyWarning}
         </p>
