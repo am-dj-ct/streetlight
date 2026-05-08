@@ -7,6 +7,7 @@ import {
   getPreferredLanguageCode,
 } from "../../lib/languages";
 import {
+  formatTelephoneHref,
   getBackHrefForReferrals,
   getReferralsForCategory,
   getWeakCategoryLabel,
@@ -64,7 +65,7 @@ export default async function FindHumanPage({
                 {currentLanguage.label}
               </span>
               <span className="rounded-full border border-[#cfd7cf] bg-white px-3 py-2 text-[14px] font-medium text-[#314036]">
-                {regionScope === "king" ? "King County, WA" : "U.S. fallback"}
+                {regionScope === "king" ? copy.referralsRegionKing : copy.referralsRegionFallback}
               </span>
             </div>
           </div>
@@ -118,19 +119,19 @@ export default async function FindHumanPage({
               <div className="pt-4 flex flex-wrap gap-2">
                 {resource.phone ? (
                   <a
-                    href={`tel:${resource.phone.replace(/[^0-9]/g, "")}`}
+                    href={formatTelephoneHref(resource.phone)}
                     className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                   >
-                    Call {resource.phone}
+                    {copy.referralsCallLabel} {resource.phone}
                   </a>
                 ) : null}
 
                 {resource.secondaryPhone ? (
                   <a
-                    href={`tel:${resource.secondaryPhone.replace(/[^0-9]/g, "")}`}
+                    href={formatTelephoneHref(resource.secondaryPhone)}
                     className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
                   >
-                    Alt {resource.secondaryPhone}
+                    {copy.referralsAltLabel} {resource.secondaryPhone}
                   </a>
                 ) : null}
 
@@ -140,7 +141,7 @@ export default async function FindHumanPage({
                   rel="noreferrer"
                   className="flex min-h-11 items-center rounded-full bg-[#1f5f43] px-4 text-[15px] font-semibold text-white"
                 >
-                  Open website
+                  {copy.referralsWebsiteLabel}
                 </a>
               </div>
             </article>

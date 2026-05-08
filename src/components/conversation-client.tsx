@@ -870,8 +870,8 @@ export function ConversationClient({
                             href={`/find-human?category=${weakCategory}&entryId=${entryId}&lang=${currentLanguageCode}`}
                             className="block rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]"
                           >
-                            <span className="font-semibold">AI sometimes gets this wrong.</span>{" "}
-                            Worth verifying with a person who does{" "}
+                            <span className="font-semibold">{copy.weakCategoryLead}</span>{" "}
+                            {copy.weakCategoryTail}{" "}
                             <span className="font-semibold">
                               {getWeakCategoryLabel(weakCategory)}
                             </span>

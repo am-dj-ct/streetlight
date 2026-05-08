@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCrisisResources } from "../lib/crisis-resources";
 import type { SupportedLanguageCode } from "../lib/languages";
 import type { RegionScope } from "../lib/geo";
 import { getUiCopy } from "../lib/ui-copy";
@@ -13,6 +14,7 @@ export function CrisisFooter({
   regionScope?: RegionScope;
 }) {
   const copy = getUiCopy(languageCode);
+  const crisisResources = getCrisisResources(regionScope);
   const findHumanHref = entryId
     ? `/find-human?entryId=${encodeURIComponent(entryId)}&lang=${languageCode}`
     : `/find-human?lang=${languageCode}`;
@@ -31,6 +33,15 @@ export function CrisisFooter({
             ? copy.footerLocalPlaceholder
             : copy.footerFallbackPlaceholder}
         </span>
+        {crisisResources.map((resource) => (
+          <a
+            key={resource.id}
+            href={`tel:${resource.phone.replace(/[^0-9]/g, "")}`}
+            className="font-semibold underline"
+          >
+            {resource.label} {resource.phone}
+          </a>
+        ))}
         <Link href={findHumanHref} className="font-semibold underline">
           {copy.footerFindHuman}
         </Link>

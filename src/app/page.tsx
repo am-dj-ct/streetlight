@@ -67,7 +67,7 @@ export default async function Home({ searchParams }: HomePageProps) {
           </p>
           {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
             <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-              Full UI translation is still being added for this language. The chat itself can still work in your language.
+              {copy.translationNotice}
             </p>
           ) : null}
 

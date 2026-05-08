@@ -55,6 +55,43 @@
     "regions": ["king"]
   },
   {
+    "id": "ocla-eviction-defense",
+    "name": "Eviction Defense Screening Line",
+    "description": "Best direct line if you are dealing with eviction, notices, or a landlord case in Washington. Run through the Office of Civil Legal Aid network.",
+    "phone": "855-657-8387",
+    "website": "https://ocla.wa.gov/find-legal-help",
+    "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
+    "regions": ["king", "fallback"]
+  },
+  {
+    "id": "solid-ground-tenant-services",
+    "name": "Solid Ground Tenant Services",
+    "description": "Seattle-area tenant rights help and next-step guidance for renters dealing with housing problems.",
+    "phone": "206-694-6767",
+    "website": "https://www.solid-ground.org/housing/for-tenants/",
+    "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
+    "regions": ["king"]
+  },
+  {
+    "id": "kcsarc",
+    "name": "King County Sexual Assault Resource Center",
+    "description": "24/7 confidential support, information, and advocacy for sexual assault survivors and people helping them.",
+    "phone": "888-998-6423",
+    "secondaryPhone": "425-282-0324",
+    "website": "https://www.kcsarc.org/en/",
+    "categories": ["all"],
+    "regions": ["king"]
+  },
+  {
+    "id": "nwjp-clear",
+    "name": "CLEAR Legal Hotline",
+    "description": "Free civil legal screening and referrals across Washington for problems involving housing, benefits, debt, family law, and more.",
+    "phone": "888-201-1014",
+    "website": "https://ocla.wa.gov/find-legal-help",
+    "categories": ["legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration"],
+    "regions": ["fallback"]
+  },
+  {
     "id": "national-988",
     "name": "988 Suicide & Crisis Lifeline",
     "description": "National crisis support by call, text, or chat. Good first stop if you need urgent emotional support anywhere in the U.S.",
@@ -70,6 +107,15 @@
     "phone": "211",
     "website": "https://www.211.org/",
     "categories": ["all", "legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration"],
+    "regions": ["fallback"]
+  },
+  {
+    "id": "national-dv-hotline",
+    "name": "National Domestic Violence Hotline",
+    "description": "24/7 confidential support by call, chat, or text for domestic violence and relationship abuse.",
+    "phone": "800-799-7233",
+    "website": "https://www.thehotline.org/",
+    "categories": ["all"],
     "regions": ["fallback"]
   }
 ]
