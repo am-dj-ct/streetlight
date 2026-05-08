@@ -5,6 +5,7 @@ import {
   languageCookieName,
   languageHeaderName,
 } from "./lib/languages";
+import { buildMailtoHref, supportEmail } from "./lib/support";
 
 function isDocumentRequest(request: NextRequest) {
   return request.headers.get("accept")?.includes("text/html") === true;
@@ -29,6 +30,10 @@ function appendVaryHeader(headers: Headers, value: string) {
 }
 
 function renderHardPausePage(languageCode: string) {
+  const problemReportHref = buildMailtoHref({
+    subject: "Access Tool problem report",
+  });
+
   return `<!doctype html>
 <html lang="${languageCode}">
   <head>
@@ -132,7 +137,7 @@ function renderHardPausePage(languageCode: string) {
           Built and run by one person in Seattle.
         </p>
         <p class="small">
-          Problem report: <a href="mailto:jesse.c.dunn@outlook.com?subject=Access%20Tool%20problem%20report">jesse.c.dunn@outlook.com</a>
+          Problem report: <a href="${problemReportHref}">${supportEmail}</a>
         </p>
       </article>
     </main>

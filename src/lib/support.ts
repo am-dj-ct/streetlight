@@ -17,9 +17,3 @@ export function buildMailtoHref({
 
   return `mailto:${supportEmail}?${params.toString()}`;
 }
-
-export function getBugReportHref() {
-  return buildMailtoHref({
-    subject: "Access Tool problem report",
-  });
-}
