@@ -29,9 +29,11 @@ function isClientChatMessage(value: unknown): value is ClientChatMessage {
   }
 
   const candidate = value as Partial<ClientChatMessage>;
+  const hasValidId =
+    typeof candidate.id === "string" && candidate.id.trim().length > 0;
 
   return (
-    typeof candidate.id === "string" &&
+    hasValidId &&
     (candidate.role === "user" || candidate.role === "assistant") &&
     typeof candidate.text === "string"
   );

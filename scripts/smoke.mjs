@@ -456,6 +456,40 @@ async function checkInvalidMessageTextShape() {
   );
 }
 
+async function checkInvalidMessageRole() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-invalid-role",
+          role: "system",
+          text: "hello",
+        },
+      ],
+    },
+    "invalid message role",
+  );
+}
+
+async function checkBlankMessageId() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "   ",
+          role: "user",
+          text: "hello",
+        },
+      ],
+    },
+    "blank message id",
+  );
+}
+
 async function checkInvalidReportProblemEntryId() {
   const response = await fetch(
     new URL("/report-problem?lang=en&entryId=not-a-real-entry", baseUrl),
@@ -524,6 +558,10 @@ await checkMissingMessagesArray();
 console.log("Malformed messages handling ok (/api/chat rejects non-array messages).");
 await checkInvalidMessageTextShape();
 console.log("Malformed message text handling ok (/api/chat rejects non-string text).");
+await checkInvalidMessageRole();
+console.log("Malformed message role handling ok (/api/chat rejects invalid roles).");
+await checkBlankMessageId();
+console.log("Malformed message id handling ok (/api/chat rejects blank ids).");
 await checkInvalidReportProblemEntryId();
 console.log("Invalid report entryId handling ok (/report-problem ignores bad entry ids).");
 await checkInvalidReportProblemArea();
