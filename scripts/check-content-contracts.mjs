@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
 
@@ -87,14 +88,14 @@ const [
   chatTypesSource,
   buttonsSource,
   promptsSource,
-  englishConversationContentRaw,
-  englishStaticPagesRaw,
+  englishConversationContent,
+  englishStaticPages,
 ] = await Promise.all([
   readFile(path.join(cwd, "src/lib/chat-types.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/buttons.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/system-prompts.ts"), "utf8"),
-  readFile(path.join(cwd, "src/data/conversation-content/en.json"), "utf8"),
-  readFile(path.join(cwd, "src/data/static-pages/en.json"), "utf8"),
+  readJsonFile(path.join(cwd, "src/data/conversation-content/en.json")),
+  readJsonFile(path.join(cwd, "src/data/static-pages/en.json")),
 ]);
 
 const conversationEntryIds = extractArrayEntries(
@@ -104,8 +105,6 @@ const conversationEntryIds = extractArrayEntries(
 const promptButtonIds = extractIdsFromArrayBlock(buttonsSource, "promptButtons");
 const alternateActionIds = extractIdsFromArrayBlock(buttonsSource, "alternateActions");
 const promptIds = extractObjectKeys(promptsSource, "entryPrompts");
-const englishConversationContent = JSON.parse(englishConversationContentRaw);
-const englishStaticPages = JSON.parse(englishStaticPagesRaw);
 const contentIds = Object.keys(englishConversationContent.buttons ?? {});
 const staticPageKeys = Object.keys(englishStaticPages.pages ?? {});
 const expectedStaticPageKeys = ["about", "privacy"];

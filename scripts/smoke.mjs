@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   defaultBaseUrl,
@@ -7,6 +6,7 @@ import {
   getHealth,
 } from "./lib/access-tool-http.mjs";
 import { isChatStreamEvent } from "./lib/chat-stream.mjs";
+import { readJsonFile } from "./lib/json-file.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 
@@ -151,7 +151,7 @@ function fail(message) {
 }
 
 async function loadCases() {
-  const allCases = JSON.parse(await readFile(casesPath, "utf8"));
+  const allCases = await readJsonFile(casesPath);
   const filteredCases = smokeCaseFilter
     ? allCases.filter((testCase) =>
         `${testCase.name}/${testCase.entryId}`.toLowerCase().includes(smokeCaseFilter),
