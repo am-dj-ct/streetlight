@@ -1,6 +1,10 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { readJsonFile } from "./lib/json-file.mjs";
+import {
+  validateRegressionCases,
+  validateSmokeCases,
+} from "./lib/prompt-fixtures.mjs";
 
 const cwd = process.cwd();
 
@@ -90,12 +94,14 @@ const [
   promptsSource,
   englishConversationContent,
   englishStaticPages,
+  promptEntries,
 ] = await Promise.all([
   readFile(path.join(cwd, "src/lib/chat-types.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/buttons.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/system-prompts.ts"), "utf8"),
   readJsonFile(path.join(cwd, "src/data/conversation-content/en.json")),
   readJsonFile(path.join(cwd, "src/data/static-pages/en.json")),
+  readdir(path.join(cwd, "tests/prompts"), { withFileTypes: true }),
 ]);
 
 const conversationEntryIds = extractArrayEntries(
@@ -106,6 +112,9 @@ const promptButtonIds = extractIdsFromArrayBlock(buttonsSource, "promptButtons")
 const alternateActionIds = extractIdsFromArrayBlock(buttonsSource, "alternateActions");
 const promptIds = extractObjectKeys(promptsSource, "entryPrompts");
 const contentIds = Object.keys(englishConversationContent.buttons ?? {});
+const promptFixtureIds = promptEntries
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 const staticPageKeys = Object.keys(englishStaticPages.pages ?? {});
 const expectedStaticPageKeys = ["about", "privacy"];
 
@@ -114,6 +123,7 @@ assertNoDuplicates("promptButtons", promptButtonIds);
 assertNoDuplicates("alternateActions", alternateActionIds);
 assertNoDuplicates("entryPrompts", promptIds);
 assertNoDuplicates("conversation-content buttons", contentIds);
+assertNoDuplicates("prompt fixture directories", promptFixtureIds);
 
 assertSameSet(
   "button ids vs conversationEntryIds",
@@ -125,6 +135,11 @@ assertSameSet(
   "conversation-content buttons vs conversationEntryIds",
   conversationEntryIds,
   contentIds,
+);
+assertSameSet(
+  "prompt fixture directories vs conversationEntryIds",
+  conversationEntryIds,
+  promptFixtureIds,
 );
 assertSameSet("static page keys", expectedStaticPageKeys, staticPageKeys);
 
@@ -217,6 +232,16 @@ for (const pageKey of expectedStaticPageKeys) {
   }
 }
 
+for (const entryId of conversationEntryIds) {
+  const fixturePath = path.join(cwd, "tests/prompts", entryId, "cases.json");
+  const fixtures = await readJsonFile(fixturePath);
+
+  validateRegressionCases(fixtures, `tests/prompts/${entryId}/cases.json`);
+}
+
+const smokeCases = await readJsonFile(path.join(cwd, "tests/prompts/smoke-cases.json"));
+validateSmokeCases(smokeCases, "tests/prompts/smoke-cases.json");
+
 console.log(
-  `Content contracts ok (${conversationEntryIds.length} conversation entries, ${promptButtonIds.length} prompt buttons, ${alternateActionIds.length} alternate actions, ${staticPageKeys.length} static pages).`,
+  `Content contracts ok (${conversationEntryIds.length} conversation entries, ${promptButtonIds.length} prompt buttons, ${alternateActionIds.length} alternate actions, ${promptFixtureIds.length} prompt fixture sets, ${staticPageKeys.length} static pages).`,
 );
