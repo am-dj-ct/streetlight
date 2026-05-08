@@ -13,6 +13,7 @@
     "check:locales:summary": "node scripts/report-missing-locales.mjs --summary",
     "check:launch": "node scripts/check-launch-readiness.mjs",
     "check:content": "node scripts/check-content-contracts.mjs",
+    "check:env": "node scripts/check-env-shape.mjs",
     "check:forbidden-integrations": "node scripts/check-forbidden-integrations.mjs",
     "check:no-tracked-secrets": "node scripts/check-no-tracked-secrets.mjs",
     "check:ops": "node scripts/check-ops-tools.mjs",

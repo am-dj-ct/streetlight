@@ -58,6 +58,8 @@ this. Code stays public on GitHub regardless.
   verification loops
 - `npm run check:launch` — static soft-launch readiness check for docs,
   placeholders, translations, and env contract
+- `npm run check:env` — validates local/env-example boolean and numeric value
+  shapes without printing secrets
 - `npm run check:forbidden-integrations` — fails if forbidden analytics,
   error-reporting, or log-forwarding packages are added
 - `npm run check:no-tracked-secrets` — scans tracked files for common

@@ -49,6 +49,12 @@ if (!noTrackedSecretsOutput.includes("Tracked secret check passed.")) {
   fail("tracked secret check did not include the expected pass output.");
 }
 
+const envShapeOutput = runNodeScript("scripts/check-env-shape.mjs", []);
+
+if (!envShapeOutput.includes("Env shape check passed.")) {
+  fail("env shape check did not include the expected pass output.");
+}
+
 if (
   !newIncidentOutput.includes("Would create incidents/") ||
   !newIncidentOutput.includes("Severity: Sev-1")
