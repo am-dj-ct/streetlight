@@ -22,52 +22,56 @@ export type AlternateAction = {
   label: string;
 };
 
+function getEnglishConversationLabel(id: PromptButtonId | AlternateAction["id"]) {
+  return getConversationContentEntry(id, "en").label;
+}
+
 export const promptButtons: readonly PromptButton[] = [
   {
     id: "understand-letter-or-form",
-    label: "Understand a letter or form",
+    label: getEnglishConversationLabel("understand-letter-or-form"),
     systemPrompt: "",
   },
   {
     id: "write-something",
-    label: "Write something",
+    label: getEnglishConversationLabel("write-something"),
     systemPrompt: "",
   },
   {
     id: "think-it-through",
-    label: "Think it through (listen and ask questions)",
+    label: getEnglishConversationLabel("think-it-through"),
     systemPrompt: "",
   },
   {
     id: "figure-out-next",
-    label: "Figure out what to do next",
+    label: getEnglishConversationLabel("figure-out-next"),
     systemPrompt: "",
   },
   {
     id: "explain-like-new",
-    label: "Explain something like I'm new to it",
+    label: getEnglishConversationLabel("explain-like-new"),
     systemPrompt: "",
   },
   {
     id: "prepare-for-hard",
-    label: "Prepare for something hard",
+    label: getEnglishConversationLabel("prepare-for-hard"),
     systemPrompt: "",
   },
   {
     id: "am-i-being-unreasonable",
-    label: "Am I being unreasonable",
+    label: getEnglishConversationLabel("am-i-being-unreasonable"),
     systemPrompt: "",
   },
   {
     id: "embarrassed-to-ask",
-    label: "Something I'm embarrassed to ask",
+    label: getEnglishConversationLabel("embarrassed-to-ask"),
     systemPrompt: "",
   },
 ];
 
 export const alternateActions: readonly AlternateAction[] = [
-  { id: "type-your-own", label: getConversationContentEntry("type-your-own", "en").label },
-  { id: "talk-instead", label: getConversationContentEntry("talk-instead", "en").label },
+  { id: "type-your-own", label: getEnglishConversationLabel("type-your-own") },
+  { id: "talk-instead", label: getEnglishConversationLabel("talk-instead") },
 ];
 
 export function getPromptButtons(languageCode: SupportedLanguageCode): readonly PromptButton[] {

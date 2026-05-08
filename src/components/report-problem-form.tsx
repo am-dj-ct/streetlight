@@ -94,7 +94,10 @@ export function ReportProblemForm({
     ];
   const conversationLanguageLabel = getLanguageOption(conversationLanguage).label;
   const entryLabel = entryId
-    ? getConversationContentEntry(entryId as ConversationEntryId, "en").label
+    ? getConversationContentEntry(
+        entryId as ConversationEntryId,
+        languageCode,
+      ).label
     : null;
   const chatModeLabel = getChatModeLabel(chatMode, copy);
   const regionScopeLabel = getRegionScopeLabel(regionScope, copy);
