@@ -271,8 +271,8 @@ export function ConversationClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [micSupported, setMicSupported] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
+  const [micSupported, setMicSupported] = useState<boolean | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceUri, setSelectedVoiceUri] = useState("");
   const [speechRate, setSpeechRate] = useState(0.92);
@@ -439,6 +439,8 @@ export function ConversationClient({
     "";
   const selectedVoiceName =
     voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ?? "Default";
+  const speechUnavailable = speechSupported === false;
+  const micUnavailable = micSupported === false;
 
   function resetTurnstileToken() {
     setTurnstileToken(null);
@@ -882,7 +884,7 @@ export function ConversationClient({
                         <button
                           type="button"
                           onClick={() => handlePlayAloud(message.id, message.text)}
-                          disabled={!speechSupported}
+                          disabled={speechUnavailable}
                           className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
                         >
                           {speakingMessageId === message.id ? copy.stopReading : copy.playAloud}
@@ -890,7 +892,7 @@ export function ConversationClient({
                         <button
                           type="button"
                           onClick={() => setShowVoiceSettings(true)}
-                          disabled={!speechSupported}
+                          disabled={speechUnavailable}
                           className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
                         >
                           {copy.voiceTitle}
@@ -985,7 +987,7 @@ export function ConversationClient({
               type="button"
               aria-label={copy.micAssistiveLabel}
               onClick={handleMicInput}
-              disabled={!micSupported}
+              disabled={micUnavailable}
               className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22]"
             >
               {isListening ? copy.micStopLabel : copy.micLabel}
