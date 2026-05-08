@@ -3,7 +3,6 @@ import { getCrisisResources } from "../lib/crisis-resources";
 import type { SupportedLanguageCode } from "../lib/languages";
 import type { RegionScope } from "../lib/geo";
 import { getUiCopy } from "../lib/ui-copy";
-import { getBugReportHref } from "../lib/support";
 
 export function CrisisFooter({
   entryId,
@@ -19,6 +18,9 @@ export function CrisisFooter({
   const findHumanHref = entryId
     ? `/find-human?entryId=${encodeURIComponent(entryId)}&lang=${languageCode}`
     : `/find-human?lang=${languageCode}`;
+  const reportProblemHref = entryId
+    ? `/report-problem?lang=${languageCode}&area=conversation&entryId=${encodeURIComponent(entryId)}`
+    : `/report-problem?lang=${languageCode}`;
 
   return (
     <footer
@@ -55,9 +57,9 @@ export function CrisisFooter({
           <Link href={`/about?lang=${languageCode}`} className="font-semibold underline">
             {copy.footerAbout}
           </Link>
-          <a href={getBugReportHref()} className="font-semibold underline">
+          <Link href={reportProblemHref} className="font-semibold underline">
             {copy.footerReportProblem}
-          </a>
+          </Link>
         </div>
       </div>
     </footer>

@@ -64,6 +64,8 @@ this. Code stays public on GitHub regardless.
 
 - `/healthz` — simple no-store JSON health check for local smoke checks and
   future monitoring
+- `/report-problem` — structured no-content bug report draft builder that
+  stays client-side and opens a `mailto:` draft
 
 ## License
 

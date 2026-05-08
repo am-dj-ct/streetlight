@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { InfoPageShell } from "../../components/info-page-shell";
 import { getRegionScope } from "../../lib/geo";
@@ -7,7 +8,6 @@ import {
   getPreferredLanguageCode,
 } from "../../lib/languages";
 import { getStaticPageContent } from "../../lib/static-pages";
-import { getBugReportHref } from "../../lib/support";
 import { makeTitle } from "../../lib/site-metadata";
 import { getUiCopy } from "../../lib/ui-copy";
 
@@ -59,9 +59,12 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
       ))}
 
       <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
-        <a href={getBugReportHref()} className="font-semibold underline">
+        <Link
+          href={`/report-problem?lang=${languageCode}&area=about`}
+          className="font-semibold underline"
+        >
           {copy.reportProblemByEmail}
-        </a>
+        </Link>
       </section>
     </InfoPageShell>
   );

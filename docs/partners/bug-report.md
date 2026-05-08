@@ -73,8 +73,8 @@ That is too hard to act on.
 
 ## Submission rule
 
-Send the report by email or put it into the shared bug-report form once that
-exists.
+Use the live `/report-problem` page when it is available, or send the report
+by email. If a shared bug-report form exists later, use that instead.
 
 The goal is enough detail to reproduce the issue with a synthetic prompt,
 without collecting the user's real content.
