@@ -562,6 +562,19 @@ async function checkMalformedInternalReportProblemSource() {
   }
 }
 
+async function checkOversizedReportProblemSource() {
+  const oversizedSource = encodeURIComponent(`/privacy?lang=en&x=${"a".repeat(600)}`);
+  const snapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: `/report-problem?lang=en&source=${oversizedSource}`,
+  });
+
+  if (snapshot.sourceRoute !== "not supplied") {
+    fail("Oversized internal source path rendered on /report-problem.");
+  }
+}
+
 async function checkIncompleteConversationReportProblemSource() {
   const incompleteSource = encodeURIComponent("/conversation");
   const snapshot = await getReportProblemSnapshot({
@@ -962,6 +975,8 @@ await checkDisallowedInternalReportProblemSource();
 console.log("Disallowed internal source handling ok (/report-problem ignores unsafe app paths).");
 await checkMalformedInternalReportProblemSource();
 console.log("Malformed internal source handling ok (/report-problem ignores protocol-style paths).");
+await checkOversizedReportProblemSource();
+console.log("Oversized source handling ok (/report-problem ignores huge app paths).");
 await checkIncompleteConversationReportProblemSource();
 console.log("Incomplete conversation source handling ok (/report-problem ignores bare conversation paths).");
 await checkBlankChatMessage();

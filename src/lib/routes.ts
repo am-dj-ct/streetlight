@@ -28,6 +28,7 @@ const allowedSourcePathnames = [
   "/privacy",
   "/report-problem",
 ] as const;
+const maxInternalSourcePathLength = 512;
 
 function makeInternalAppPath(value: string): InternalAppPath {
   if (!value.startsWith("/")) {
@@ -40,7 +41,12 @@ function makeInternalAppPath(value: string): InternalAppPath {
 export function sanitizeInternalSourcePath(
   sourcePath?: null | string,
 ): InternalAppPath | null {
-  if (!sourcePath || !sourcePath.startsWith("/") || sourcePath.startsWith("//")) {
+  if (
+    !sourcePath ||
+    sourcePath.length > maxInternalSourcePathLength ||
+    !sourcePath.startsWith("/") ||
+    sourcePath.startsWith("//")
+  ) {
     return null;
   }
 
