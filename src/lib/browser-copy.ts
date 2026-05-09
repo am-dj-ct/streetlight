@@ -20,13 +20,15 @@ export async function copyTextToClipboard(text: string) {
     textarea.style.opacity = "0";
     textarea.style.left = "-9999px";
     document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
 
-    const copied = document.execCommand("copy");
-    textarea.remove();
+    try {
+      textarea.focus();
+      textarea.select();
 
-    return copied;
+      return document.execCommand("copy");
+    } finally {
+      textarea.remove();
+    }
   } catch {
     return false;
   }

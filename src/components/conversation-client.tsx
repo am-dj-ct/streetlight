@@ -684,20 +684,27 @@ export function ConversationClient({
       return false;
     }
 
+    let objectUrl: string | null = null;
+    let anchor: HTMLAnchorElement | null = null;
+
     try {
       const blob = new Blob([fileContents], { type: "text/plain;charset=utf-8" });
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
+      objectUrl = URL.createObjectURL(blob);
+      anchor = document.createElement("a");
 
       anchor.href = objectUrl;
       anchor.download = makeExportFilename(entryId);
       document.body.appendChild(anchor);
       anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
       return true;
     } catch {
       return false;
+    } finally {
+      anchor?.remove();
+
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     }
   }
 
