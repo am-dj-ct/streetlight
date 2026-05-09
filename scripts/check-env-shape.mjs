@@ -118,11 +118,11 @@ function validateEnvValues(values, relativePath) {
   for (const variable of numericVariables) {
     const value = values.get(variable);
 
-    if (value === undefined || value === "") {
+    if (value === undefined || value.trim() === "") {
       continue;
     }
 
-    const parsed = Number(value);
+    const parsed = Number(value.trim());
 
     if (!Number.isFinite(parsed) || parsed < 0) {
       fail(`${relativePath}: ${variable} must be a non-negative number or empty.`);
