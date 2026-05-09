@@ -1,4 +1,5 @@
 import http from "node:http";
+import https from "node:https";
 import path from "node:path";
 import {
   defaultBaseUrl,
@@ -196,9 +197,10 @@ function assertHeaderNoStore(headers, label) {
 
 async function postChunkedJson(pathname, body) {
   const url = new URL(pathname, baseUrl);
+  const client = url.protocol === "https:" ? https : http;
 
   return new Promise((resolve, reject) => {
-    const request = http.request(
+    const request = client.request(
       url,
       {
         headers: {
