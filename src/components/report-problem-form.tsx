@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ConversationEntryId } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
+import { copyTextToClipboard } from "../lib/browser-copy";
 import { getConversationContentEntry } from "../lib/conversation-content";
 import {
   isReportArea,
@@ -219,12 +220,7 @@ export function ReportProblemForm({
   }
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(reportBody);
-      setCopyState("copied");
-    } catch {
-      setCopyState("failed");
-    }
+    setCopyState(await copyTextToClipboard(reportBody) ? "copied" : "failed");
   }
 
   return (
