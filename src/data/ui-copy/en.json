@@ -143,6 +143,8 @@
     "voiceSpeedLabel": "Speed",
     "voiceDefaultOption": "Default",
     "voiceOnlyOneOption": "This browser is only exposing one voice for this language.",
+    "voiceLoading": "Loading voice...",
+    "voiceUnavailable": "Read-aloud is not available here right now.",
     "composerPlaceholder": "Type here",
     "composerAssistiveLabel": "Type a message",
     "micLabel": "Mic",

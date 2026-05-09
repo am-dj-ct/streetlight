@@ -113,7 +113,8 @@ deploy instantly to every user on next visit.
 - Mic button always visible in the input bar on every screen with text
   input, never auto-activated. Web Speech API for input (free, native).
 - TTS play button on every model response, opt-in per response, never
-  auto-plays. Web Speech API for output.
+  auto-plays. Azure AI Speech provides the normal read-aloud path through
+  a server-side proxy; Web Speech API remains the device fallback.
 - Pure-voice end-to-end use is a known V1 gap — UI is text-first with
   voice helpers. Acknowledged on the about page. V2 priority.
 

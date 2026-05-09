@@ -143,6 +143,8 @@
     "voiceSpeedLabel": "Скорость",
     "voiceDefaultOption": "По умолчанию",
     "voiceOnlyOneOption": "Этот браузер показывает только один голос для этого языка.",
+    "voiceLoading": "Загрузка голоса...",
+    "voiceUnavailable": "Озвучивание сейчас здесь недоступно.",
     "composerPlaceholder": "Пишите здесь",
     "composerAssistiveLabel": "Введите сообщение",
     "micLabel": "Микрофон",

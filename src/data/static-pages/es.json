@@ -6,18 +6,19 @@
   "pages": {
     "privacy": {
       "title": "Privacidad",
-      "lastUpdated": "2026-05-07",
+      "lastUpdated": "2026-05-09",
       "sections": [
         {
           "heading": "Lo que guardamos: nada sobre tu conversación.",
           "paragraphs": [
-            "Tus mensajes y las respuestas que recibes no se guardan en nuestros servidores. No los conservamos. No los leemos después. No los vendemos. No los usamos para entrenar IA."
+            "Tus mensajes, las respuestas que recibes y el audio de lectura en voz alta no se guardan en nuestros servidores. No los conservamos. No los leemos después. No los vendemos. No los usamos para entrenar IA."
           ]
         },
         {
           "heading": "Lo que sí guardamos: números, no palabras.",
           "paragraphs": [
             "Guardamos cosas como: cuánto tardó la respuesta, qué botón tocaste, qué idioma usaste, qué tipo de pregunta fue. No guardamos lo que escribiste ni lo que dijo la respuesta.",
+            "Para la lectura en voz alta, podemos guardar el total diario de caracteres enviados para audio para que el costo no se dispare. No guardamos las palabras.",
             "Guardamos esto para asegurarnos de que la herramienta funcione y para saber si algo está roto."
           ]
         },
@@ -32,7 +33,8 @@
           "heading": "A dónde van tus mensajes.",
           "paragraphs": [
             "Cuando envías un mensaje, va a una compañía llamada Anthropic. Ellos hacen la IA que te responde. Conservan tu mensaje por 7 días y luego lo borran. No lo usan para entrenar IA. No lo comparten.",
-            "Elegimos Anthropic porque sus reglas sobre tus datos son más estrictas que las de la mayoría de las compañías que hacen IA."
+            "Elegimos Anthropic porque sus reglas sobre tus datos son más estrictas que las de la mayoría de las compañías que hacen IA.",
+            "Si tocas Leer en voz alta, el texto de la respuesta se envía a Microsoft Azure AI Speech para crear audio. Si no tocas Leer en voz alta, no se envía allí. No guardamos el audio."
           ]
         },
         {
@@ -47,7 +49,7 @@
           "bullets": [
             "No tenemos anuncios.",
             "No vendemos nada.",
-            "No compartimos tus datos con nadie.",
+            "No enviamos tu conversación a ningún lugar excepto a los servicios nombrados en esta página.",
             "No tenemos cuenta ni inicio de sesión.",
             "No te rastreamos por internet.",
             "No sabemos quién eres."
@@ -75,7 +77,7 @@
     },
     "about": {
       "title": "Acerca de",
-      "lastUpdated": "2026-05-08",
+      "lastUpdated": "2026-05-09",
       "sections": [
         {
           "heading": "Qué es esto.",
@@ -94,14 +96,14 @@
         {
           "heading": "Cómo funciona.",
           "paragraphs": [
-            "El sitio está construido con varios pasos de IA detrás de escena. La conversación principal usa modelos de Anthropic. Una segunda revisión más pequeña verifica si la respuesta cae en una categoría donde se sabe que la IA suele equivocarse, como procedimientos legales o elegibilidad para beneficios.",
+            "El sitio está construido con varios pasos de IA detrás de escena. La conversación principal usa modelos de Anthropic. Una segunda revisión más pequeña verifica si la respuesta cae en una categoría donde se sabe que la IA suele equivocarse, como procedimientos legales o elegibilidad para beneficios. La lectura en voz alta usa Microsoft Azure AI Speech cuando tocas Leer en voz alta.",
             "Se pueden usar distintos modelos en distintos momentos para mantener la herramienta funcionando dentro de un presupuesto pequeño de interés público."
           ]
         },
         {
           "heading": "Voz e idioma.",
           "paragraphs": [
-            "La herramienta empieza por texto. La entrada por micrófono y la lectura en voz alta están como ayudas, pero el uso solo por voz todavía es una limitación en V1."
+            "La herramienta empieza por texto. La entrada por micrófono y la lectura en voz alta están como ayudas, pero el uso solo por voz todavía es una limitación en V1. Las voces del dispositivo siguen como respaldo cuando la lectura natural no está disponible."
           ]
         },
         {

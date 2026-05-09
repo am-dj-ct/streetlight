@@ -16,6 +16,7 @@ import {
   buildPrivacyHref,
 } from "../lib/routes";
 import { buildMailtoHref, isMailtoHrefWithinLimit } from "../lib/support";
+import { stripMarkdownForSpeech } from "../lib/speech-text";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
   ChatErrorBody,
@@ -29,6 +30,7 @@ import {
   isChatStreamEvent,
   maxClientMessageTextLength,
 } from "../lib/chat-types";
+import { isTtsErrorBody } from "../lib/tts-types";
 import type { RegionScope } from "../lib/geo";
 import {
   getSpeechLocaleForLanguageCode,
@@ -130,24 +132,6 @@ function makeMessageId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2)}`;
-}
-
-function stripMarkdownForSpeech(text: string): string {
-  return text
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/^>\s+/gm, "")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^\s*[-*]\s+/gm, "")
-    .replace(/^\s*\d+\.\s+/gm, "")
-    .replace(/[“”]/g, "\"")
-    .replace(/[‘’]/g, "'")
-    .replace(/\s+—\s+/g, ". ")
-    .replace(/\n{2,}/g, ". ")
-    .replace(/\n/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
 }
 
 function chooseBestVoice(voices: SpeechSynthesisVoice[], language: string) {
@@ -358,6 +342,9 @@ export function ConversationClient({
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioObjectUrlRef = useRef<string | null>(null);
+  const ttsAbortControllerRef = useRef<AbortController | null>(null);
   const voiceSettingsDoneRef = useRef<HTMLButtonElement | null>(null);
   const voiceSettingsRef = useRef<HTMLDivElement | null>(null);
   const voiceSettingsReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -381,6 +368,7 @@ export function ConversationClient({
   const [selectedVoiceUri, setSelectedVoiceUri] = useState("");
   const [speechRate, setSpeechRate] = useState(0.92);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [speechLoadingMessageId, setSpeechLoadingMessageId] = useState<string | null>(null);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
@@ -582,18 +570,26 @@ export function ConversationClient({
     }
 
     return () => {
-      if (!("speechSynthesis" in window)) {
-        return;
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
       }
-
-      window.speechSynthesis.cancel();
 
       if (loadVoices) {
         window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
       }
 
+      ttsAbortControllerRef.current?.abort();
+      audioRef.current?.pause();
+      audioRef.current = null;
+
+      if (audioObjectUrlRef.current) {
+        URL.revokeObjectURL(audioObjectUrlRef.current);
+        audioObjectUrlRef.current = null;
+      }
+
       utteranceRef.current = null;
       setSpeakingMessageId(null);
+      setSpeechLoadingMessageId(null);
     };
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -821,26 +817,44 @@ export function ConversationClient({
     );
   }
 
-  function handlePlayAloud(messageId: string, text: string) {
+  function clearProviderAudio() {
+    audioRef.current?.pause();
+    audioRef.current = null;
+
+    if (audioObjectUrlRef.current) {
+      URL.revokeObjectURL(audioObjectUrlRef.current);
+      audioObjectUrlRef.current = null;
+    }
+  }
+
+  function stopReadingAloud() {
+    ttsAbortControllerRef.current?.abort();
+    ttsAbortControllerRef.current = null;
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    utteranceRef.current = null;
+    clearProviderAudio();
+    setSpeakingMessageId(null);
+    setSpeechLoadingMessageId(null);
+  }
+
+  function playWithDeviceVoice(messageId: string, text: string) {
     if (
       !speechSupported ||
       typeof window === "undefined" ||
-      !("speechSynthesis" in window)
+      !("speechSynthesis" in window) ||
+      !("SpeechSynthesisUtterance" in window)
     ) {
-      return;
-    }
-
-    if (speakingMessageId === messageId) {
-      window.speechSynthesis.cancel();
-      utteranceRef.current = null;
-      setSpeakingMessageId(null);
-      return;
+      return false;
     }
 
     window.speechSynthesis.cancel();
     const language = voiceLanguage;
 
-    const utterance = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = language;
     utterance.rate = speechRate;
     utterance.pitch = 1;
@@ -866,6 +880,101 @@ export function ConversationClient({
 
     setSpeakingMessageId(messageId);
     window.speechSynthesis.speak(utterance);
+    return true;
+  }
+
+  async function handlePlayAloud(messageId: string, text: string) {
+    if (speakingMessageId === messageId || speechLoadingMessageId === messageId) {
+      stopReadingAloud();
+      return;
+    }
+
+    const speechText = stripMarkdownForSpeech(text);
+
+    if (!speechText) {
+      return;
+    }
+
+    stopReadingAloud();
+    setErrorMessage(null);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const abortController = new AbortController();
+    ttsAbortControllerRef.current = abortController;
+    setSpeechLoadingMessageId(messageId);
+
+    try {
+      const response = await fetch("/api/tts", {
+        body: JSON.stringify({
+          language: currentLanguageCode,
+          text: speechText,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        const rawErrorBody = await response.json().catch(() => null);
+        const errorBody = isTtsErrorBody(rawErrorBody) ? rawErrorBody : null;
+
+        throw new Error(errorBody?.error ?? "TTS unavailable");
+      }
+
+      const audioBlob = await response.blob();
+
+      if (abortController.signal.aborted) {
+        return;
+      }
+
+      if (audioBlob.size === 0) {
+        throw new Error("Empty audio response");
+      }
+
+      const objectUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(objectUrl);
+
+      audioRef.current = audio;
+      audioObjectUrlRef.current = objectUrl;
+      audio.onended = () => {
+        clearProviderAudio();
+        setSpeakingMessageId(null);
+      };
+      audio.onerror = () => {
+        clearProviderAudio();
+        setSpeakingMessageId(null);
+        setErrorMessage(copy.voiceUnavailable);
+      };
+
+      await audio.play();
+
+      if (!abortController.signal.aborted) {
+        setSpeakingMessageId(messageId);
+      }
+    } catch {
+      if (abortController.signal.aborted) {
+        return;
+      }
+
+      clearProviderAudio();
+
+      if (!playWithDeviceVoice(messageId, speechText)) {
+        setErrorMessage(copy.voiceUnavailable);
+      }
+    } finally {
+      if (ttsAbortControllerRef.current === abortController) {
+        ttsAbortControllerRef.current = null;
+      }
+
+      setSpeechLoadingMessageId((currentId) =>
+        currentId === messageId ? null : currentId,
+      );
+    }
   }
 
   function handleMicInput() {
@@ -1186,6 +1295,7 @@ export function ConversationClient({
                 isAssistant &&
                 pendingClassifierMessageId === message.id &&
                 !isEmptyAssistant;
+              const isSpeechLoading = speechLoadingMessageId === message.id;
 
               return (
                 <div
@@ -1251,11 +1361,14 @@ export function ConversationClient({
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => handlePlayAloud(message.id, message.text)}
-                            disabled={speechUnavailable}
+                            onClick={() => void handlePlayAloud(message.id, message.text)}
                             className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
                           >
-                            {speakingMessageId === message.id ? copy.stopReading : copy.playAloud}
+                            {isSpeechLoading
+                              ? copy.voiceLoading
+                              : speakingMessageId === message.id
+                                ? copy.stopReading
+                                : copy.playAloud}
                           </button>
                           <button
                             type="button"

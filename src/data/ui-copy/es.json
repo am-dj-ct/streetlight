@@ -143,6 +143,8 @@
     "voiceSpeedLabel": "Velocidad",
     "voiceDefaultOption": "Predeterminada",
     "voiceOnlyOneOption": "Este navegador solo muestra una voz para este idioma.",
+    "voiceLoading": "Cargando voz...",
+    "voiceUnavailable": "La lectura en voz alta no está disponible aquí ahora.",
     "composerPlaceholder": "Escribe aquí",
     "composerAssistiveLabel": "Escribe un mensaje",
     "micLabel": "Micrófono",

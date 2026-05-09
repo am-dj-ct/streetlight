@@ -6,18 +6,19 @@
   "pages": {
     "privacy": {
       "title": "Quyền riêng tư",
-      "lastUpdated": "2026-05-07",
+      "lastUpdated": "2026-05-09",
       "sections": [
         {
           "heading": "Điều chúng tôi lưu: không có gì về cuộc trò chuyện của bạn.",
           "paragraphs": [
-            "Tin nhắn của bạn và câu trả lời bạn nhận được không được lưu trên máy chủ của chúng tôi. Chúng tôi không giữ chúng. Chúng tôi không đọc lại sau đó. Chúng tôi không bán chúng. Chúng tôi không dùng chúng để huấn luyện AI."
+            "Tin nhắn của bạn, câu trả lời bạn nhận được, và âm thanh đọc thành tiếng không được lưu trên máy chủ của chúng tôi. Chúng tôi không giữ chúng. Chúng tôi không đọc lại sau đó. Chúng tôi không bán chúng. Chúng tôi không dùng chúng để huấn luyện AI."
           ]
         },
         {
           "heading": "Điều chúng tôi có lưu: con số, không phải lời bạn viết.",
           "paragraphs": [
             "Chúng tôi lưu những thứ như: mất bao lâu để trả lời, bạn bấm nút nào, bạn dùng ngôn ngữ nào, câu hỏi thuộc loại gì. Chúng tôi không lưu điều bạn đã gõ hoặc câu trả lời đã nói gì.",
+            "Với đọc thành tiếng, chúng tôi có thể lưu tổng số ký tự hằng ngày được gửi để tạo âm thanh để chi phí không vượt khỏi tầm kiểm soát. Chúng tôi không lưu các từ.",
             "Chúng tôi lưu những thứ này để bảo đảm công cụ hoạt động và để biết nếu có gì bị hỏng."
           ]
         },
@@ -32,7 +33,8 @@
           "heading": "Tin nhắn của bạn đi đâu.",
           "paragraphs": [
             "Khi bạn gửi tin nhắn, nó đi đến một công ty tên là Anthropic. Họ tạo ra AI trả lời bạn. Họ giữ tin nhắn của bạn trong 7 ngày, rồi xóa. Họ không dùng nó để huấn luyện AI. Họ không chia sẻ nó.",
-            "Chúng tôi chọn Anthropic vì quy định của họ về dữ liệu của bạn chặt chẽ hơn hầu hết các công ty làm AI."
+            "Chúng tôi chọn Anthropic vì quy định của họ về dữ liệu của bạn chặt chẽ hơn hầu hết các công ty làm AI.",
+            "Nếu bạn bấm Đọc thành tiếng, văn bản câu trả lời sẽ được gửi đến Microsoft Azure AI Speech để tạo âm thanh. Nếu bạn không bấm Đọc thành tiếng, nó không được gửi đến đó. Chúng tôi không lưu âm thanh."
           ]
         },
         {
@@ -47,7 +49,7 @@
           "bullets": [
             "Chúng tôi không có quảng cáo.",
             "Chúng tôi không bán gì cả.",
-            "Chúng tôi không chia sẻ dữ liệu của bạn với bất kỳ ai.",
+            "Chúng tôi không gửi cuộc trò chuyện của bạn đến nơi nào khác ngoài các dịch vụ được nêu trên trang này.",
             "Chúng tôi không có tài khoản hoặc đăng nhập.",
             "Chúng tôi không theo dõi bạn trên internet.",
             "Chúng tôi không biết bạn là ai."
@@ -75,7 +77,7 @@
     },
     "about": {
       "title": "Giới thiệu",
-      "lastUpdated": "2026-05-08",
+      "lastUpdated": "2026-05-09",
       "sections": [
         {
           "heading": "Đây là gì.",
@@ -94,14 +96,14 @@
         {
           "heading": "Cách nó hoạt động.",
           "paragraphs": [
-            "Trang này được xây dựng với vài bước AI khác nhau phía sau. Cuộc trò chuyện chính dùng các mô hình của Anthropic. Một lượt kiểm tra nhỏ thứ hai xem câu trả lời có rơi vào loại mà AI thường được biết là hay sai không, như thủ tục pháp lý hoặc điều kiện nhận phúc lợi.",
+            "Trang này được xây dựng với vài bước AI khác nhau phía sau. Cuộc trò chuyện chính dùng các mô hình của Anthropic. Một lượt kiểm tra nhỏ thứ hai xem câu trả lời có rơi vào loại mà AI thường được biết là hay sai không, như thủ tục pháp lý hoặc điều kiện nhận phúc lợi. Đọc thành tiếng dùng Microsoft Azure AI Speech khi bạn bấm Đọc thành tiếng.",
             "Các mô hình khác nhau có thể được dùng vào các thời điểm khác nhau để giữ cho công cụ hoạt động trong một ngân sách nhỏ vì lợi ích công cộng."
           ]
         },
         {
           "heading": "Giọng nói và ngôn ngữ.",
           "paragraphs": [
-            "Công cụ này ưu tiên văn bản. Nhập bằng mic và đọc thành tiếng là các phần hỗ trợ, nhưng dùng hoàn toàn bằng giọng nói vẫn là một khoảng thiếu trong V1."
+            "Công cụ này ưu tiên văn bản. Nhập bằng mic và đọc thành tiếng là các phần hỗ trợ, nhưng dùng hoàn toàn bằng giọng nói vẫn là một khoảng thiếu trong V1. Giọng của thiết bị vẫn là phương án dự phòng khi đọc tự nhiên không khả dụng."
           ]
         },
         {

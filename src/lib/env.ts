@@ -159,3 +159,34 @@ export function getDeployEnvironment(): string {
 export function getDeployCommitSha(): null | string {
   return readOptionalEnv("VERCEL_GIT_COMMIT_SHA");
 }
+
+export function isTtsEnabled(): boolean {
+  return readOptionalBooleanEnv("TTS_ENABLED");
+}
+
+export function isDevMockTtsEnabled(): boolean {
+  return readOptionalBooleanEnv("DEV_MOCK_TTS");
+}
+
+export function isProductionTtsMockMisconfigured(): boolean {
+  return readOptionalEnv("VERCEL_ENV") === "production" && isDevMockTtsEnabled();
+}
+
+export function getAzureSpeechKey(): string {
+  return readEnv("AZURE_SPEECH_KEY");
+}
+
+export function getAzureSpeechRegion(): string {
+  return readEnv("AZURE_SPEECH_REGION");
+}
+
+export function hasAzureSpeechConfig(): boolean {
+  return Boolean(
+    readOptionalEnv("AZURE_SPEECH_KEY") &&
+      readOptionalEnv("AZURE_SPEECH_REGION"),
+  );
+}
+
+export function getTtsDailyCharacterLimit(): null | number {
+  return readOptionalNumberEnv("TTS_DAILY_CHARACTER_LIMIT");
+}

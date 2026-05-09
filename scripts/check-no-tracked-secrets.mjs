@@ -38,6 +38,10 @@ const secretPatterns = [
     label: "populated TURNSTILE_SECRET_KEY assignment",
     pattern: /^TURNSTILE_SECRET_KEY=.+/m,
   },
+  {
+    label: "populated AZURE_SPEECH_KEY assignment",
+    pattern: /^AZURE_SPEECH_KEY=.+/m,
+  },
 ];
 const binaryExtensions = new Set([
   ".avif",

@@ -89,7 +89,8 @@ and produce a dated ADR in `docs/decisions/` justifying the change.
 
 - **No admin panel.** Vercel's dashboard is the only admin surface.
 - **No phone home, no telemetry to the operator.** The deployed tool does
-  not send signals back beyond named hops (Anthropic, Vercel native logs).
+  not send signals back beyond named hops (Anthropic, Azure AI Speech for
+  explicit read-aloud, Vercel native logs).
 - **No A/B testing or experimentation framework.** One version ships.
 - **No recommendation engine, personalization, or per-user model tuning.**
   Same model, same prompts, same classifier for everyone.

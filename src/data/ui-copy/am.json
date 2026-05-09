@@ -143,6 +143,8 @@
     "voiceSpeedLabel": "ፍጥነት",
     "voiceDefaultOption": "ነባሪ",
     "voiceOnlyOneOption": "ይህ browser ለዚህ ቋንቋ አንድ ድምፅ ብቻ እያሳየ ነው.",
+    "voiceLoading": "ድምፅ እየተጫነ ነው...",
+    "voiceUnavailable": "በድምፅ ማንበብ አሁን እዚህ አይገኝም.",
     "composerPlaceholder": "እዚህ ይጻፉ",
     "composerAssistiveLabel": "መልዕክት ይጻፉ",
     "micLabel": "ማይክ",

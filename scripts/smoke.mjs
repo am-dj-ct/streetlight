@@ -17,6 +17,7 @@ import { readOptionalPositiveIntegerEnv } from "./lib/script-env.mjs";
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
 const endpoint = new URL("/api/chat", baseUrl).toString();
+const ttsEndpoint = new URL("/api/tts", baseUrl).toString();
 const casesPath = path.join(cwd, "tests/prompts/smoke-cases.json");
 const smokeCaseLimit = readOptionalPositiveIntegerEnv("SMOKE_CASE_LIMIT");
 const smokeCaseFilter = (process.env.SMOKE_CASE_FILTER ?? "").trim().toLowerCase();
@@ -525,6 +526,37 @@ async function checkWrongChatMethod() {
   assertNoStore(optionsResponse, "Wrong method OPTIONS response");
 }
 
+async function checkWrongTtsMethod() {
+  const response = await fetch(ttsEndpoint, {
+    method: "GET",
+  });
+  const optionsResponse = await fetch(ttsEndpoint, {
+    method: "OPTIONS",
+  });
+
+  if (response.status !== 405) {
+    fail(`Expected 405 from /api/tts for GET, got ${response.status}.`);
+  }
+
+  if (response.headers.get("allow") !== "POST") {
+    fail("/api/tts GET response must advertise Allow: POST.");
+  }
+
+  assertBrowserSecurityHeaders(response, "GET /api/tts response");
+  assertNoStore(response, "Wrong TTS method response");
+
+  if (optionsResponse.status !== 405) {
+    fail(`Expected 405 from /api/tts for OPTIONS, got ${optionsResponse.status}.`);
+  }
+
+  if (optionsResponse.headers.get("allow") !== "POST") {
+    fail("/api/tts OPTIONS response must advertise Allow: POST.");
+  }
+
+  assertBrowserSecurityHeaders(optionsResponse, "OPTIONS /api/tts response");
+  assertNoStore(optionsResponse, "Wrong TTS method OPTIONS response");
+}
+
 async function checkWrongHealthMethods() {
   for (const method of ["OPTIONS", "POST"]) {
     const response = await fetch(new URL("/healthz", baseUrl), {
@@ -608,6 +640,76 @@ async function checkChunkedOversizedChatBody() {
   assertHeaderNoStore(response.headers, "Chunked oversized body response");
 }
 
+async function checkInvalidTtsJsonBody() {
+  const response = await fetch(ttsEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: "{this-is:not-json",
+  });
+
+  if (response.status !== 400) {
+    fail(`Expected 400 from /api/tts for invalid JSON body, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid JSON body.") {
+    fail("Unexpected invalid-JSON response body from /api/tts.");
+  }
+
+  assertBrowserSecurityHeaders(response, "Invalid JSON /api/tts response");
+  assertNoStore(response, "Invalid TTS JSON response");
+}
+
+async function checkOversizedTtsBody() {
+  const response = await fetch(ttsEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      language: "en",
+      text: "x".repeat(13_000),
+    }),
+  });
+
+  if (response.status !== 413) {
+    fail(`Expected 413 from /api/tts for oversized body, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Request body too large.") {
+    fail("Unexpected oversized-body response from /api/tts.");
+  }
+
+  assertNoStore(response, "Oversized TTS body response");
+}
+
+async function checkChunkedOversizedTtsBody() {
+  const response = await postChunkedJson(
+    "/api/tts",
+    JSON.stringify({
+      language: "en",
+      text: "x".repeat(13_000),
+    }),
+  );
+
+  if (response.status !== 413) {
+    fail(`Expected 413 from /api/tts for chunked oversized body, got ${response.status}.`);
+  }
+
+  const payload = JSON.parse(response.body);
+
+  if (payload?.error !== "Request body too large.") {
+    fail("Unexpected chunked oversized-body response from /api/tts.");
+  }
+
+  assertHeaderNoStore(response.headers, "Chunked oversized TTS body response");
+}
+
 async function checkNullJsonBody() {
   await expectInvalidChatRequestShape(null, "null JSON body");
 }
@@ -671,6 +773,89 @@ async function expectInvalidChatRequestShape(body, label) {
   }
 
   assertNoStore(response, `${label} response`);
+}
+
+async function expectInvalidTtsRequestShape(body, label) {
+  const response = await fetch(ttsEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (response.status !== 400) {
+    fail(`Expected 400 from /api/tts for ${label}, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid request shape.") {
+    fail(`Unexpected ${label} response body from /api/tts.`);
+  }
+
+  assertNoStore(response, `${label} response`);
+}
+
+async function checkInvalidTtsRequestShapes() {
+  await expectInvalidTtsRequestShape(null, "null TTS JSON body");
+  await expectInvalidTtsRequestShape("hello", "string TTS JSON body");
+  await expectInvalidTtsRequestShape(
+    {
+      language: "not-a-real-language",
+      text: "hello",
+    },
+    "invalid TTS language",
+  );
+  await expectInvalidTtsRequestShape(
+    {
+      language: "en",
+      text: "   \n   ",
+    },
+    "blank TTS text",
+  );
+  await expectInvalidTtsRequestShape(
+    {
+      language: "en",
+      text: "x".repeat(4001),
+    },
+    "overlong TTS text",
+  );
+}
+
+async function checkMockTtsResponseWhenEnabled() {
+  if (process.env.DEV_MOCK_TTS !== "true") {
+    return;
+  }
+
+  const response = await fetch(ttsEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      language: "en",
+      text: "Read this aloud.",
+    }),
+  });
+
+  if (response.status !== 200) {
+    fail(`Expected 200 from /api/tts mock mode, got ${response.status}.`);
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.startsWith("audio/")) {
+    fail(`/api/tts mock mode must return audio content-type; received ${contentType}.`);
+  }
+
+  assertNoStore(response, "Mock TTS response");
+
+  const audioBytes = await response.arrayBuffer();
+
+  if (audioBytes.byteLength === 0) {
+    fail("/api/tts mock mode returned empty audio.");
+  }
 }
 
 async function checkUnsafeReportProblemSource() {
@@ -1162,10 +1347,22 @@ await checkInvalidJsonBody();
 console.log("Invalid JSON handling ok (/api/chat rejects malformed JSON bodies).");
 await checkWrongChatMethod();
 console.log("Wrong method handling ok (/api/chat rejects GET requests).");
+await checkWrongTtsMethod();
+console.log("Wrong method handling ok (/api/tts rejects GET requests).");
+await checkInvalidTtsJsonBody();
+console.log("Invalid JSON handling ok (/api/tts rejects malformed JSON bodies).");
+await checkInvalidTtsRequestShapes();
+console.log("Invalid shape handling ok (/api/tts rejects malformed request bodies).");
 await checkOversizedChatBody();
 console.log("Oversized body handling ok (/api/chat rejects huge JSON before parsing).");
 await checkChunkedOversizedChatBody();
 console.log("Chunked oversized body handling ok (/api/chat rejects huge JSON while streaming).");
+await checkOversizedTtsBody();
+console.log("Oversized body handling ok (/api/tts rejects huge JSON before parsing).");
+await checkChunkedOversizedTtsBody();
+console.log("Chunked oversized body handling ok (/api/tts rejects huge JSON while streaming).");
+await checkMockTtsResponseWhenEnabled();
+console.log("Mock TTS response ok when DEV_MOCK_TTS is enabled.");
 await checkNullJsonBody();
 console.log("Null JSON handling ok (/api/chat rejects null bodies).");
 await checkStringJsonBody();

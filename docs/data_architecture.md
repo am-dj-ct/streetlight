@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-09
-**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, weak-category coverage, and regression enforcement landed)
+**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, weak-category coverage, regression enforcement, and Azure read-aloud landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -421,11 +421,11 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Side Path — TTS Button Tap
 
-- **Runs:** Browser, Web Speech API. Browser's built-in synthesizer speaks the response text. No network call to us.
-- **Has access to:** The response text being read aloud.
-- **Logs by default:** None on our side. Browser/OS may have its own behavior (out of our control — Web Speech API on some platforms calls cloud TTS services).
-- **Override:** None — platform behavior, the alternative (server-side TTS) would require sending response text through a service we'd have to vet.
-- **What leaves this hop:** Nothing on our side.
+- **Runs:** Browser first calls `/api/tts` for provider-backed read-aloud. If provider read-aloud is disabled, unavailable, or blocked by the daily character cap, the browser falls back to the Web Speech API device voice when available.
+- **Has access to:** The assistant response text being read aloud, the selected UI language, Azure Speech key (server-side only), and Azure Speech region.
+- **Logs by default:** Vercel runtime logs for `/api/tts` request metadata. The route may log safe operational error metadata: provider, status, language, voice name, character count, response time. It never logs the text. Azure AI Speech receives the answer text and returns audio. The browser/OS may have its own behavior for Web Speech API fallback.
+- **Override:** Audio generation is explicit tap-only, never autoplay. The Azure key is never exposed to the browser. The response is returned with `Cache-Control: no-store`. Audio is played from an in-memory blob URL and revoked after use. No audio cache, no stored audio file, no service worker cache, no CDN.
+- **What leaves this hop:** HTTPS POST to `/api/tts`, then server-side HTTPS POST to Azure AI Speech containing SSML built from the assistant response text. No user identifier, no account, no session ID.
 
 ### Side Path — Save Conversation
 
@@ -439,7 +439,8 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 1. User's browser (in-memory, optionally saved client-side by user).
 2. Vercel function (in-memory during request handling; not logged).
 3. Anthropic API — main model (7-day retention).
-4. Anthropic API — classifier (7-day retention).
+4. Anthropic API — classifier and follow-up suggestion passes (7-day retention).
+5. Azure AI Speech — assistant response text only when the user taps read-aloud.
 
 Cloudflare Turnstile script-only mode does not see message bodies.
 
@@ -550,6 +551,7 @@ A custom ESLint rule (or pre-commit grep hook) forbids `console.log`, `console.e
 |---|---|---|---|
 | Per-IP rate limit counter (hashed IP) | Vercel KV | 24-hour TTL | Abuse mitigation |
 | Daily spend tracking | Vercel KV | Reset daily | Tier selection |
+| Daily read-aloud character count | Vercel KV | Reset daily | Azure Speech budget control |
 | Kill switch state (soft/hard pause) | Vercel KV or env var | Indefinite | Operational control |
 | Aggregate metadata events | Vercel runtime logs | ~3 days (Pro plan) | Quarterly review |
 | Referral resource list (JSON) | Static file in repo | Indefinite | UI content |
@@ -737,6 +739,11 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 | Turnstile secret | CAPTCHA validation | Vercel env var | Annual, or on suspected compromise |
 | Hashed-IP salt | One-way hashing for rate limit | Vercel env var | **Quarterly**, or on suspected compromise |
 | Vercel KV credentials | Auto-managed by Vercel | Vercel internal | Auto |
+| `TTS_ENABLED` | Explicitly enables provider-backed read-aloud | Vercel env var | On read-aloud launch/change |
+| `AZURE_SPEECH_KEY` | Azure AI Speech read-aloud API calls | Vercel env var | Annual, or on suspected compromise |
+| `AZURE_SPEECH_REGION` | Azure AI Speech regional endpoint selection | Vercel env var | On Azure resource migration |
+| `TTS_DAILY_CHARACTER_LIMIT` | Optional daily cap for Azure read-aloud characters | Vercel env var | On budget change |
+| `DEV_MOCK_TTS` | Local-only mock audio mode | Local/Vercel env var | Must be false/unset in production |
 | Vercel deploy tokens | Auto-managed by Vercel | Vercel internal | Auto |
 | GitHub auth | Repo access | Operator's password manager + 2FA | Standard hygiene |
 
@@ -930,11 +937,13 @@ The page footer includes "Last updated: YYYY-MM-DD" reflecting the last meaningf
 
 ## What we save: nothing about your conversation.
 
-Your messages and the answers you get are not saved on our servers. We don't keep them. We don't read them later. We don't sell them. We don't use them to train AI.
+Your messages, the answers you get, and read-aloud audio are not saved on our servers. We don't keep them. We don't read them later. We don't sell them. We don't use them to train AI.
 
 ## What we do save: numbers, not words.
 
 We save things like: how long it took to answer, which button you tapped, what language you used, what kind of question it was. We don't save what you typed or what the answer said.
+
+For read-aloud, we may save the daily total number of characters sent for audio so the bill cannot run away. We don't save the words.
 
 We save these to make sure the tool works and to know if something is broken.
 
@@ -950,15 +959,17 @@ When you send a message, it goes to a company called Anthropic. They make the AI
 
 We picked Anthropic because their rules about your data are stricter than most companies that make AI.
 
-## If you save a conversation on your phone.
+If you tap Play aloud, the answer text is sent to Microsoft Azure AI Speech to make audio. If you don't tap Play aloud, it is not sent there. We don't save the audio.
 
-You can save a conversation if you want. If you do, it stays on your phone, not on our servers. If someone else uses your phone, they could see it. If you're using a borrowed phone or a library computer, don't save here. You can email it to yourself instead.
+## If you save a conversation on this device.
+
+You can save a conversation if you want. If you do, it stays on this device, not on our servers. If someone else uses this device, they could see it. If you're using a shared or borrowed device, or a library computer, don't save here. You can email it to yourself instead.
 
 ## What we don't do.
 
 - We don't have ads.
 - We don't sell anything.
-- We don't share your data with anyone.
+- We don't send your conversation anywhere except the services named on this page.
 - We don't have an account or login.
 - We don't track you across the internet.
 - We don't know who you are.
@@ -997,7 +1008,7 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 - **No paid tier, no subscription, no upgrade flow.** Public utility.
 - **No API offered to third parties.** Other projects fork the open-source code; they do not consume our API.
 - **No federation, no multi-tenancy, no white-labeling.** One tool. Other organizations fork and run their own deployments.
-- **No phone home, no telemetry to the operator.** The deployed tool does not send signals back beyond named hops (Anthropic, Vercel native logs).
+- **No phone home, no telemetry to the operator.** The deployed tool does not send signals back beyond named hops (Anthropic, Azure AI Speech for explicit read-aloud, Vercel native logs).
 - **No ML or analytics on classifier categories beyond aggregate counts.** Categories counted in metadata for quarterly review. Not fed into a learning loop.
 
 ---
@@ -1059,6 +1070,14 @@ One-line summary of every decision in this document, dated for traceability.
 - Every conversation entry now has 5–10 synthetic regression prompts, enforced by `npm run check:content`.
 - GitHub Actions runs static checks, build, smoke, and the full prompt suite in mock-local mode on every PR and push to `main`.
 - Live prompt regression remains `npm run regression:prompts`; it is the deliberate Haiku/Sonnet/Opus behavior check before model or prompt changes, not a routine no-secret PR job.
+
+**2026-05-09 — Azure Speech read-aloud:**
+
+- Provider-backed read-aloud now uses Azure AI Speech through a server-side `/api/tts` proxy.
+- Audio generation is explicit tap-only and separate from `/api/chat`.
+- Azure receives assistant response text only when the user taps read-aloud.
+- The browser uses an in-memory audio blob and revokes it after playback; no audio cache or persistence is added.
+- Browser Web Speech remains the fallback if Azure read-aloud is disabled or unavailable.
 
 ---
 

@@ -1,9 +1,13 @@
 import {
   getDeployCommitSha,
   getDeployEnvironment,
+  getTtsDailyCharacterLimit,
+  hasAzureSpeechConfig,
   hasLiveModelConfig,
   isDevMockChatEnabled,
+  isProductionTtsMockMisconfigured,
   isProductionMockMisconfigured,
+  isTtsEnabled,
 } from "./env";
 
 export type ChatMode = "live-model" | "mock-local";
@@ -29,7 +33,12 @@ export function getRuntimeState(): RuntimeState {
     commitSha: getDeployCommitSha() ?? "local-dev",
     deployConfigOk:
       !isProductionMockMisconfigured() &&
-      (deployEnv !== "production" || hasLiveModelConfig()),
+      !isProductionTtsMockMisconfigured() &&
+      (deployEnv !== "production" ||
+        (hasLiveModelConfig() &&
+          isTtsEnabled() &&
+          hasAzureSpeechConfig() &&
+          getTtsDailyCharacterLimit() !== null)),
     deployEnv,
     ok: true,
     service: "access-tool",

@@ -6,18 +6,19 @@
   "pages": {
     "privacy": {
       "title": "Asturnaanta",
-      "lastUpdated": "2026-05-07",
+      "lastUpdated": "2026-05-09",
       "sections": [
         {
           "heading": "Waxa aan kaydinno: waxba oo ku saabsan sheekadaada.",
           "paragraphs": [
-            "Farriimahaaga iyo jawaabaha aad hesho laguma kaydiyo server-radayada. Ma hayno. Mar dambe ma akhrino. Ma iibinno. Uma isticmaalno in AI lagu tababaro."
+            "Farriimahaaga, jawaabaha aad hesho, iyo codka akhriska laguma kaydiyo server-radayada. Ma hayno. Mar dambe ma akhrino. Ma iibinno. Uma isticmaalno in AI lagu tababaro."
           ]
         },
         {
           "heading": "Waxa aan kaydinno: tirooyin, erayo ma aha.",
           "paragraphs": [
             "Waxaan kaydinnaa waxyaabo sida: intii jawaabtu qaadatay, badhanka aad taabatay, luqadda aad isticmaashay, iyo nooca su'aashu ahayd. Ma kaydinno waxa aad qortay ama waxa jawaabtu tiri.",
+            "Akhrinta codka, waxaan kaydin karnaa wadarta tirada xarfo ee maalin kasta loo diray si cod loo sameeyo, si kharashku uusan u baxsan. Ma kaydinno erayada.",
             "Waxaan tan u kaydinnaa si aan u hubinno in qalabku shaqaynayo iyo si aan u ogaano haddii wax jaban yihiin."
           ]
         },
@@ -32,7 +33,8 @@
           "heading": "Meesha farriimahaagu tagaan.",
           "paragraphs": [
             "Markaad fariin dirto, waxay tagtaa shirkad la yiraahdo Anthropic. Iyaga ayaa sameeya AI-ga kuu jawaabaya. Farriintaada waxay hayaan 7 maalmood, kadib way tirtiraan. Uma isticmaalaan in AI lagu tababaro. Mana la wadaagaan.",
-            "Waxaan doorannay Anthropic sababtoo ah xeerarkooda ku saabsan xogtaada way ka adag yihiin shirkado badan oo AI sameeya."
+            "Waxaan doorannay Anthropic sababtoo ah xeerarkooda ku saabsan xogtaada way ka adag yihiin shirkado badan oo AI sameeya.",
+            "Haddii aad taabato Cod dheer u akhri, qoraalka jawaabta waxaa loo diraa Microsoft Azure AI Speech si cod loo sameeyo. Haddii aadan taaban Cod dheer u akhri, halkaas looma diro. Codka ma kaydinno."
           ]
         },
         {
@@ -47,7 +49,7 @@
           "bullets": [
             "Xayeysiis ma lihin.",
             "Waxba ma iibinno.",
-            "Xogtaada cidna lama wadaagno.",
+            "Sheekadaada meel kale uma dirno marka laga reebo adeegyada lagu magacaabay boggan.",
             "Akoon ama gelitaan ma lihin.",
             "Internetka kuguma raad raacno.",
             "Ma naqaan cidda aad tahay."
@@ -75,7 +77,7 @@
     },
     "about": {
       "title": "Ku saabsan",
-      "lastUpdated": "2026-05-08",
+      "lastUpdated": "2026-05-09",
       "sections": [
         {
           "heading": "Waxa kani yahay.",
@@ -94,14 +96,14 @@
         {
           "heading": "Sida uu u shaqeeyo.",
           "paragraphs": [
-            "Bogga waxaa ka dambeeya dhowr tallaabo oo AI ah. Sheekada ugu weyn waxay isticmaashaa moodallada Anthropic. Mar labaad oo yar ayaa hubisa haddii jawaabtu gasho qayb AI lagu yaqaan inuu ku qaldo, sida habraaca sharciga ama u-qalmitaanka gunnooyinka.",
+            "Bogga waxaa ka dambeeya dhowr tallaabo oo AI ah. Sheekada ugu weyn waxay isticmaashaa moodallada Anthropic. Mar labaad oo yar ayaa hubisa haddii jawaabtu gasho qayb AI lagu yaqaan inuu ku qaldo, sida habraaca sharciga ama u-qalmitaanka gunnooyinka. Akhrinta codka waxay isticmaashaa Microsoft Azure AI Speech markaad taabato Cod dheer u akhri.",
             "Moodallo kala duwan ayaa wakhtiyo kala duwan la isticmaali karaa si qalabku ugu sii shaqeeyo miisaaniyad yar oo danta guud ah."
           ]
         },
         {
           "heading": "Cod iyo luqad.",
           "paragraphs": [
-            "Qalabku qoraal ayuu marka hore ku shaqeeyaa. Gelinta makarafoonka iyo akhrinta codka dheer waa caawiyeyaal, laakiin isticmaalka cod keliya weli waa meel ka maqan V1."
+            "Qalabku qoraal ayuu marka hore ku shaqeeyaa. Gelinta makarafoonka iyo akhrinta codka dheer waa caawiyeyaal, laakiin isticmaalka cod keliya weli waa meel ka maqan V1. Codadka qalabka ayaa weli kayd ahaan u jira marka akhrinta dabiiciga ahi aanay jirin."
           ]
         },
         {

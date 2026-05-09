@@ -143,6 +143,8 @@
     "voiceSpeedLabel": "Xawaare",
     "voiceDefaultOption": "Caadi",
     "voiceOnlyOneOption": "Browser-kan wuxuu luqaddan u muujinayaa hal cod oo keliya.",
+    "voiceLoading": "Codka ayaa soo raraya...",
+    "voiceUnavailable": "Akhrinta codka hadda halkan lagama heli karo.",
     "composerPlaceholder": "Halkan ku qor",
     "composerAssistiveLabel": "Qor fariin",
     "micLabel": "Makarafoon",
