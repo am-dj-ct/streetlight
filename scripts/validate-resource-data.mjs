@@ -4,6 +4,7 @@ import {
   isReferralCategory,
   referralCoverageCategories,
 } from "./lib/taxonomy.mjs";
+import { parseStrictIsoDate } from "./lib/iso-date.mjs";
 
 const cwd = process.cwd();
 
@@ -66,9 +67,9 @@ function assertIsoDate(value, label) {
     fail(`${label} must use YYYY-MM-DD.`);
   }
 
-  const parsed = Date.parse(`${value}T00:00:00Z`);
+  const parsed = parseStrictIsoDate(value);
 
-  if (Number.isNaN(parsed)) {
+  if (parsed === null) {
     fail(`${label} must be a valid calendar date.`);
   }
 
@@ -78,7 +79,12 @@ function assertIsoDate(value, label) {
 }
 
 function collectStaleWarning(lastVerified, label, warnings) {
-  const verifiedAt = Date.parse(`${lastVerified}T00:00:00Z`);
+  const verifiedAt = parseStrictIsoDate(lastVerified);
+
+  if (verifiedAt === null) {
+    return;
+  }
+
   const ageInDays = Math.floor((Date.now() - verifiedAt) / (1000 * 60 * 60 * 24));
 
   if (ageInDays > staleAfterDays) {

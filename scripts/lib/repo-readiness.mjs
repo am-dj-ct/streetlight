@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { parseStrictIsoDate } from "./iso-date.mjs";
 import { readJsonFile } from "./json-file.mjs";
 
 export const localeDirectories = [
@@ -84,12 +85,7 @@ export function getMissingKeys(baseValue, compareValue, prefix = "") {
 }
 
 export function parseIsoDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return null;
-  }
-
-  const parsed = Date.parse(`${value}T00:00:00Z`);
-  return Number.isNaN(parsed) ? null : parsed;
+  return parseStrictIsoDate(value);
 }
 
 async function readJsonFromCwd(cwd, relativePath) {

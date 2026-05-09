@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { readJsonFile } from "./lib/json-file.mjs";
+import { parseStrictIsoDate } from "./lib/iso-date.mjs";
 import {
   validateRegressionCases,
   validateSmokeCases,
@@ -187,9 +188,9 @@ for (const pageKey of expectedStaticPageKeys) {
 
   if (
     typeof page.lastUpdated !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(page.lastUpdated)
+    parseStrictIsoDate(page.lastUpdated) === null
   ) {
-    fail(`static-pages "${pageKey}" must include a YYYY-MM-DD lastUpdated value.`);
+    fail(`static-pages "${pageKey}" must include a valid YYYY-MM-DD lastUpdated value.`);
   }
 
   if (!Array.isArray(page.sections) || page.sections.length === 0) {

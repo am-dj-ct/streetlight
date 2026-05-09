@@ -1,4 +1,5 @@
 import { readJsonFile } from "./lib/json-file.mjs";
+import { parseStrictIsoDate } from "./lib/iso-date.mjs";
 
 const staleAfterDays = 180;
 const resourceFiles = [
@@ -16,9 +17,9 @@ function parseIsoDate(value, label) {
     fail(`${label} must use YYYY-MM-DD.`);
   }
 
-  const parsed = Date.parse(`${value}T00:00:00Z`);
+  const parsed = parseStrictIsoDate(value);
 
-  if (Number.isNaN(parsed)) {
+  if (parsed === null) {
     fail(`${label} must be a valid calendar date.`);
   }
 
