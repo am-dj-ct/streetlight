@@ -12,6 +12,8 @@ const crisisPath = path.join(cwd, "src/data/crisis-resources.json");
 
 const validRegions = new Set(["king", "fallback"]);
 const staleAfterDays = 180;
+const resourceIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const controlCharacterPattern = /[\u0000-\u001f\u007f]/;
 
 function fail(message) {
   throw new Error(message);
@@ -21,10 +23,30 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function assertHttpsUrl(value, label) {
+function assertCleanString(value, label) {
   if (!isNonEmptyString(value)) {
     fail(`${label} must be a non-empty string.`);
   }
+
+  if (value !== value.trim()) {
+    fail(`${label} must not have leading or trailing whitespace.`);
+  }
+
+  if (controlCharacterPattern.test(value)) {
+    fail(`${label} must not contain control characters.`);
+  }
+}
+
+function assertResourceId(value, label) {
+  assertCleanString(value, label);
+
+  if (!resourceIdPattern.test(value)) {
+    fail(`${label} must use lowercase kebab-case.`);
+  }
+}
+
+function assertHttpsUrl(value, label) {
+  assertCleanString(value, label);
 
   try {
     const url = new URL(value);
@@ -38,9 +60,7 @@ function assertHttpsUrl(value, label) {
 }
 
 function assertIsoDate(value, label) {
-  if (!isNonEmptyString(value)) {
-    fail(`${label} must be a non-empty string.`);
-  }
+  assertCleanString(value, label);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     fail(`${label} must use YYYY-MM-DD.`);
@@ -67,9 +87,7 @@ function collectStaleWarning(lastVerified, label, warnings) {
 }
 
 function assertPhone(value, label) {
-  if (!isNonEmptyString(value)) {
-    fail(`${label} must be a non-empty string.`);
-  }
+  assertCleanString(value, label);
 
   const digits = value.replace(/[^0-9]/g, "");
 
@@ -121,23 +139,12 @@ function validateReferrals(referrals) {
   const warnings = [];
 
   for (const referral of referrals) {
-    if (!isNonEmptyString(referral.id)) {
-      fail("Every referral must have a non-empty id.");
-    }
-
+    assertResourceId(referral.id, "Every referral id");
     assertUniqueId(referral.id, seenIds, "src/data/referrals.json");
 
-    if (!isNonEmptyString(referral.name)) {
-      fail(`Referral "${referral.id}" must have a non-empty name.`);
-    }
-
-    if (!isNonEmptyString(referral.description)) {
-      fail(`Referral "${referral.id}" must have a non-empty description.`);
-    }
-
-    if (!isNonEmptyString(referral.sourceName)) {
-      fail(`Referral "${referral.id}" must have a non-empty sourceName.`);
-    }
+    assertCleanString(referral.name, `Referral "${referral.id}" name`);
+    assertCleanString(referral.description, `Referral "${referral.id}" description`);
+    assertCleanString(referral.sourceName, `Referral "${referral.id}" sourceName`);
 
     assertIsoDate(
       referral.lastVerified,
@@ -237,19 +244,11 @@ function validateCrisisResources(resources) {
   const warnings = [];
 
   for (const resource of resources) {
-    if (!isNonEmptyString(resource.id)) {
-      fail("Every crisis resource must have a non-empty id.");
-    }
-
+    assertResourceId(resource.id, "Every crisis resource id");
     assertUniqueId(resource.id, seenIds, "src/data/crisis-resources.json");
 
-    if (!isNonEmptyString(resource.label)) {
-      fail(`Crisis resource "${resource.id}" must have a non-empty label.`);
-    }
-
-    if (!isNonEmptyString(resource.sourceName)) {
-      fail(`Crisis resource "${resource.id}" must have a non-empty sourceName.`);
-    }
+    assertCleanString(resource.label, `Crisis resource "${resource.id}" label`);
+    assertCleanString(resource.sourceName, `Crisis resource "${resource.id}" sourceName`);
 
     assertIsoDate(
       resource.lastVerified,
