@@ -1,8 +1,98 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "so",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "so"
   },
-  "buttons": {}
+  "buttons": {
+    "understand-letter-or-form": {
+      "label": "Faham warqad ama foom",
+      "assistantMessage": "Halkan ku dheji warqadda ama foomka, ama ii sheeg waxa uu leeyahay iyo qaybta kugu wareerisay. Waxaan kaa caawin karaa inaad si fudud u akhrido.",
+      "suggestions": [
+        "Ii sheeg waxa ay tani iga rabto",
+        "I tus waqtiga kama dambaysta ah ama tallaabada xigta",
+        "I caawi inaan ka jawaabo"
+      ]
+    },
+    "write-something": {
+      "label": "Qor wax",
+      "assistantMessage": "Ii sheeg cidda loogu talagalay, waxa aad rabto inaad tiraahdo, iyo sida tooska ama edebta leh ee aad rabto inuu u dhawaaqo. Waxaan kaa caawin karaa qoriddiisa.",
+      "suggestions": [
+        "Qor fariin qoraal ah",
+        "Qor email",
+        "I caawi inaan tan si cad u iraahdo"
+      ]
+    },
+    "think-it-through": {
+      "label": "Ka fikir (dhagayso oo su'aalo weydii)",
+      "assistantMessage": "Ii sheeg waxa socda. Waan dhagaysan karaa, dhowr su'aal ayaan weydiin karaa, waxaanan kaa caawin karaa inaad kala saarto waxa ugu horreeya ee muhiimka ah.",
+      "suggestions": [
+        "Hal su'aal mar iga weydii",
+        "I caawi inaan tan kala saaro",
+        "I caawi inaan qorshe sameeyo"
+      ]
+    },
+    "figure-out-next": {
+      "label": "Ogow waxa xiga ee la sameeyo",
+      "assistantMessage": "Ii sheeg xaaladda iyo meesha aad ku xanniban tahay. Waxaan kaa caawin karaa inaad u soo koobto tallaabada xigta ee ugu yar ee faa'iido leh.",
+      "suggestions": [
+        "I caawi inaan doorto waxa aan marka hore sameeyo",
+        "I sii tallaabada xigta ee ugu yar",
+        "Dhibaatooyin badan ayaan isku mar haystaa"
+      ]
+    },
+    "explain-like-new": {
+      "label": "U sharax sidii qof ku cusub",
+      "assistantMessage": "Ii sheeg waxa aad rabto in laguu sharaxo. Waxaan ka dhigi doonaa mid fudud oo cad, anigoon ku hoosaysiin.",
+      "suggestions": [
+        "Tan erayo fudud ku sharax",
+        "Marka hore sharax fikradda weyn",
+        "Ii sheeg waxa ay tani aniga ii tahay"
+      ]
+    },
+    "prepare-for-hard": {
+      "label": "U diyaar garow wax adag",
+      "assistantMessage": "Ii sheeg waxa adag. Waxaan ka shaqayn karnaa waxa la yiraahdo, waxa la qaato, ama waxa la filan karo.",
+      "suggestions": [
+        "I caawi inaan diyaariyo waxa aan oranayo",
+        "Ila samee qorshe gaaban",
+        "Maxaan qaataa ama weydiiyaa"
+      ]
+    },
+    "am-i-being-unreasonable": {
+      "label": "Ma waxaan noqonayaa qof aan macquul ahayn",
+      "assistantMessage": "Ii sheeg waxa dhacay iyo waxa aad codsanayso. Si toos ah ayaan kula hadli doonaa, xitaa haddii jawaabtu raaxo lahayn.",
+      "suggestions": [
+        "Si cad ii sheeg",
+        "Maxaan halkan ka seegayaa",
+        "Sidee tani qof kale ugu dhawaaqi lahayd"
+      ]
+    },
+    "embarrassed-to-ask": {
+      "label": "Wax aan ka xishoonayo inaan weydiiyo",
+      "assistantMessage": "U weydii sida ay maskaxdaada ugu timaaddo. Ka dhigi maayo wax yaab leh, kumana xukumi doono.",
+      "suggestions": [
+        "Ma aqaan sida aan tan u weydiiyo",
+        "Waxaan dareemayaa doqonnimo inaan tan weydiiyo",
+        "Fadlan ii sharax adigoon i xukumin"
+      ]
+    },
+    "type-your-own": {
+      "label": "Adigu qor",
+      "assistantMessage": "Qor wax kasta oo aad caawimaad uga baahan tahay. Su'aal, warqad, xaalad, ama dhowr eray ayaa ku filan in lagu bilaabo.",
+      "suggestions": [
+        "I caawi inaan sharaxo xaaladdayda",
+        "I caawi inaan wax qoro",
+        "I caawi inaan ogaado waxa xiga ee aan sameeyo"
+      ]
+    },
+    "talk-instead": {
+      "label": "Hadal halkii aad qori lahayd",
+      "assistantMessage": "Waxaad isticmaali kartaa makarafoonka marka uu diyaar yahay. Hadda, qor dhowr eray, welina waan kaa caawin karaa inaad bilowdo.",
+      "suggestions": [
+        "Waxaan rabaa inaan tan cod dheer ku iraahdo",
+        "I caawi inaan ku bilaabo hal jumlad",
+        "Marka hore hal su'aal i weydii"
+      ]
+    }
+  }
 }

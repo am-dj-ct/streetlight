@@ -1,8 +1,124 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "es",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "es"
   },
-  "pages": {}
+  "pages": {
+    "privacy": {
+      "title": "Privacidad",
+      "lastUpdated": "2026-05-07",
+      "sections": [
+        {
+          "heading": "Lo que guardamos: nada sobre tu conversación.",
+          "paragraphs": [
+            "Tus mensajes y las respuestas que recibes no se guardan en nuestros servidores. No los conservamos. No los leemos después. No los vendemos. No los usamos para entrenar IA."
+          ]
+        },
+        {
+          "heading": "Lo que sí guardamos: números, no palabras.",
+          "paragraphs": [
+            "Guardamos cosas como: cuánto tardó la respuesta, qué botón tocaste, qué idioma usaste, qué tipo de pregunta fue. No guardamos lo que escribiste ni lo que dijo la respuesta.",
+            "Guardamos esto para asegurarnos de que la herramienta funcione y para saber si algo está roto."
+          ]
+        },
+        {
+          "heading": "Cómo sabemos que no eres tú.",
+          "paragraphs": [
+            "No pedimos tu nombre. No pedimos tu email. No pedimos tu número de teléfono. No tenemos sistema de cuentas. No hay forma de que sepamos quién eres.",
+            "Sí vemos la dirección de internet que está usando tu teléfono. La convertimos en un código revuelto para poder evitar que alguien llene la herramienta de spam. No podemos convertirlo de vuelta en tu dirección."
+          ]
+        },
+        {
+          "heading": "A dónde van tus mensajes.",
+          "paragraphs": [
+            "Cuando envías un mensaje, va a una compañía llamada Anthropic. Ellos hacen la IA que te responde. Conservan tu mensaje por 7 días y luego lo borran. No lo usan para entrenar IA. No lo comparten.",
+            "Elegimos Anthropic porque sus reglas sobre tus datos son más estrictas que las de la mayoría de las compañías que hacen IA."
+          ]
+        },
+        {
+          "heading": "Si guardas una conversación en tu teléfono.",
+          "paragraphs": [
+            "Puedes guardar una conversación si quieres. Si lo haces, queda en tu teléfono, no en nuestros servidores. Si otra persona usa tu teléfono, podría verla. Si estás usando un teléfono prestado o una computadora de biblioteca, no guardes aquí. Puedes enviártela por email en su lugar."
+          ]
+        },
+        {
+          "heading": "Lo que no hacemos.",
+          "paragraphs": [],
+          "bullets": [
+            "No tenemos anuncios.",
+            "No vendemos nada.",
+            "No compartimos tus datos con nadie.",
+            "No tenemos cuenta ni inicio de sesión.",
+            "No te rastreamos por internet.",
+            "No sabemos quién eres."
+          ]
+        },
+        {
+          "heading": "Números de crisis y recursos.",
+          "paragraphs": [
+            "Los números de crisis y las listas de recursos son públicos. No rastreamos quién los toca. No sabemos quién llamó."
+          ]
+        },
+        {
+          "heading": "Si algo sale mal.",
+          "paragraphs": [
+            "Si crees que la herramienta te dio mala información, puedes decírnoslo con el enlace al final de cada pantalla. No tienes que darnos tu nombre. No tienes que darnos la conversación. Solo cuéntanos qué pasó con tus propias palabras."
+          ]
+        },
+        {
+          "heading": "Quién creó esto.",
+          "paragraphs": [
+            "Esta herramienta fue creada y es mantenida por una persona en Seattle. Es gratis. No es una compañía. No es un proyecto de investigación. Nadie gana dinero con esto. Si alguna vez deja de ser gratis, habrá dejado de ser esta herramienta."
+          ]
+        }
+      ]
+    },
+    "about": {
+      "title": "Acerca de",
+      "lastUpdated": "2026-05-08",
+      "sections": [
+        {
+          "heading": "Qué es esto.",
+          "paragraphs": [
+            "Access Tool es una herramienta de IA gratuita para web móvil y de interés público, para personas que enfrentan inseguridad de vivienda, pobreza u otro estrés serio.",
+            "Está pensada para ayudar con tareas reales: entender una carta, escribir algo difícil, averiguar qué hacer después o hablar algo para ordenarlo."
+          ]
+        },
+        {
+          "heading": "Qué no es.",
+          "paragraphs": [
+            "No es un abogado, un profesional clínico, un gestor de caso ni un directorio de servicios. No reemplaza a una persona que conoce tu situación.",
+            "La lista de referidos se mantiene a mano. La IA en sí no está inventando a quién llamar."
+          ]
+        },
+        {
+          "heading": "Cómo funciona.",
+          "paragraphs": [
+            "El sitio está construido con varios pasos de IA detrás de escena. La conversación principal usa modelos de Anthropic. Una segunda revisión más pequeña verifica si la respuesta cae en una categoría donde se sabe que la IA suele equivocarse, como procedimientos legales o elegibilidad para beneficios.",
+            "Se pueden usar distintos modelos en distintos momentos para mantener la herramienta funcionando dentro de un presupuesto pequeño de interés público."
+          ]
+        },
+        {
+          "heading": "Voz e idioma.",
+          "paragraphs": [
+            "La herramienta empieza por texto. La entrada por micrófono y la lectura en voz alta están como ayudas, pero el uso solo por voz todavía es una limitación en V1."
+          ]
+        },
+        {
+          "heading": "Quién la mantiene.",
+          "paragraphs": [
+            "Esta herramienta fue creada y es mantenida por una persona en Seattle.",
+            "Si dependes de ella, ten en cuenta que quizá no esté aquí para siempre. El código es de fuente abierta para que el proyecto pueda copiarse o continuar si hace falta."
+          ]
+        },
+        {
+          "heading": "Lo que más importa.",
+          "paragraphs": [
+            "La idea es poner una herramienta de IA muy buena al alcance de personas que normalmente no reciben una.",
+            "Sigue siendo gratis, no tiene inicio de sesión y trata de mantener la historia de privacidad lo más simple y honesta posible."
+          ]
+        }
+      ]
+    }
+  }
 }

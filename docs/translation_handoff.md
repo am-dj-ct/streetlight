@@ -1,15 +1,17 @@
 # Translation Handoff
 
-This app is set up so human translation can happen as a content pass, not a
-component refactor.
+This app is set up so translation can happen as a content pass, not a component
+refactor.
 
 ## Rules
 
-- Do not generate launch translations with a model.
 - English is the source of truth.
 - Every supported language gets its own JSON file.
 - If a language file is incomplete, the app falls back to English and shows an
   honesty notice in the UI.
+- AI-assisted translation is allowed for launch, but any launch translation
+  pass should still be spot-checked for clarity, safety wording, and mobile UI
+  fit before shipping.
 
 ## Supported languages
 
@@ -92,8 +94,13 @@ language.
 3. Do not delete the `meta` object.
 4. Set `meta.translated` to `true` only when the file is complete enough to
    ship without the English fallback notice.
-5. Run `npm run check:locales`.
-6. Run `npm run lint` and `npm run build`.
+5. Spot-check the result for:
+   - crisis and safety wording
+   - privacy wording
+   - short mobile button labels
+   - obviously awkward or robotic phrasing
+6. Run `npm run check:locales`.
+7. Run `npm run lint` and `npm run build`.
 
 ## Notes
 

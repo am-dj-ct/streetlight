@@ -24,8 +24,7 @@ You can copy this and edit the URL line.
 >
 > - it can still be wrong, vague, or miss context
 > - it is not a lawyer, clinician, case manager, or crisis line
-> - some non-English routes still show English interface text while human
->   translation is being added
+> - some non-English wording may still read awkwardly or miss nuance
 > - the tool may pause for a while if something looks wrong or if the daily
 >   usage limit is reached
 >

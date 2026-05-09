@@ -1,8 +1,124 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "so",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "so"
   },
-  "pages": {}
+  "pages": {
+    "privacy": {
+      "title": "Asturnaanta",
+      "lastUpdated": "2026-05-07",
+      "sections": [
+        {
+          "heading": "Waxa aan kaydinno: waxba oo ku saabsan sheekadaada.",
+          "paragraphs": [
+            "Farriimahaaga iyo jawaabaha aad hesho laguma kaydiyo server-radayada. Ma hayno. Mar dambe ma akhrino. Ma iibinno. Uma isticmaalno in AI lagu tababaro."
+          ]
+        },
+        {
+          "heading": "Waxa aan kaydinno: tirooyin, erayo ma aha.",
+          "paragraphs": [
+            "Waxaan kaydinnaa waxyaabo sida: intii jawaabtu qaadatay, badhanka aad taabatay, luqadda aad isticmaashay, iyo nooca su'aashu ahayd. Ma kaydinno waxa aad qortay ama waxa jawaabtu tiri.",
+            "Waxaan tan u kaydinnaa si aan u hubinno in qalabku shaqaynayo iyo si aan u ogaano haddii wax jaban yihiin."
+          ]
+        },
+        {
+          "heading": "Sida aan ku ogaano in adiga aysan ahayn.",
+          "paragraphs": [
+            "Magacaaga ma weydiino. Email-kaaga ma weydiino. Lambarka taleefankaaga ma weydiino. Nidaam akoon ma lihin. Ma jirto hab aan ku ogaan karno cidda aad tahay.",
+            "Waxaan aragnaa cinwaanka internetka ee taleefankaagu isticmaalayo. Waxaan u beddelnaa kood la qasay si aan u joojinno qof qalabka spam ku samaynaya. Dib uguma celin karno cinwaankaaga."
+          ]
+        },
+        {
+          "heading": "Meesha farriimahaagu tagaan.",
+          "paragraphs": [
+            "Markaad fariin dirto, waxay tagtaa shirkad la yiraahdo Anthropic. Iyaga ayaa sameeya AI-ga kuu jawaabaya. Farriintaada waxay hayaan 7 maalmood, kadib way tirtiraan. Uma isticmaalaan in AI lagu tababaro. Mana la wadaagaan.",
+            "Waxaan doorannay Anthropic sababtoo ah xeerarkooda ku saabsan xogtaada way ka adag yihiin shirkado badan oo AI sameeya."
+          ]
+        },
+        {
+          "heading": "Haddii aad sheeko ku kaydiso taleefankaaga.",
+          "paragraphs": [
+            "Waad kaydin kartaa sheeko haddii aad rabto. Haddii aad kaydiso, taleefankaaga ayay ku sii jiraysaa, server-radayada kuma jirto. Haddii qof kale isticmaalo taleefankaaga, wuu arki karaa. Haddii aad isticmaalayso taleefan la soo amaahday ama kombiyuutar maktabadeed, halkan ha ku kaydin. Halkii, email ayaad naftaada ugu diri kartaa."
+          ]
+        },
+        {
+          "heading": "Waxa aanan samayn.",
+          "paragraphs": [],
+          "bullets": [
+            "Xayeysiis ma lihin.",
+            "Waxba ma iibinno.",
+            "Xogtaada cidna lama wadaagno.",
+            "Akoon ama gelitaan ma lihin.",
+            "Internetka kuguma raad raacno.",
+            "Ma naqaan cidda aad tahay."
+          ]
+        },
+        {
+          "heading": "Lambarada xaaladaha adag iyo khayraadka.",
+          "paragraphs": [
+            "Lambarada xaaladaha adag iyo liisaska khayraadku waa dadweyne. Ma raad raacno cidda taabata. Ma naqaan cidda wacday."
+          ]
+        },
+        {
+          "heading": "Haddii wax qaldamaan.",
+          "paragraphs": [
+            "Haddii aad u malayso in qalabku ku siiyey xog xun, waxaad noogu sheegi kartaa xiriirka ku yaal hoose ee shaashad kasta. Uma baahnid inaad magacaaga na siiso. Uma baahnid inaad sheekada na siiso. Kaliya waxa dhacay ku sheeg erayadaada."
+          ]
+        },
+        {
+          "heading": "Cidda tan dhistay.",
+          "paragraphs": [
+            "Qalabkan waxaa dhisay oo maamula hal qof oo jooga Seattle. Waa bilaash. Shirkad ma aha. Mashruuc cilmi-baaris ma aha. Qofna lacag kama samaynayo. Haddii uu mar uun bilaash ahaan waayo, qalabkan ma sii aha."
+          ]
+        }
+      ]
+    },
+    "about": {
+      "title": "Ku saabsan",
+      "lastUpdated": "2026-05-08",
+      "sections": [
+        {
+          "heading": "Waxa kani yahay.",
+          "paragraphs": [
+            "Access Tool waa qalab AI web moobil ah oo bilaash ah, danta guudna loogu talagalay, oo loogu talagalay dadka la tacaalaya hoy la'aan, saboolnimo, ama culays kale oo culus.",
+            "Waxaa loogu talagalay inuu ka caawiyo hawlo dhab ah: fahamka warqad, qorista wax adag, ogaanshaha waxa xiga ee la sameeyo, ama ka hadlidda arrin si loo kala saaro."
+          ]
+        },
+        {
+          "heading": "Waxa uusan ahayn.",
+          "paragraphs": [
+            "Ma aha qareen, dhakhtar daryeel, maareeye kiis, ama tusaha adeegyada. Ma beddelo qof bini'aadam ah oo yaqaan xaaladdaada.",
+            "Liiska gudbinta gacanta ayaa lagu hayaa. AI-ga laftiisu ma hindisayo cidda la wacayo."
+          ]
+        },
+        {
+          "heading": "Sida uu u shaqeeyo.",
+          "paragraphs": [
+            "Bogga waxaa ka dambeeya dhowr tallaabo oo AI ah. Sheekada ugu weyn waxay isticmaashaa moodallada Anthropic. Mar labaad oo yar ayaa hubisa haddii jawaabtu gasho qayb AI lagu yaqaan inuu ku qaldo, sida habraaca sharciga ama u-qalmitaanka gunnooyinka.",
+            "Moodallo kala duwan ayaa wakhtiyo kala duwan la isticmaali karaa si qalabku ugu sii shaqeeyo miisaaniyad yar oo danta guud ah."
+          ]
+        },
+        {
+          "heading": "Cod iyo luqad.",
+          "paragraphs": [
+            "Qalabku qoraal ayuu marka hore ku shaqeeyaa. Gelinta makarafoonka iyo akhrinta codka dheer waa caawiyeyaal, laakiin isticmaalka cod keliya weli waa meel ka maqan V1."
+          ]
+        },
+        {
+          "heading": "Cidda maamusha.",
+          "paragraphs": [
+            "Qalabkan waxaa dhisay oo dayactira hal qof oo jooga Seattle.",
+            "Haddii aad ku tiirsan tahay, ogow in laga yaabo inuusan halkan joogin weligiis. Koodhku waa open-source si mashruuca loo koobi karo ama loo sii wadi karo haddii loo baahdo."
+          ]
+        },
+        {
+          "heading": "Waxa ugu muhiimsan.",
+          "paragraphs": [
+            "Ujeeddadu waa in qalab AI oo aad u fiican la gaarsiiyo dadka badanaa aan helin mid noocaas ah.",
+            "Wuu sii ahaanayaa bilaash, gelitaan ma laha, wuxuuna isku dayaa in sheekada asturnaanta laga dhigo mid sida ugu fudud uguna daacadsan ee suurtogalka ah."
+          ]
+        }
+      ]
+    }
+  }
 }

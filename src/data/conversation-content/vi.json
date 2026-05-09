@@ -1,8 +1,98 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "vi",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "vi"
   },
-  "buttons": {}
+  "buttons": {
+    "understand-letter-or-form": {
+      "label": "Hiểu thư hoặc biểu mẫu",
+      "assistantMessage": "Dán thư hoặc biểu mẫu vào đây, hoặc nói cho tôi biết nó ghi gì và phần nào làm bạn thấy khó hiểu. Tôi có thể giúp bạn đọc nó bằng ngôn ngữ dễ hiểu.",
+      "suggestions": [
+        "Nói cho tôi biết cái này đang yêu cầu gì",
+        "Chỉ cho tôi hạn chót hoặc bước tiếp theo",
+        "Giúp tôi trả lời"
+      ]
+    },
+    "write-something": {
+      "label": "Viết gì đó",
+      "assistantMessage": "Nói cho tôi biết viết cho ai, bạn cần nói gì, và bạn muốn nghe thẳng hay lịch sự đến mức nào. Tôi có thể giúp bạn soạn.",
+      "suggestions": [
+        "Viết tin nhắn",
+        "Viết email",
+        "Giúp tôi nói rõ điều này"
+      ]
+    },
+    "think-it-through": {
+      "label": "Nghĩ kỹ chuyện này (lắng nghe và hỏi)",
+      "assistantMessage": "Nói cho tôi biết chuyện gì đang xảy ra. Tôi có thể lắng nghe, hỏi vài câu, và giúp bạn sắp xếp việc nào quan trọng trước.",
+      "suggestions": [
+        "Hỏi tôi từng câu một",
+        "Giúp tôi sắp xếp việc này",
+        "Giúp tôi lập kế hoạch"
+      ]
+    },
+    "figure-out-next": {
+      "label": "Tìm việc cần làm tiếp theo",
+      "assistantMessage": "Nói cho tôi biết tình huống và bạn đang mắc ở đâu. Tôi có thể giúp bạn thu gọn lại thành bước tiếp theo nhỏ nhất có ích.",
+      "suggestions": [
+        "Giúp tôi chọn việc làm trước",
+        "Cho tôi bước tiếp theo nhỏ nhất",
+        "Tôi có quá nhiều vấn đề cùng lúc"
+      ]
+    },
+    "explain-like-new": {
+      "label": "Giải thích như thể tôi mới biết chuyện này",
+      "assistantMessage": "Nói cho tôi biết bạn muốn được giải thích điều gì. Tôi sẽ nói đơn giản và rõ ràng, không coi thường bạn.",
+      "suggestions": [
+        "Giải thích bằng từ đơn giản",
+        "Giải thích ý chính trước",
+        "Nói cho tôi biết điều này có nghĩa gì với tôi"
+      ]
+    },
+    "prepare-for-hard": {
+      "label": "Chuẩn bị cho việc khó",
+      "assistantMessage": "Nói cho tôi biết việc khó là gì. Chúng ta có thể chuẩn bị điều cần nói, cần mang theo, hoặc điều có thể xảy ra.",
+      "suggestions": [
+        "Giúp tôi chuẩn bị điều cần nói",
+        "Lập với tôi một kế hoạch ngắn",
+        "Tôi nên mang gì hoặc hỏi gì"
+      ]
+    },
+    "am-i-being-unreasonable": {
+      "label": "Tôi có đang quá đáng không",
+      "assistantMessage": "Nói cho tôi biết chuyện gì đã xảy ra và bạn đang yêu cầu gì. Tôi sẽ nói thẳng với bạn, kể cả khi câu trả lời không dễ nghe.",
+      "suggestions": [
+        "Nói thẳng cho tôi biết",
+        "Tôi đang bỏ sót điều gì ở đây",
+        "Điều này nghe thế nào với người khác"
+      ]
+    },
+    "embarrassed-to-ask": {
+      "label": "Điều tôi ngại hỏi",
+      "assistantMessage": "Hỏi theo cách tự nhiên nhất với bạn. Tôi sẽ không làm nó kỳ cục hay phán xét bạn.",
+      "suggestions": [
+        "Tôi không biết hỏi điều này thế nào",
+        "Tôi thấy mình ngốc khi hỏi điều này",
+        "Xin hãy giải thích mà đừng phán xét tôi"
+      ]
+    },
+    "type-your-own": {
+      "label": "Tự nhập nội dung",
+      "assistantMessage": "Nhập bất cứ điều gì bạn muốn được giúp. Một câu hỏi, một lá thư, một tình huống, hoặc chỉ vài từ là đủ để bắt đầu.",
+      "suggestions": [
+        "Giúp tôi giải thích tình huống của mình",
+        "Giúp tôi viết gì đó",
+        "Giúp tôi tìm việc cần làm tiếp theo"
+      ]
+    },
+    "talk-instead": {
+      "label": "Nói thay vì gõ",
+      "assistantMessage": "Bạn có thể dùng mic khi có sẵn. Còn bây giờ, hãy gõ vài từ và tôi vẫn có thể giúp bạn bắt đầu.",
+      "suggestions": [
+        "Tôi muốn nói điều này thành tiếng",
+        "Giúp tôi bắt đầu bằng một câu",
+        "Hỏi tôi một câu trước"
+      ]
+    }
+  }
 }

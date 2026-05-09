@@ -911,7 +911,7 @@ These commitments are the residual mitigation for risks the architecture cannot 
 
 This is the canonical text of the user-facing privacy page at `/privacy`. Linked from the landing page footer (visible on every screen including the conversation screen), the about page, the first-time save modal, and the bug-report channel.
 
-Translated into all seven supported languages (English, Spanish, Vietnamese, Somali, Russian, Amharic, Chinese) via professional or community translation — not model-generated — as a P0 launch deliverable.
+Translated into all seven supported languages (English, Spanish, Vietnamese, Somali, Russian, Amharic, Chinese) as a P0 launch deliverable. The current repo permits AI-assisted translation for launch, with spot-check review for safety wording, privacy wording, and mobile UI fit before shipping.
 
 The page footer includes "Last updated: YYYY-MM-DD" reflecting the last meaningful change. No changelog. The current state is what's true now.
 

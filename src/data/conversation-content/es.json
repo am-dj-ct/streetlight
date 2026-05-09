@@ -1,8 +1,98 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "es",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "es"
   },
-  "buttons": {}
+  "buttons": {
+    "understand-letter-or-form": {
+      "label": "Entender una carta o formulario",
+      "assistantMessage": "Pega la carta o el formulario aquí, o dime qué dice y qué parte se siente confusa. Puedo ayudarte a leerlo en lenguaje claro.",
+      "suggestions": [
+        "Dime qué está pidiendo esto",
+        "Muéstrame la fecha límite o el siguiente paso",
+        "Ayúdame a responderlo"
+      ]
+    },
+    "write-something": {
+      "label": "Escribir algo",
+      "assistantMessage": "Dime para quién es, qué necesitas decir y qué tan directo o amable quieres que suene. Puedo ayudarte a redactarlo.",
+      "suggestions": [
+        "Escribir un mensaje de texto",
+        "Escribir un email",
+        "Ayúdame a decir esto claramente"
+      ]
+    },
+    "think-it-through": {
+      "label": "Pensarlo bien (escuchar y hacer preguntas)",
+      "assistantMessage": "Dime qué está pasando. Puedo escuchar, hacer algunas preguntas y ayudarte a ordenar qué importa primero.",
+      "suggestions": [
+        "Hazme preguntas una por una",
+        "Ayúdame a ordenar esto",
+        "Ayúdame a hacer un plan"
+      ]
+    },
+    "figure-out-next": {
+      "label": "Averiguar qué hacer después",
+      "assistantMessage": "Dime la situación y dónde te atascaste. Puedo ayudarte a reducirlo al siguiente paso útil más pequeño.",
+      "suggestions": [
+        "Ayúdame a elegir qué hacer primero",
+        "Dame el siguiente paso más pequeño",
+        "Tengo demasiados problemas a la vez"
+      ]
+    },
+    "explain-like-new": {
+      "label": "Explicar algo como si fuera nuevo para mí",
+      "assistantMessage": "Dime qué quieres que te explique. Lo mantendré simple y claro sin hablarte como si no entendieras.",
+      "suggestions": [
+        "Explica esto con palabras simples",
+        "Explica primero la idea principal",
+        "Dime qué significa esto para mí"
+      ]
+    },
+    "prepare-for-hard": {
+      "label": "Prepararme para algo difícil",
+      "assistantMessage": "Dime cuál es la cosa difícil. Podemos trabajar en qué decir, qué llevar o qué esperar.",
+      "suggestions": [
+        "Ayúdame a preparar qué decir",
+        "Haz un plan corto conmigo",
+        "Qué debo llevar o preguntar"
+      ]
+    },
+    "am-i-being-unreasonable": {
+      "label": "¿Estoy siendo poco razonable?",
+      "assistantMessage": "Dime qué pasó y qué estás pidiendo. Seré directo contigo, aunque la respuesta sea incómoda.",
+      "suggestions": [
+        "Dímelo claro",
+        "Qué estoy pasando por alto aquí",
+        "Cómo le sonaría esto a otra persona"
+      ]
+    },
+    "embarrassed-to-ask": {
+      "label": "Algo que me da vergüenza preguntar",
+      "assistantMessage": "Pregúntalo como te salga. No lo haré raro ni te voy a juzgar.",
+      "suggestions": [
+        "No sé cómo preguntar esto",
+        "Me siento tonto preguntando esto",
+        "Por favor explica sin juzgarme"
+      ]
+    },
+    "type-your-own": {
+      "label": "Escribe lo tuyo",
+      "assistantMessage": "Escribe cualquier cosa con la que quieras ayuda. Una pregunta, una carta, una situación o solo unas palabras bastan para empezar.",
+      "suggestions": [
+        "Ayúdame a explicar mi situación",
+        "Ayúdame a escribir algo",
+        "Ayúdame a averiguar qué hacer después"
+      ]
+    },
+    "talk-instead": {
+      "label": "Hablar en vez de escribir",
+      "assistantMessage": "Puedes usar el micrófono cuando esté disponible. Por ahora, escribe unas palabras y aun así puedo ayudarte a empezar.",
+      "suggestions": [
+        "Quiero decir esto en voz alta",
+        "Ayúdame a empezar con una frase",
+        "Hazme una pregunta primero"
+      ]
+    }
+  }
 }

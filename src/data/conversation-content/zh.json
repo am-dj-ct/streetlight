@@ -1,8 +1,98 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "zh",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "zh"
   },
-  "buttons": {}
+  "buttons": {
+    "understand-letter-or-form": {
+      "label": "看懂信件或表格",
+      "assistantMessage": "把信件或表格粘贴在这里，或者告诉我上面写了什么，以及哪一部分让你困惑。我可以帮你用简单的话读懂它。",
+      "suggestions": [
+        "告诉我这在要求什么",
+        "帮我找截止日期或下一步",
+        "帮我回复它"
+      ]
+    },
+    "write-something": {
+      "label": "写点东西",
+      "assistantMessage": "告诉我是写给谁、你需要说什么，以及你希望听起来多直接或多礼貌。我可以帮你起草。",
+      "suggestions": [
+        "写一条短信",
+        "写一封 email",
+        "帮我把这件事说清楚"
+      ]
+    },
+    "think-it-through": {
+      "label": "想清楚这件事（倾听并提问）",
+      "assistantMessage": "告诉我发生了什么。我可以听你说，问几个问题，并帮你先理清什么最重要。",
+      "suggestions": [
+        "一次问我一个问题",
+        "帮我理清这件事",
+        "帮我做个计划"
+      ]
+    },
+    "figure-out-next": {
+      "label": "弄清下一步做什么",
+      "assistantMessage": "告诉我情况，以及你卡在哪里。我可以帮你缩小到一个最小但有用的下一步。",
+      "suggestions": [
+        "帮我选择先做什么",
+        "给我最小的下一步",
+        "我同时有太多问题"
+      ]
+    },
+    "explain-like-new": {
+      "label": "像给新手一样解释",
+      "assistantMessage": "告诉我你想了解什么。我会讲得简单清楚，不会居高临下。",
+      "suggestions": [
+        "用简单的话解释这个",
+        "先解释主要意思",
+        "告诉我这对我意味着什么"
+      ]
+    },
+    "prepare-for-hard": {
+      "label": "为困难的事做准备",
+      "assistantMessage": "告诉我困难的事是什么。我们可以一起准备该说什么、带什么，或会发生什么。",
+      "suggestions": [
+        "帮我准备要说的话",
+        "和我一起做个简短计划",
+        "我应该带什么或问什么"
+      ]
+    },
+    "am-i-being-unreasonable": {
+      "label": "我是不是不讲理",
+      "assistantMessage": "告诉我发生了什么，以及你在要求什么。我会直接告诉你，即使答案听起来不舒服。",
+      "suggestions": [
+        "直接告诉我",
+        "我漏掉了什么",
+        "这在别人听来会是什么感觉"
+      ]
+    },
+    "embarrassed-to-ask": {
+      "label": "我不好意思问的事",
+      "assistantMessage": "按你自然想到的方式问就好。我不会把它弄得尴尬，也不会评判你。",
+      "suggestions": [
+        "我不知道该怎么问这个",
+        "我觉得问这个很傻",
+        "请不要评判我，帮我解释"
+      ]
+    },
+    "type-your-own": {
+      "label": "自己输入",
+      "assistantMessage": "输入任何你想获得帮助的内容。一个问题、一封信、一个情况，或只是几个词，都足够开始。",
+      "suggestions": [
+        "帮我解释我的情况",
+        "帮我写点东西",
+        "帮我弄清下一步做什么"
+      ]
+    },
+    "talk-instead": {
+      "label": "改用说话",
+      "assistantMessage": "麦克风可用时，你可以使用它。现在先输入几个词，我仍然可以帮你开始。",
+      "suggestions": [
+        "我想把这件事说出来",
+        "帮我先写一句话",
+        "先问我一个问题"
+      ]
+    }
+  }
 }

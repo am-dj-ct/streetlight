@@ -26,10 +26,10 @@ when the build is ready.
 - [Data and Privacy Architecture](docs/data_architecture.md) — how it's
   built, what it logs (and doesn't), and the threat model.
 - [What this tool will not do](docs/forbidden.md) — the "no" list.
-- [Translation handoff](docs/translation_handoff.md) — where human
-  translation work lives and how to audit completeness.
+- [Translation handoff](docs/translation_handoff.md) — how locale files are
+  produced, reviewed, and audited for completeness.
 - [Translation worklist](docs/translation_worklist.md) — generated
-  per-language missing-key checklist for human translators.
+  per-language missing-key checklist for translation maintenance.
 - [Resource maintenance](docs/resource_maintenance.md) — how the hand-curated
   human-help lists are verified and kept fresh.
 - [Operational runbook](OPERATIONAL_RUNBOOK.md) — dashboard-first incident

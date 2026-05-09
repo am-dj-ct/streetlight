@@ -101,8 +101,7 @@
         {
           "heading": "Voice and language.",
           "paragraphs": [
-            "The tool is text-first. Mic input and read-aloud are there as helpers, but pure voice use is still a gap in V1.",
-            "The chat can work in multiple languages. Full UI translation is still being added carefully by humans, not generated automatically."
+            "The tool is text-first. Mic input and read-aloud are there as helpers, but pure voice use is still a gap in V1."
           ]
         },
         {

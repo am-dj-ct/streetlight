@@ -1,8 +1,124 @@
 {
   "meta": {
-    "translated": false,
-    "languageCode": "vi",
-    "inherits": "en"
+    "translated": true,
+    "languageCode": "vi"
   },
-  "pages": {}
+  "pages": {
+    "privacy": {
+      "title": "Quyền riêng tư",
+      "lastUpdated": "2026-05-07",
+      "sections": [
+        {
+          "heading": "Điều chúng tôi lưu: không có gì về cuộc trò chuyện của bạn.",
+          "paragraphs": [
+            "Tin nhắn của bạn và câu trả lời bạn nhận được không được lưu trên máy chủ của chúng tôi. Chúng tôi không giữ chúng. Chúng tôi không đọc lại sau đó. Chúng tôi không bán chúng. Chúng tôi không dùng chúng để huấn luyện AI."
+          ]
+        },
+        {
+          "heading": "Điều chúng tôi có lưu: con số, không phải lời bạn viết.",
+          "paragraphs": [
+            "Chúng tôi lưu những thứ như: mất bao lâu để trả lời, bạn bấm nút nào, bạn dùng ngôn ngữ nào, câu hỏi thuộc loại gì. Chúng tôi không lưu điều bạn đã gõ hoặc câu trả lời đã nói gì.",
+            "Chúng tôi lưu những thứ này để bảo đảm công cụ hoạt động và để biết nếu có gì bị hỏng."
+          ]
+        },
+        {
+          "heading": "Làm sao chúng tôi biết đó không phải là bạn.",
+          "paragraphs": [
+            "Chúng tôi không hỏi tên bạn. Chúng tôi không hỏi email của bạn. Chúng tôi không hỏi số điện thoại của bạn. Chúng tôi không có hệ thống tài khoản. Không có cách nào để chúng tôi biết bạn là ai.",
+            "Chúng tôi có thấy địa chỉ internet mà điện thoại của bạn đang dùng. Chúng tôi biến địa chỉ đó thành một mã đã xáo trộn để có thể ngăn người khác spam công cụ. Chúng tôi không thể giải mã nó trở lại thành địa chỉ của bạn."
+          ]
+        },
+        {
+          "heading": "Tin nhắn của bạn đi đâu.",
+          "paragraphs": [
+            "Khi bạn gửi tin nhắn, nó đi đến một công ty tên là Anthropic. Họ tạo ra AI trả lời bạn. Họ giữ tin nhắn của bạn trong 7 ngày, rồi xóa. Họ không dùng nó để huấn luyện AI. Họ không chia sẻ nó.",
+            "Chúng tôi chọn Anthropic vì quy định của họ về dữ liệu của bạn chặt chẽ hơn hầu hết các công ty làm AI."
+          ]
+        },
+        {
+          "heading": "Nếu bạn lưu một cuộc trò chuyện trên điện thoại.",
+          "paragraphs": [
+            "Bạn có thể lưu một cuộc trò chuyện nếu muốn. Nếu bạn lưu, nó ở lại trên điện thoại của bạn, không ở trên máy chủ của chúng tôi. Nếu người khác dùng điện thoại của bạn, họ có thể thấy nó. Nếu bạn đang dùng điện thoại mượn hoặc máy tính ở thư viện, đừng lưu ở đây. Bạn có thể gửi email cho chính mình."
+          ]
+        },
+        {
+          "heading": "Điều chúng tôi không làm.",
+          "paragraphs": [],
+          "bullets": [
+            "Chúng tôi không có quảng cáo.",
+            "Chúng tôi không bán gì cả.",
+            "Chúng tôi không chia sẻ dữ liệu của bạn với bất kỳ ai.",
+            "Chúng tôi không có tài khoản hoặc đăng nhập.",
+            "Chúng tôi không theo dõi bạn trên internet.",
+            "Chúng tôi không biết bạn là ai."
+          ]
+        },
+        {
+          "heading": "Số khủng hoảng và nguồn hỗ trợ.",
+          "paragraphs": [
+            "Các số khủng hoảng và danh sách nguồn hỗ trợ là công khai. Chúng tôi không theo dõi ai bấm vào chúng. Chúng tôi không biết ai đã gọi."
+          ]
+        },
+        {
+          "heading": "Nếu có gì sai.",
+          "paragraphs": [
+            "Nếu bạn nghĩ công cụ đã đưa cho bạn thông tin sai, bạn có thể cho chúng tôi biết qua liên kết ở cuối mỗi màn hình. Bạn không cần cho chúng tôi tên của bạn. Bạn không cần gửi cho chúng tôi cuộc trò chuyện. Chỉ cần nói cho chúng tôi biết chuyện gì đã xảy ra bằng lời của bạn."
+          ]
+        },
+        {
+          "heading": "Ai đã xây dựng công cụ này.",
+          "paragraphs": [
+            "Công cụ này được xây dựng và vận hành bởi một người ở Seattle. Nó miễn phí. Nó không phải là một công ty. Nó không phải là một dự án nghiên cứu. Không ai kiếm tiền từ nó. Nếu nó từng không còn miễn phí, thì nó không còn là công cụ này nữa."
+          ]
+        }
+      ]
+    },
+    "about": {
+      "title": "Giới thiệu",
+      "lastUpdated": "2026-05-08",
+      "sections": [
+        {
+          "heading": "Đây là gì.",
+          "paragraphs": [
+            "Access Tool là một công cụ AI miễn phí trên web điện thoại, vì lợi ích công cộng, dành cho người đang đối mặt với bất ổn nhà ở, nghèo khó, hoặc căng thẳng nghiêm trọng khác.",
+            "Nó được tạo để giúp các việc thật: hiểu một lá thư, viết điều gì đó khó, tìm việc cần làm tiếp theo, hoặc nói chuyện để gỡ rối một vấn đề."
+          ]
+        },
+        {
+          "heading": "Đây không phải là gì.",
+          "paragraphs": [
+            "Nó không phải là luật sư, chuyên viên lâm sàng, người quản lý hồ sơ, hoặc danh bạ dịch vụ. Nó không thay thế một người hiểu rõ tình huống của bạn.",
+            "Danh sách giới thiệu được duy trì bằng tay. Bản thân AI không tự bịa ra người cần gọi."
+          ]
+        },
+        {
+          "heading": "Cách nó hoạt động.",
+          "paragraphs": [
+            "Trang này được xây dựng với vài bước AI khác nhau phía sau. Cuộc trò chuyện chính dùng các mô hình của Anthropic. Một lượt kiểm tra nhỏ thứ hai xem câu trả lời có rơi vào loại mà AI thường được biết là hay sai không, như thủ tục pháp lý hoặc điều kiện nhận phúc lợi.",
+            "Các mô hình khác nhau có thể được dùng vào các thời điểm khác nhau để giữ cho công cụ hoạt động trong một ngân sách nhỏ vì lợi ích công cộng."
+          ]
+        },
+        {
+          "heading": "Giọng nói và ngôn ngữ.",
+          "paragraphs": [
+            "Công cụ này ưu tiên văn bản. Nhập bằng mic và đọc thành tiếng là các phần hỗ trợ, nhưng dùng hoàn toàn bằng giọng nói vẫn là một khoảng thiếu trong V1."
+          ]
+        },
+        {
+          "heading": "Ai vận hành nó.",
+          "paragraphs": [
+            "Công cụ này được xây dựng và duy trì bởi một người ở Seattle.",
+            "Nếu bạn đang dựa vào nó, hãy biết rằng có thể nó sẽ không ở đây mãi. Mã nguồn là mã nguồn mở để dự án có thể được sao chép hoặc tiếp tục nếu cần."
+          ]
+        },
+        {
+          "heading": "Điều quan trọng nhất.",
+          "paragraphs": [
+            "Mục tiêu là đưa một công cụ AI rất tốt đến với những người thường không có được một công cụ như vậy.",
+            "Nó luôn miễn phí, không cần đăng nhập, và cố giữ câu chuyện quyền riêng tư đơn giản và trung thực nhất có thể."
+          ]
+        }
+      ]
+    }
+  }
 }

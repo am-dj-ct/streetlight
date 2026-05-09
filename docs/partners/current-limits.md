@@ -10,8 +10,7 @@ people.
 - It should not be the only thing someone relies on for a high-stakes choice.
 - The human-help list is maintained by hand, but the AI reply itself can still
   make mistakes.
-- Some non-English routes still show English interface text while human
-  translation is being added.
+- Some non-English wording may still read awkwardly or miss nuance.
 - The tool may pause for a while if something looks wrong or if the daily usage
   limit is reached.
 
