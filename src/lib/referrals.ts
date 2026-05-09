@@ -96,12 +96,18 @@ export function getWeakCategoryLabel(category: WeakCategory): string {
       return "legal procedure";
     case "medical_dosing":
       return "medical dosing";
+    case "medical_decisionmaking":
+      return "medical decision-making";
     case "benefits_eligibility":
       return "benefits eligibility";
     case "immigration":
       return "immigration";
     case "drug_interactions":
       return "drug interactions";
+    case "employment_rights":
+      return "employment rights";
+    case "identity_documentation":
+      return "identity documentation";
     case "specific_deadlines":
       return "specific deadlines";
     case "specific_dollar_amounts":

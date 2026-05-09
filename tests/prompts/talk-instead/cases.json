@@ -6,7 +6,8 @@
   },
   {
     "name": "repair-call",
-    "text": "Talk me through what to say out loud before I call my landlord about an eviction notice that says pay or vacate, including how to ask about legal deadlines and next steps."
+    "text": "Talk me through what to say out loud before I call my landlord about an eviction notice that says pay or vacate, including how to ask about legal deadlines and next steps.",
+    "expectedClassifier": "legal_procedure"
   },
   {
     "name": "medicine-label",
@@ -22,5 +23,10 @@
     "name": "appointment-anxiety",
     "text": "Talk me through getting ready for a regular appointment when I am anxious and keep forgetting what I wanted to ask.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "schedule-cut-after-sick-leave",
+    "text": "Talk me through what to say when I call a worker-rights or legal-help line because my manager cut my schedule right after I asked for sick leave.",
+    "expectedClassifier": "employment_rights"
   }
 ]

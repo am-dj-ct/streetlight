@@ -22,5 +22,15 @@
     "name": "uscis-receipt-notice",
     "text": "Explain like I am new what a USCIS receipt notice means and what parts of the immigration notice I should double-check.",
     "expectedClassifier": "immigration"
+  },
+  {
+    "name": "school-enrollment-documents",
+    "text": "Explain like I am new what kinds of identity documents a school enrollment form usually asks for and what papers I should verify count.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "ten-business-days",
+    "text": "Explain like I am new what it means when a letter says I have 10 business days, not calendar days, to ask for a hearing.",
+    "expectedClassifier": "specific_deadlines"
   }
 ]

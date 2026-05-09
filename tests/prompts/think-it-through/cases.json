@@ -6,7 +6,8 @@
   },
   {
     "name": "appeal-benefits",
-    "text": "I am deciding whether to appeal a Basic Food benefits cutoff letter or reapply. The letter says my eligibility is ending because proof of income is missing. Help me think through what information matters."
+    "text": "I am deciding whether to appeal a Basic Food benefits cutoff letter or reapply. The letter says my eligibility is ending because proof of income is missing. Help me think through what information matters.",
+    "expectedClassifier": "benefits_eligibility"
   },
   {
     "name": "payment-plan",
@@ -22,5 +23,10 @@
     "name": "friend-conflict",
     "text": "I am upset at a friend who keeps cancelling plans. Help me think through whether to say something or let it go.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "stopped-antidepressant",
+    "text": "I stopped my antidepressant three days ago and now feel shaky and strange. Help me think through what to verify before deciding whether to restart it, wait, or call someone.",
+    "expectedClassifier": "medical_decisionmaking"
   }
 ]

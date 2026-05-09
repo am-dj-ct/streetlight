@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-09
-**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, weak-category coverage, regression enforcement, and Azure read-aloud landed)
+**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, weak-category taxonomy expansion, regression enforcement, and Azure read-aloud landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -387,7 +387,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Hop 6 — Vercel Receives Response, Fires Classifier and Follow-Up Suggestions
 
-- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt (label-only, returns one of: legal_procedure, medical_dosing, benefits_eligibility, immigration, drug_interactions, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn.
+- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt (label-only, returns one of: legal_procedure, medical_dosing, medical_decisionmaking, benefits_eligibility, immigration, drug_interactions, employment_rights, identity_documentation, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn.
 - **Has access to:** Main model output (which may carry PII forward from the user's prompt), classifier prompt.
 - **Logs by default:** Same Vercel runtime log behavior as Hop 3. Same Anthropic 7-day retention as Hop 5.
 - **Override:** Same logging discipline as Hop 3. No `console.log` of classifier input or output. We log only the classification result label.
@@ -592,7 +592,7 @@ If this tradeoff proves insufficient in practice, fallback options (in order of 
 ### Architecture
 
 - After the main model returns, a second `/v1/messages` call to Anthropic with Haiku 4.5 as the model.
-- Classifier prompt requests label-only output: one of `legal_procedure`, `medical_dosing`, `benefits_eligibility`, `immigration`, `drug_interactions`, `specific_deadlines`, `specific_dollar_amounts`, `none`. Nothing else in the response.
+- Classifier prompt requests label-only output: one of `legal_procedure`, `medical_dosing`, `medical_decisionmaking`, `benefits_eligibility`, `immigration`, `drug_interactions`, `employment_rights`, `identity_documentation`, `specific_deadlines`, `specific_dollar_amounts`, `none`. Nothing else in the response.
 - Classifier label drives the inline "AI gets this wrong sometimes" UI flag and pre-filters the find-a-human list.
 
 ### What Gets Logged
@@ -604,7 +604,7 @@ A single metadata record per turn:
   timestamp,
   model_main: "claude-sonnet-4-6-YYYYMMDD",  // pinned snapshot
   model_classifier: "claude-haiku-4-5-YYYYMMDD",  // pinned snapshot
-  classifier_category,    // one of 8 enum values
+  classifier_category,    // one of 11 enum values
   main_tokens_in,
   main_tokens_out,
   classifier_tokens_in,
@@ -681,6 +681,9 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 - Assertions: response length within bounds, response in correct language when input language is specified, response doesn't refuse the request, classifier fires correct category for cases where one is expected.
 - `specific_deadlines` is reserved for concrete due dates or timing rules, not general urgency language.
 - `specific_dollar_amounts` is reserved for concrete dollar amounts, balances, fees, payment plans, bill breakdowns, benefit amounts, income thresholds, or calculations that the user may need to verify.
+- `medical_decisionmaking` is reserved for concrete health decisions that are not primarily dose instructions or interaction guidance.
+- `employment_rights` is reserved for workplace-rights guidance, wages, leave, retaliation, firing, accommodations, and employer-required paperwork.
+- `identity_documentation` is reserved for risky document-requirement guidance when the issue is what papers count or what replacements are needed, not mainly a benefits, immigration, or court-process question.
 - The no-spend mock suite runs on every PR and every push to `main`. Live regression remains a manual pre-deploy/model-change gate so routine PR checks do not create unbounded Anthropic spend or require exposing live model secrets to all PR contexts.
 - Fails the build on regression.
 
@@ -1064,6 +1067,13 @@ One-line summary of every decision in this document, dated for traceability.
 - Follow-up suggestions now use a separate small Haiku JSON-only pass and render as tappable buttons below model responses.
 - Metadata schema now includes suggestion pass token counts, response time, and status, still with no content fields.
 - Classifier prompt now explicitly covers `medical_dosing`, `drug_interactions`, and `immigration`, with regression fixtures for each.
+
+**2026-05-09 — v2 weak-category taxonomy expansion:**
+
+- Added `medical_decisionmaking`, `employment_rights`, and `identity_documentation` to the label-only classifier enum.
+- Added classifier tie-break rules so benefits, immigration, legal procedure, medical dosing, and drug interactions still win where they should.
+- Tagged existing referral resources for the new categories rather than creating new routing branches.
+- Added first-wave regression fixtures for the new categories plus a direct `specific_deadlines` case.
 
 **2026-05-09 — regression suite enforcement:**
 

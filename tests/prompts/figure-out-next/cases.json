@@ -21,7 +21,7 @@
   },
   {
     "name": "lost-wallet",
-    "text": "I lost my wallet and have an appointment tomorrow that needs ID. Help me figure out what to do first without assuming I can fix everything today.",
-    "expectedClassifier": "none"
+    "text": "I lost my wallet and have a shelter intake appointment tomorrow that needs photo ID and proof of address. Help me figure out what to do first without assuming I can fix everything today.",
+    "expectedClassifier": "identity_documentation"
   }
 ]

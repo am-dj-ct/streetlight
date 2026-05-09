@@ -38,6 +38,20 @@ function classifyMockResponse({
   }
 
   if (
+    normalized.includes("boss") ||
+    normalized.includes("employer") ||
+    normalized.includes("manager") ||
+    normalized.includes("paycheck") ||
+    normalized.includes("wages") ||
+    normalized.includes("fired") ||
+    normalized.includes("schedule") ||
+    normalized.includes("sick leave") ||
+    normalized.includes("accommodation")
+  ) {
+    return "employment_rights";
+  }
+
+  if (
     normalized.includes("landlord") ||
     normalized.includes("eviction") ||
     normalized.includes("lease") ||
@@ -47,11 +61,44 @@ function classifyMockResponse({
   }
 
   if (
+    normalized.includes("uscis") ||
+    normalized.includes("work permit") ||
+    normalized.includes("green card") ||
+    normalized.includes("asylum") ||
+    normalized.includes("visa")
+  ) {
+    return "immigration";
+  }
+
+  if (
     normalized.includes("dose") ||
     normalized.includes("medication") ||
     normalized.includes("pill")
   ) {
     return "medical_dosing";
+  }
+
+  if (
+    normalized.includes("urgent care") ||
+    normalized.includes("poison control") ||
+    normalized.includes("hard to wake") ||
+    normalized.includes("withdrawal") ||
+    normalized.includes("stop taking") ||
+    normalized.includes("stop my antidepressant") ||
+    normalized.includes("dangerous symptom")
+  ) {
+    return "medical_decisionmaking";
+  }
+
+  if (
+    normalized.includes("photo id") ||
+    normalized.includes("proof of address") ||
+    normalized.includes("birth certificate") ||
+    normalized.includes("social security card") ||
+    normalized.includes("replace my id") ||
+    normalized.includes("lost my id")
+  ) {
+    return "identity_documentation";
   }
 
   switch (entryId) {

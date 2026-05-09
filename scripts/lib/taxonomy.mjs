@@ -11,9 +11,12 @@ export const supportedLanguageCodes = Object.freeze([
 export const weakCategories = Object.freeze([
   "legal_procedure",
   "medical_dosing",
+  "medical_decisionmaking",
   "benefits_eligibility",
   "immigration",
   "drug_interactions",
+  "employment_rights",
+  "identity_documentation",
   "specific_deadlines",
   "specific_dollar_amounts",
   "none",

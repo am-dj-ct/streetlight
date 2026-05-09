@@ -11,7 +11,8 @@
   },
   {
     "name": "work-permit",
-    "text": "I need help understanding a USCIS request for evidence for my work permit renewal. It asks for immigration documents by a deadline, and I need to know what to verify."
+    "text": "I need help understanding a USCIS request for evidence for my work permit renewal. It asks for immigration documents by a deadline, and I need to know what to verify.",
+    "expectedClassifier": "immigration"
   },
   {
     "name": "medicine-combo",
@@ -22,5 +23,10 @@
     "name": "calm-priorities",
     "text": "I have three errands, no bus fare until tomorrow, and I am too overwhelmed to start. Help me sort the next hour.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "extra-cold-medicine",
+    "text": "I took extra cold medicine and feel weird now. Help me think through whether I should call poison control, urgent care, or wait and watch.",
+    "expectedClassifier": "medical_decisionmaking"
   }
 ]

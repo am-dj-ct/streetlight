@@ -24,5 +24,10 @@
     "name": "medication-label-dose",
     "text": "My medicine label says take 1 tablet every morning and 2 tablets at bedtime. Explain the dosing instructions in plain language and what I should verify.",
     "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "shelter-id-requirements",
+    "text": "My shelter intake form says I need photo ID and proof of address, and if I do not have them I should bring any other identity paperwork I have. Explain what this form is asking me to verify.",
+    "expectedClassifier": "identity_documentation"
   }
 ]

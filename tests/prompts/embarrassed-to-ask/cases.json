@@ -28,5 +28,10 @@
     "name": "bedbug-report",
     "text": "I am embarrassed to ask, but if I think I brought bedbugs into a shelter room, what is the normal way to tell staff without panicking?",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "child-fever-urgent-care",
+    "text": "I feel stupid asking this, but my child has a high fever and is hard to wake up. What parts of this should I verify before deciding whether to go in now?",
+    "expectedClassifier": "medical_decisionmaking"
   }
 ]

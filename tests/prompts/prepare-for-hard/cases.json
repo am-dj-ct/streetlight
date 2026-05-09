@@ -16,11 +16,17 @@
   },
   {
     "name": "pharmacist-interaction",
-    "text": "Help me prepare for a hard call with a pharmacist about possible interactions between diphenhydramine, sertraline, and alcohol, including warning signs I should ask about."
+    "text": "Help me prepare for a hard call with a pharmacist about possible interactions between diphenhydramine, sertraline, and alcohol, including warning signs I should ask about.",
+    "expectedClassifier": "drug_interactions"
   },
   {
     "name": "case-manager-boundary",
     "text": "Help me prepare for a hard conversation with my case manager where I need to say I felt rushed and need slower explanations.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "accommodation-denial",
+    "text": "Help me prepare for a hard conversation with my boss after they denied my disability accommodation request and cut my schedule.",
+    "expectedClassifier": "employment_rights"
   }
 ]

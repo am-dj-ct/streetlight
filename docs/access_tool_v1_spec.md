@@ -161,8 +161,9 @@ deploy instantly to every user on next visit.
 
 - After each main-model response, a second pass via Haiku 4.5 classifies
   the response into known-weak categories: legal procedure, medical
-  dosing, benefits eligibility rules, immigration, drug interactions,
-  specific deadlines, specific dollar amounts.
+  dosing, medical decision-making, benefits eligibility rules,
+  immigration, drug interactions, employment rights, identity
+  documentation, specific deadlines, specific dollar amounts.
 - Result drives the inline weak-category flag and pre-filters the
   find-a-human list.
 - Classifier classifications are logged (no content). See Privacy.

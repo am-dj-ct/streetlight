@@ -23,5 +23,10 @@
     "name": "appointment-reschedule",
     "text": "A clinic moved my appointment twice and I want to ask for a sooner time because I am running out of medication. Am I being unreasonable?",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "withheld-paycheck",
+    "text": "My boss says they can hold part of my paycheck because I left early one day. Am I being unreasonable for pushing back and asking what my rights are?",
+    "expectedClassifier": "employment_rights"
   }
 ]
