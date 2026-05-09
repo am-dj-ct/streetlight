@@ -205,7 +205,7 @@ deploy instantly to every user on next visit.
 ### Geo-awareness
 
 - No geofence. Public URL accessible from anywhere.
-- Landing page makes King County scope visible: "Resources are curated
+- Landing page makes King County scope visible: "Resources are organized
   for King County, WA. The tool itself works for anyone, anywhere."
 - Free geo-awareness via Vercel request headers (no permission prompt):
   WA users see local crisis/referral content; non-WA users see 211 +
