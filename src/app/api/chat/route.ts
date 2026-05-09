@@ -207,7 +207,7 @@ export async function POST(request: Request) {
       return new Response(readable, {
         headers: {
           "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache, no-transform",
+          "Cache-Control": "no-store, no-transform",
           Connection: "keep-alive",
         },
       });
@@ -459,7 +459,7 @@ export async function POST(request: Request) {
     return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
+        "Cache-Control": "no-store, no-transform",
         Connection: "keep-alive",
       },
     });

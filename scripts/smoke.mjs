@@ -356,6 +356,16 @@ async function runCase(testCase) {
 
   const result = await parseSseResponse(response);
   const durationMs = Date.now() - startedAt;
+  const cacheControl = response.headers.get("cache-control") ?? "";
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("text/event-stream")) {
+    fail(`Case "${testCase.name}" did not return a text/event-stream response.`);
+  }
+
+  if (!cacheControl.includes("no-store") || !cacheControl.includes("no-transform")) {
+    fail(`Case "${testCase.name}" must set Cache-Control: no-store, no-transform.`);
+  }
 
   if (!result.text) {
     fail(`Case "${testCase.name}" returned no assistant text.`);
