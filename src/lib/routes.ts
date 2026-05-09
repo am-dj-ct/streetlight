@@ -29,6 +29,7 @@ const allowedSourcePathnames = [
   "/report-problem",
 ] as const;
 const maxInternalSourcePathLength = 512;
+const controlCharacterPattern = /[\u0000-\u001f\u007f]/;
 
 function makeInternalAppPath(value: string): InternalAppPath {
   if (!value.startsWith("/")) {
@@ -45,7 +46,8 @@ export function sanitizeInternalSourcePath(
     !sourcePath ||
     sourcePath.length > maxInternalSourcePathLength ||
     !sourcePath.startsWith("/") ||
-    sourcePath.startsWith("//")
+    sourcePath.startsWith("//") ||
+    controlCharacterPattern.test(sourcePath)
   ) {
     return null;
   }
