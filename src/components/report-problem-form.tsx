@@ -314,6 +314,7 @@ export function ReportProblemForm({
             {copy.reportPageGoalLabel}
           </span>
           <textarea
+            autoComplete="off"
             value={goal}
             onChange={(event) => setGoal(event.target.value)}
             maxLength={reportTextMaxLength}
@@ -327,6 +328,7 @@ export function ReportProblemForm({
             {copy.reportPageReplyLabel}
           </span>
           <textarea
+            autoComplete="off"
             value={reply}
             onChange={(event) => setReply(event.target.value)}
             maxLength={reportTextMaxLength}
@@ -362,6 +364,7 @@ export function ReportProblemForm({
             {copy.reportPageOptionalLabel}
           </span>
           <textarea
+            autoComplete="off"
             value={details}
             onChange={(event) => setDetails(event.target.value)}
             maxLength={reportDetailsMaxLength}

@@ -1301,6 +1301,7 @@ export function ConversationClient({
               <textarea
                 ref={composerRef}
                 id="conversation-input"
+                autoComplete="off"
                 autoFocus
                 rows={1}
                 value={draft}

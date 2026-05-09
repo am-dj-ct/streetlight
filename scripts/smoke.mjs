@@ -42,6 +42,7 @@ const pageChecks = [
   {
     expectedText: "Paste the letter or form here",
     extraExpectedText: [
+      'autoComplete="off"',
       'maxLength="8000"',
       'href="tel:988"',
       'href="tel:911"',
@@ -135,6 +136,7 @@ const pageChecks = [
   {
     expectedText: "Report a problem",
     extraExpectedText: [
+      'autoComplete="off"',
       'maxLength="800"',
       'maxLength="1200"',
     ],
