@@ -13,11 +13,14 @@ const azureVoiceOptionsByLanguage: Record<SupportedLanguageCode, AzureVoiceOptio
     { label: "Ameha", locale: "am-ET", name: "am-ET-AmehaNeural" },
   ],
   en: [
-    { label: "Sonia (British woman)", locale: "en-GB", name: "en-GB-SoniaNeural" },
+    { label: "Bella (British woman)", locale: "en-GB", name: "en-GB-BellaNeural" },
+    { label: "Hollie (British woman)", locale: "en-GB", name: "en-GB-HollieNeural" },
+    { label: "Abbi (British woman)", locale: "en-GB", name: "en-GB-AbbiNeural" },
     { label: "Libby (British woman)", locale: "en-GB", name: "en-GB-LibbyNeural" },
     { label: "Olivia (British woman)", locale: "en-GB", name: "en-GB-OliviaNeural" },
-    { label: "Jenny (US woman)", locale: "en-US", name: "en-US-JennyNeural" },
+    { label: "Sonia (British woman)", locale: "en-GB", name: "en-GB-SoniaNeural" },
     { label: "Ryan (British man)", locale: "en-GB", name: "en-GB-RyanNeural" },
+    { label: "Jenny (US woman)", locale: "en-US", name: "en-US-JennyNeural" },
   ],
   es: [
     { label: "Paloma", locale: "es-US", name: "es-US-PalomaNeural" },
