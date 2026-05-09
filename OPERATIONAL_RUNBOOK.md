@@ -15,7 +15,7 @@ Before launch:
 
 ## Fill this in before launch
 
-- Live URL: `ADD-LIVE-URL-HERE`
+- Live URL: `https://access-tool-eight.vercel.app`
 - Bus-factor person: `[ADD-NAME]`
 - Best phone or text: `[ADD-PHONE]`
 - Backup email: `[ADD-EMAIL]`
