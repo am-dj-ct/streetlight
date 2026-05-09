@@ -100,8 +100,11 @@ type ConversationClientProps = {
 };
 
 const languageSheetTitleId = "language-sheet-title";
+const languageSheetDescriptionId = "language-sheet-description";
 const saveDialogTitleId = "save-dialog-title";
+const saveDialogDescriptionId = "save-dialog-description";
 const voiceSettingsTitleId = "voice-settings-title";
+const voiceSettingsDescriptionId = "voice-settings-description";
 const dialogFocusableSelector = [
   "a[href]",
   "button:not([disabled])",
@@ -1286,6 +1289,7 @@ export function ConversationClient({
             role="dialog"
             aria-modal="true"
             aria-labelledby={voiceSettingsTitleId}
+            aria-describedby={voiceSettingsDescriptionId}
             tabIndex={-1}
             className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
           >
@@ -1293,7 +1297,7 @@ export function ConversationClient({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 id={voiceSettingsTitleId} className="text-[18px] font-semibold text-[#1f2923]">{copy.voiceTitle}</h2>
-                <p className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
+                <p id={voiceSettingsDescriptionId} className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
               </div>
               <button
                 ref={voiceSettingsDoneRef}
@@ -1354,6 +1358,7 @@ export function ConversationClient({
             role="dialog"
             aria-modal="true"
             aria-labelledby={languageSheetTitleId}
+            aria-describedby={languageSheetDescriptionId}
             tabIndex={-1}
             className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
           >
@@ -1363,7 +1368,7 @@ export function ConversationClient({
                 <h2 id={languageSheetTitleId} className="text-[18px] font-semibold text-[#1f2923]">
                   {copy.languageSheetTitle}
                 </h2>
-                <p className="text-[14px] text-[#5f6d64]">
+                <p id={languageSheetDescriptionId} className="text-[14px] text-[#5f6d64]">
                   {copy.languageSheetFreshStart}
                 </p>
               </div>
@@ -1407,6 +1412,7 @@ export function ConversationClient({
             role="dialog"
             aria-modal="true"
             aria-labelledby={saveDialogTitleId}
+            aria-describedby={saveDialogDescriptionId}
             tabIndex={-1}
             className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
           >
@@ -1414,7 +1420,7 @@ export function ConversationClient({
             <h2 id={saveDialogTitleId} className="text-[20px] font-semibold text-[#1f2923]">
               {copy.saveTitle}
             </h2>
-            <div className="pt-4 space-y-4 text-[16px] leading-7 text-[#3c4b42]">
+            <div id={saveDialogDescriptionId} className="pt-4 space-y-4 text-[16px] leading-7 text-[#3c4b42]">
               <p>{copy.saveBodyOne}</p>
               <p>{copy.saveBodyTwo}</p>
               <p>{copy.saveBodyThree}</p>
