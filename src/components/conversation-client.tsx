@@ -1828,6 +1828,7 @@ export function ConversationClient({
       >
         <CrisisFooter
           area="conversation"
+          compact={isCompactComposer}
           entryId={entryId}
           languageCode={currentLanguageCode}
           regionScope={regionScope}

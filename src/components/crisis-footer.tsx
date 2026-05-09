@@ -16,12 +16,14 @@ import { getUiCopy } from "../lib/ui-copy";
 
 export function CrisisFooter({
   area,
+  compact = false,
   entryId,
   languageCode = "en",
   regionScope = "king",
   sourcePath,
 }: {
   area?: ReportArea;
+  compact?: boolean;
   entryId?: ConversationEntryId;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;
@@ -39,59 +41,89 @@ export function CrisisFooter({
     languageCode,
     sourcePath,
   });
+  const fullFooterContent = (
+    <>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <strong className="font-semibold">{copy.footerHeading}</strong>
+        <PhoneAction
+          copy={copy}
+          label={copy.footerEmergency}
+          phone="988"
+          websiteUrl="https://988lifeline.org/"
+          buttonClassName="font-semibold underline"
+        />
+        <PhoneAction
+          copy={copy}
+          label={copy.footerDangerNow}
+          phone="911"
+          websiteUrl="https://www.911.gov/"
+          buttonClassName="font-semibold underline"
+        />
+        <span>
+          {regionScope === "king"
+            ? copy.footerLocalPlaceholder
+            : copy.footerFallbackPlaceholder}
+        </span>
+        {crisisResources.map((resource) => (
+          <PhoneAction
+            key={resource.id}
+            copy={copy}
+            label={`${resource.label} ${resource.phone}`}
+            phone={resource.phone}
+            websiteUrl={resource.url}
+            buttonClassName="font-semibold underline"
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2">
+        <Link href={findHumanHref} className="font-semibold underline">
+          {copy.footerFindHuman}
+        </Link>
+        <Link href={buildPrivacyHref(languageCode)} className="font-semibold underline">
+          {copy.footerPrivacy}
+        </Link>
+        <Link href={buildAboutHref(languageCode)} className="font-semibold underline">
+          {copy.footerAbout}
+        </Link>
+        <Link href={reportProblemHref} className="font-semibold underline">
+          {copy.footerReportProblem}
+        </Link>
+      </div>
+    </>
+  );
 
   return (
     <footer
       id="crisis-resources"
-      className="shrink-0 border-t border-[#cbd6cf] bg-[#edf3ef] px-4 py-3 text-[14px] leading-5 text-[#25342b] sm:px-6 lg:px-8"
+      className={`shrink-0 border-t border-[#cbd6cf] bg-[#edf3ef] px-4 text-[14px] leading-5 text-[#25342b] sm:px-6 lg:px-8 ${
+        compact ? "py-2 sm:py-3" : "py-3"
+      }`}
     >
       <div className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <strong className="font-semibold">{copy.footerHeading}</strong>
-          <PhoneAction
-            copy={copy}
-            label={copy.footerEmergency}
-            phone="988"
-            websiteUrl="https://988lifeline.org/"
-            buttonClassName="font-semibold underline"
-          />
-          <PhoneAction
-            copy={copy}
-            label={copy.footerDangerNow}
-            phone="911"
-            websiteUrl="https://www.911.gov/"
-            buttonClassName="font-semibold underline"
-          />
-          <span>
-            {regionScope === "king"
-              ? copy.footerLocalPlaceholder
-              : copy.footerFallbackPlaceholder}
-          </span>
-          {crisisResources.map((resource) => (
-            <PhoneAction
-              key={resource.id}
-              copy={copy}
-              label={`${resource.label} ${resource.phone}`}
-              phone={resource.phone}
-              websiteUrl={resource.url}
-              buttonClassName="font-semibold underline"
-            />
-          ))}
-        </div>
-        <div className="pt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Link href={findHumanHref} className="font-semibold underline">
-            {copy.footerFindHuman}
-          </Link>
-          <Link href={buildPrivacyHref(languageCode)} className="font-semibold underline">
-            {copy.footerPrivacy}
-          </Link>
-          <Link href={buildAboutHref(languageCode)} className="font-semibold underline">
-            {copy.footerAbout}
-          </Link>
-          <Link href={reportProblemHref} className="font-semibold underline">
-            {copy.footerReportProblem}
-          </Link>
-        </div>
+        {compact ? (
+          <>
+            <div className="flex items-center gap-3 sm:hidden">
+              <strong className="font-semibold">{copy.footerHeading}</strong>
+              <PhoneAction
+                copy={copy}
+                label="988"
+                phone="988"
+                websiteUrl="https://988lifeline.org/"
+                buttonClassName="font-semibold underline"
+              />
+              <PhoneAction
+                copy={copy}
+                label="911"
+                phone="911"
+                websiteUrl="https://www.911.gov/"
+                buttonClassName="font-semibold underline"
+              />
+            </div>
+            <div className="hidden sm:block">{fullFooterContent}</div>
+          </>
+        ) : (
+          fullFooterContent
+        )}
       </div>
     </footer>
   );
