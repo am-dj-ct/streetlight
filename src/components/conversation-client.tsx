@@ -276,9 +276,12 @@ export function ConversationClient({
   const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguageCode);
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const languageSheetDoneRef = useRef<HTMLButtonElement | null>(null);
+  const saveCancelRef = useRef<HTMLButtonElement | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const voiceSettingsDoneRef = useRef<HTMLButtonElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const dictationBaseDraftRef = useRef("");
   const [messages, setMessages] = useState<ClientChatMessage[]>([
@@ -344,6 +347,24 @@ export function ConversationClient({
       window.removeEventListener("keydown", handleEscape);
     };
   }, [showLanguageSheet, showSaveModal, showVoiceSettings]);
+
+  useEffect(() => {
+    if (showLanguageSheet) {
+      languageSheetDoneRef.current?.focus();
+    }
+  }, [showLanguageSheet]);
+
+  useEffect(() => {
+    if (showSaveModal) {
+      saveCancelRef.current?.focus();
+    }
+  }, [showSaveModal]);
+
+  useEffect(() => {
+    if (showVoiceSettings) {
+      voiceSettingsDoneRef.current?.focus();
+    }
+  }, [showVoiceSettings]);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -1181,6 +1202,7 @@ export function ConversationClient({
                 <p className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
               </div>
               <button
+                ref={voiceSettingsDoneRef}
                 type="button"
                 onClick={() => setShowVoiceSettings(false)}
                 className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
@@ -1250,6 +1272,7 @@ export function ConversationClient({
                 </p>
               </div>
               <button
+                ref={languageSheetDoneRef}
                 type="button"
                 onClick={() => setShowLanguageSheet(false)}
                 className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
@@ -1348,6 +1371,7 @@ export function ConversationClient({
                 </p>
               ) : null}
               <button
+                ref={saveCancelRef}
                 type="button"
                 onClick={() => {
                   setSaveStatusMessage(null);
