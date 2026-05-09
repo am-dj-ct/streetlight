@@ -29,6 +29,11 @@ const eslintConfig = defineConfig([
             "CallExpression[callee.object.name='console'][callee.property.name='error'][arguments.length=1][arguments.0.type='Identifier'][arguments.0.name=/^(cause|err|error)$/]",
           message: "Do not pass raw error objects to console.error.",
         },
+        {
+          selector:
+            "CallExpression[callee.object.name='console'][callee.property.name='error'] Property[key.name=/^(cause|err|error)$/][value.type='Identifier'][value.name=/^(cause|err|error)$/]",
+          message: "Do not include raw error objects in console.error metadata.",
+        },
       ],
     },
   },
