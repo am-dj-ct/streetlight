@@ -157,10 +157,6 @@ export function isReferralSpecificToCategory(
   return isSpecificCategoryMatch(resource, category);
 }
 
-export function formatTelephoneHref(phone: string) {
-  return `tel:${phone.replace(/[^0-9]/g, "")}`;
-}
-
 export function getBackHrefForReferrals({
   entryId,
   languageCode,

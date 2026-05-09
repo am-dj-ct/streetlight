@@ -3,9 +3,9 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { CrisisFooter } from "../../components/crisis-footer";
 import { LanguageStripLinks } from "../../components/language-strip-links";
+import { PhoneAction } from "../../components/phone-action";
 import { getPageRequestContext } from "../../lib/request-context";
 import {
-  formatTelephoneHref,
   getBackHrefForReferrals,
   getCheckedThroughDate,
   getReferralsForCategory,
@@ -172,23 +172,23 @@ export default async function FindHumanPage({
 
                 <div className="pt-4 flex flex-wrap gap-2">
                   {resource.phone ? (
-                    <a
-                      href={formatTelephoneHref(resource.phone)}
-                      aria-label={`${copy.referralsCallLabel} ${resource.name} ${resource.phone}`}
-                      className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
-                    >
-                      {copy.referralsCallLabel} {resource.phone}
-                    </a>
+                    <PhoneAction
+                      copy={copy}
+                      label={`${copy.referralsCallLabel} ${resource.phone}`}
+                      phone={resource.phone}
+                      ariaLabel={`${copy.referralsCallLabel} ${resource.name} ${resource.phone}`}
+                      buttonClassName="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                    />
                   ) : null}
 
                   {resource.secondaryPhone ? (
-                    <a
-                      href={formatTelephoneHref(resource.secondaryPhone)}
-                      aria-label={`${copy.referralsAltLabel} ${resource.name} ${resource.secondaryPhone}`}
-                      className="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
-                    >
-                      {copy.referralsAltLabel} {resource.secondaryPhone}
-                    </a>
+                    <PhoneAction
+                      copy={copy}
+                      label={`${copy.referralsAltLabel} ${resource.secondaryPhone}`}
+                      phone={resource.secondaryPhone}
+                      ariaLabel={`${copy.referralsAltLabel} ${resource.name} ${resource.secondaryPhone}`}
+                      buttonClassName="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                    />
                   ) : null}
 
                   <a

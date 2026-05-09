@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCrisisResources } from "../lib/crisis-resources";
+import { PhoneAction } from "./phone-action";
 import type { ConversationEntryId } from "../lib/chat-types";
 import type { SupportedLanguageCode } from "../lib/languages";
 import type { RegionScope } from "../lib/geo";
@@ -47,25 +48,31 @@ export function CrisisFooter({
       <div className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <strong className="font-semibold">{copy.footerHeading}</strong>
-          <a href="tel:988" className="font-semibold underline">
-            {copy.footerEmergency}
-          </a>
-          <a href="tel:911" className="font-semibold underline">
-            {copy.footerDangerNow}
-          </a>
+          <PhoneAction
+            copy={copy}
+            label={copy.footerEmergency}
+            phone="988"
+            buttonClassName="font-semibold underline"
+          />
+          <PhoneAction
+            copy={copy}
+            label={copy.footerDangerNow}
+            phone="911"
+            buttonClassName="font-semibold underline"
+          />
           <span>
             {regionScope === "king"
               ? copy.footerLocalPlaceholder
               : copy.footerFallbackPlaceholder}
           </span>
           {crisisResources.map((resource) => (
-            <a
+            <PhoneAction
               key={resource.id}
-              href={`tel:${resource.phone.replace(/[^0-9]/g, "")}`}
-              className="font-semibold underline"
-            >
-              {resource.label} {resource.phone}
-            </a>
+              copy={copy}
+              label={`${resource.label} ${resource.phone}`}
+              phone={resource.phone}
+              buttonClassName="font-semibold underline"
+            />
           ))}
         </div>
         <div className="pt-2 flex flex-wrap items-center gap-x-3 gap-y-1">

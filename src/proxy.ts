@@ -105,10 +105,13 @@ function renderHardPausePage(languageCode: string) {
         flex-wrap: wrap;
         gap: 10px 14px;
       }
-      .links a {
+      .links a,
+      .links span {
         color: #1f2923;
         font-size: 16px;
         font-weight: 700;
+      }
+      .links a {
         text-decoration: underline;
       }
       .small {
@@ -134,11 +137,11 @@ function renderHardPausePage(languageCode: string) {
         <div class="help-box">
           <p><strong>If you need help right now:</strong></p>
           <div class="links">
-            <a href="tel:988">Call or text 988</a>
-            <a href="tel:911">Call 911</a>
-            <a href="tel:8664274747">24-Hr Crisis Line 866-427-4747</a>
-            <a href="tel:8667891511">Recovery Help 866-789-1511</a>
-            <a href="tel:2067370242">DV Hopeline 206-737-0242</a>
+            <span>Call or text 988</span>
+            <span>Call 911</span>
+            <span>24-Hr Crisis Line 866-427-4747</span>
+            <span>Recovery Help 866-789-1511</span>
+            <span>DV Hopeline 206-737-0242</span>
           </div>
         </div>
         <p class="small">
