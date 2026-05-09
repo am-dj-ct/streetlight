@@ -1,3 +1,4 @@
+import http from "node:http";
 import path from "node:path";
 import {
   defaultBaseUrl,
@@ -185,6 +186,48 @@ function assertNoStore(response, label) {
   if (response.headers.get("cache-control") !== "no-store") {
     fail(`${label} must set Cache-Control: no-store.`);
   }
+}
+
+function assertHeaderNoStore(headers, label) {
+  if (headers["cache-control"] !== "no-store") {
+    fail(`${label} must set Cache-Control: no-store.`);
+  }
+}
+
+async function postChunkedJson(pathname, body) {
+  const url = new URL(pathname, baseUrl);
+
+  return new Promise((resolve, reject) => {
+    const request = http.request(
+      url,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      },
+      (response) => {
+        let responseBody = "";
+
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          responseBody += chunk;
+        });
+        response.on("end", () => {
+          resolve({
+            body: responseBody,
+            headers: response.headers,
+            status: response.statusCode,
+          });
+        });
+      },
+    );
+
+    request.on("error", reject);
+    request.write(body.slice(0, Math.ceil(body.length / 2)));
+    request.write(body.slice(Math.ceil(body.length / 2)));
+    request.end();
+  });
 }
 
 async function loadCases() {
@@ -489,6 +532,35 @@ async function checkOversizedChatBody() {
   }
 
   assertNoStore(response, "Oversized body response");
+}
+
+async function checkChunkedOversizedChatBody() {
+  const response = await postChunkedJson(
+    "/api/chat",
+    JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-chunked-huge-message",
+          role: "user",
+          text: "x".repeat(200_000),
+        },
+      ],
+    }),
+  );
+
+  if (response.status !== 413) {
+    fail(`Expected 413 from /api/chat for chunked oversized body, got ${response.status}.`);
+  }
+
+  const payload = JSON.parse(response.body);
+
+  if (payload?.error !== "Request body too large.") {
+    fail("Unexpected chunked oversized-body response from /api/chat.");
+  }
+
+  assertHeaderNoStore(response.headers, "Chunked oversized body response");
 }
 
 async function checkNullJsonBody() {
@@ -1006,6 +1078,8 @@ await checkWrongChatMethod();
 console.log("Wrong method handling ok (/api/chat rejects GET requests).");
 await checkOversizedChatBody();
 console.log("Oversized body handling ok (/api/chat rejects huge JSON before parsing).");
+await checkChunkedOversizedChatBody();
+console.log("Chunked oversized body handling ok (/api/chat rejects huge JSON while streaming).");
 await checkNullJsonBody();
 console.log("Null JSON handling ok (/api/chat rejects null bodies).");
 await checkStringJsonBody();
