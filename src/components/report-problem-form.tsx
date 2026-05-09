@@ -37,6 +37,9 @@ const problemValues = [
 
 type ProblemValue = (typeof problemValues)[number];
 
+const reportTextMaxLength = 800;
+const reportDetailsMaxLength = 1200;
+
 type ProblemOption = {
   value: ProblemValue;
   copyKey: keyof UiCopy;
@@ -311,6 +314,7 @@ export function ReportProblemForm({
           <textarea
             value={goal}
             onChange={(event) => setGoal(event.target.value)}
+            maxLength={reportTextMaxLength}
             rows={4}
             className="w-full rounded-[16px] border border-[#b7c7bd] bg-white px-3 py-3 text-[16px] leading-6 text-[#1f2923] outline-none"
           />
@@ -323,6 +327,7 @@ export function ReportProblemForm({
           <textarea
             value={reply}
             onChange={(event) => setReply(event.target.value)}
+            maxLength={reportTextMaxLength}
             rows={4}
             className="w-full rounded-[16px] border border-[#b7c7bd] bg-white px-3 py-3 text-[16px] leading-6 text-[#1f2923] outline-none"
           />
@@ -357,6 +362,7 @@ export function ReportProblemForm({
           <textarea
             value={details}
             onChange={(event) => setDetails(event.target.value)}
+            maxLength={reportDetailsMaxLength}
             rows={3}
             className="w-full rounded-[16px] border border-[#b7c7bd] bg-white px-3 py-3 text-[16px] leading-6 text-[#1f2923] outline-none"
           />

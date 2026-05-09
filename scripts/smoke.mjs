@@ -126,6 +126,10 @@ const pageChecks = [
   },
   {
     expectedText: "Report a problem",
+    extraExpectedText: [
+      'maxLength="800"',
+      'maxLength="1200"',
+    ],
     path: "/report-problem?lang=en",
     reportLinkSnippet: "/report-problem?lang=en&amp;area=other",
   },
