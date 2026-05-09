@@ -428,6 +428,12 @@ async function checkWrongChatMethod() {
   if (response.status !== 405) {
     fail(`Expected 405 from /api/chat for GET, got ${response.status}.`);
   }
+
+  if (response.headers.get("allow") !== "POST") {
+    fail("/api/chat GET response must advertise Allow: POST.");
+  }
+
+  assertNoStore(response, "Wrong method response");
 }
 
 async function checkOversizedChatBody() {

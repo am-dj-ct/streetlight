@@ -498,3 +498,15 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export function GET() {
+  return jsonNoStore(
+    { error: "Method not allowed." },
+    {
+      headers: {
+        Allow: "POST",
+      },
+      status: 405,
+    },
+  );
+}
