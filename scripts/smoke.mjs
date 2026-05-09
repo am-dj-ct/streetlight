@@ -41,6 +41,8 @@ const pageChecks = [
     expectedText: "Paste the letter or form here",
     extraExpectedText: [
       'maxLength="8000"',
+      'href="tel:988"',
+      'href="tel:911"',
     ],
     path: "/conversation/understand-letter-or-form?lang=en",
     reportLinkSnippet:
