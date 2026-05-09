@@ -686,6 +686,26 @@ async function checkMalformedInternalReportProblemSource() {
   }
 }
 
+async function checkTraversalReportProblemSource() {
+  const sources = [
+    ["/about/../api/chat?lang=en", "literal"],
+    ["/%2e%2e/api/chat?lang=en", "encoded"],
+  ];
+
+  for (const [sourcePath, label] of sources) {
+    const source = encodeURIComponent(sourcePath);
+    const snapshot = await getReportProblemSnapshot({
+      baseUrl,
+      fail,
+      path: `/report-problem?lang=en&source=${source}`,
+    });
+
+    if (snapshot.sourceRoute !== "not supplied") {
+      fail(`Traversal-style ${label} source path rendered on /report-problem.`);
+    }
+  }
+}
+
 async function checkControlCharacterReportProblemSource() {
   const sources = [
     ["newline", encodeURIComponent("/about\nevil")],
@@ -1124,6 +1144,8 @@ await checkDisallowedInternalReportProblemSource();
 console.log("Disallowed internal source handling ok (/report-problem ignores unsafe app paths).");
 await checkMalformedInternalReportProblemSource();
 console.log("Malformed internal source handling ok (/report-problem ignores protocol-style paths).");
+await checkTraversalReportProblemSource();
+console.log("Traversal source handling ok (/report-problem ignores normalized unsafe app paths).");
 await checkControlCharacterReportProblemSource();
 console.log("Control-character source handling ok (/report-problem ignores unsafe app paths).");
 await checkOversizedReportProblemSource();
