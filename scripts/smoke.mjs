@@ -536,6 +536,18 @@ async function checkUnsafeReportProblemSource() {
   }
 }
 
+async function checkReportProblemDoesNotPrerenderMailto() {
+  const { html } = await fetchHtmlPage({
+    baseUrl,
+    fail,
+    path: "/report-problem?lang=en",
+  });
+
+  if (html.includes("mailto:")) {
+    fail("Report page must not pre-render a mailto href.");
+  }
+}
+
 async function checkDisallowedInternalReportProblemSource() {
   const disallowedSource = encodeURIComponent("/api/chat?lang=en");
   const snapshot = await getReportProblemSnapshot({
@@ -971,6 +983,8 @@ await checkInvalidTurnstileToken();
 console.log("Invalid turnstileToken handling ok (/api/chat rejects bad token shapes).");
 await checkUnsafeReportProblemSource();
 console.log("Unsafe source handling ok (/report-problem ignores external source links).");
+await checkReportProblemDoesNotPrerenderMailto();
+console.log("Report email privacy ok (/report-problem does not pre-render mailto links).");
 await checkDisallowedInternalReportProblemSource();
 console.log("Disallowed internal source handling ok (/report-problem ignores unsafe app paths).");
 await checkMalformedInternalReportProblemSource();
