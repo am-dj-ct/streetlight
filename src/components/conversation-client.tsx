@@ -283,6 +283,31 @@ function getFocusableDialogElements(dialog: HTMLElement) {
   ).filter((element) => element.tabIndex >= 0);
 }
 
+function readLocalStorage(key: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorage(key: string, value: string) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function ConversationClient({
   currentLanguageCode,
   currentLanguageLabel,
@@ -495,14 +520,14 @@ export function ConversationClient({
       "speechSynthesis" in window && "SpeechSynthesisUtterance" in window,
     );
     setMicSupported(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition));
-    setSelectedVoiceUri(window.localStorage.getItem("access-tool-voice-uri") || "");
+    setSelectedVoiceUri(readLocalStorage("access-tool-voice-uri") || "");
     setHasSeenSaveWarning(
-      window.localStorage.getItem("access-tool-save-warning-seen") === "true",
+      readLocalStorage("access-tool-save-warning-seen") === "true",
     );
     setShareSupported(typeof navigator.share === "function");
 
     const savedSpeechRate = Number(
-      window.localStorage.getItem("access-tool-speech-rate") ?? "0.92",
+      readLocalStorage("access-tool-speech-rate") ?? "0.92",
     );
     if (
       !Number.isNaN(savedSpeechRate) &&
@@ -550,10 +575,10 @@ export function ConversationClient({
     }
 
     if (selectedVoiceUri) {
-      window.localStorage.setItem("access-tool-voice-uri", selectedVoiceUri);
+      writeLocalStorage("access-tool-voice-uri", selectedVoiceUri);
     }
 
-    window.localStorage.setItem("access-tool-speech-rate", String(speechRate));
+    writeLocalStorage("access-tool-speech-rate", String(speechRate));
   }, [selectedVoiceUri, speechRate]);
 
   useEffect(() => {
@@ -640,7 +665,7 @@ export function ConversationClient({
       return;
     }
 
-    window.localStorage.setItem("access-tool-save-warning-seen", "true");
+    writeLocalStorage("access-tool-save-warning-seen", "true");
     setHasSeenSaveWarning(true);
   }
 
