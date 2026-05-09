@@ -552,6 +552,8 @@ async function expectInvalidChatRequestShape(body, label) {
   if (payload?.error !== "Invalid request shape.") {
     fail(`Unexpected ${label} response body from /api/chat.`);
   }
+
+  assertNoStore(response, `${label} response`);
 }
 
 async function checkUnsafeReportProblemSource() {
@@ -672,6 +674,8 @@ async function checkBlankChatMessage() {
   if (payload?.error !== "No messages to send.") {
     fail("Unexpected blank-message response body from /api/chat.");
   }
+
+  assertNoStore(response, "Blank message response");
 }
 
 async function checkEmptyMessagesArray() {
