@@ -27,6 +27,10 @@ export const conversationEntryIds: readonly ConversationEntryId[] = [
   "talk-instead",
 ];
 
+export const maxChatMessages = 24;
+export const maxClientMessageTextLength = 8000;
+export const maxChatRequestTextLength = 24000;
+
 export function isConversationEntryId(
   value: null | string | undefined,
 ): value is ConversationEntryId {
@@ -87,6 +91,7 @@ export function isClientChatMessage(value: unknown): value is ClientChatMessage 
     hasValidId &&
     (candidate.role === "user" || candidate.role === "assistant") &&
     typeof candidate.text === "string" &&
+    candidate.text.length <= maxClientMessageTextLength &&
     (candidate.weakCategory === undefined ||
       isWeakCategory(candidate.weakCategory))
   );
@@ -106,7 +111,12 @@ export function isChatRequestBody(value: unknown): value is ChatRequestBody {
       typeof candidate.turnstileToken === "string") &&
     Array.isArray(candidate.messages) &&
     candidate.messages.length > 0 &&
-    candidate.messages.every(isClientChatMessage)
+    candidate.messages.length <= maxChatMessages &&
+    candidate.messages.every(isClientChatMessage) &&
+    candidate.messages.reduce(
+      (total, message) => total + message.text.length,
+      0,
+    ) <= maxChatRequestTextLength
   );
 }
 

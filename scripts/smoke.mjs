@@ -632,6 +632,38 @@ async function checkMissingMessageText() {
   );
 }
 
+async function checkOverlongMessageText() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-overlong-text",
+          role: "user",
+          text: "x".repeat(8001),
+        },
+      ],
+    },
+    "overlong message text",
+  );
+}
+
+async function checkTooManyMessages() {
+  await expectInvalidChatRequestShape(
+    {
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: Array.from({ length: 25 }, (_, index) => ({
+        id: `smoke-too-many-${index}`,
+        role: index % 2 === 0 ? "user" : "assistant",
+        text: "hello",
+      })),
+    },
+    "too many messages",
+  );
+}
+
 async function checkInvalidMessageRole() {
   await expectInvalidChatRequestShape(
     {
@@ -895,6 +927,10 @@ await checkInvalidMessageTextShape();
 console.log("Malformed message text handling ok (/api/chat rejects non-string text).");
 await checkMissingMessageText();
 console.log("Missing message text handling ok (/api/chat rejects messages without text).");
+await checkOverlongMessageText();
+console.log("Message length handling ok (/api/chat rejects overlong text).");
+await checkTooManyMessages();
+console.log("Message count handling ok (/api/chat rejects runaway history).");
 await checkInvalidMessageRole();
 console.log("Malformed message role handling ok (/api/chat rejects invalid roles).");
 await checkInvalidMessageWeakCategory();

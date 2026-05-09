@@ -25,6 +25,7 @@ import type {
 import {
   isChatErrorBody,
   isChatStreamEvent,
+  maxClientMessageTextLength,
 } from "../lib/chat-types";
 import type { RegionScope } from "../lib/geo";
 import {
@@ -1101,6 +1102,7 @@ export function ConversationClient({
                 rows={1}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                maxLength={maxClientMessageTextLength}
                 placeholder={copy.composerPlaceholder}
                 className="max-h-40 min-h-14 w-full resize-none overflow-y-auto rounded-[18px] border border-[#b7c7bd] bg-white px-4 py-[15px] text-[17px] leading-6 text-[#1f2923] outline-none placeholder:text-[#7c8a82]"
               />
