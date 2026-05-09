@@ -1091,7 +1091,7 @@ export function ConversationClient({
       <div
         aria-hidden={hasOpenSheet ? true : undefined}
         inert={hasOpenSheet ? true : undefined}
-        className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3"
+        className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-5"
       >
         <header className="flex items-center justify-between pb-3">
           <Link
@@ -1141,7 +1141,7 @@ export function ConversationClient({
                   key={message.id}
                   className={`flex ${isAssistant ? "justify-start" : "justify-end"}`}
                 >
-                  <div className="min-w-0 max-w-[88%]">
+                  <div className="min-w-0 max-w-[88%] sm:max-w-[78%] lg:max-w-[72%]">
                     <article
                       className={`break-words px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
                         isAssistant
@@ -1333,7 +1333,7 @@ export function ConversationClient({
       </div>
 
       {showVoiceSettings ? (
-        <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
+        <div className="absolute inset-0 z-20 flex items-end justify-center bg-[rgba(18,24,20,0.24)] sm:items-center sm:p-6">
           <div
             id={voiceSettingsDialogId}
             ref={voiceSettingsRef}
@@ -1342,7 +1342,7 @@ export function ConversationClient({
             aria-labelledby={voiceSettingsTitleId}
             aria-describedby={voiceSettingsDescriptionId}
             tabIndex={-1}
-            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
+            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)] sm:max-w-xl sm:rounded-[24px] sm:px-6 sm:shadow-[0_16px_48px_rgba(18,24,20,0.18)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <div className="mb-4 flex items-center justify-between">
@@ -1403,7 +1403,7 @@ export function ConversationClient({
       ) : null}
 
       {showLanguageSheet ? (
-        <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
+        <div className="absolute inset-0 z-20 flex items-end justify-center bg-[rgba(18,24,20,0.24)] sm:items-center sm:p-6">
           <div
             id={languageSheetDialogId}
             ref={languageSheetRef}
@@ -1412,7 +1412,7 @@ export function ConversationClient({
             aria-labelledby={languageSheetTitleId}
             aria-describedby={languageSheetDescriptionId}
             tabIndex={-1}
-            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
+            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)] sm:max-w-xl sm:rounded-[24px] sm:px-6 sm:shadow-[0_16px_48px_rgba(18,24,20,0.18)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <div className="mb-4 flex items-center justify-between">
@@ -1458,7 +1458,7 @@ export function ConversationClient({
       ) : null}
 
       {showSaveModal ? (
-        <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
+        <div className="absolute inset-0 z-20 flex items-end justify-center bg-[rgba(18,24,20,0.24)] sm:items-center sm:p-6">
           <div
             id={saveDialogId}
             ref={saveDialogRef}
@@ -1467,7 +1467,7 @@ export function ConversationClient({
             aria-labelledby={saveDialogTitleId}
             aria-describedby={saveDialogDescriptionId}
             tabIndex={-1}
-            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
+            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)] sm:max-w-xl sm:rounded-[24px] sm:px-6 sm:shadow-[0_16px_48px_rgba(18,24,20,0.18)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <h2 id={saveDialogTitleId} className="text-[20px] font-semibold text-[#1f2923]">

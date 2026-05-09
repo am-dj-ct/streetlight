@@ -77,8 +77,8 @@ export default async function FindHumanPage({
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4">
-        <header className="pb-4">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-6">
+        <header className="pb-4 lg:pb-6">
           <div className="flex items-center justify-between">
             <Link
               href={backHref}
@@ -106,11 +106,11 @@ export default async function FindHumanPage({
             />
           </div>
 
-          <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
+          <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18] sm:text-[34px]">
             <span className="block">{copy.referralsHeadingLineOne}</span>
             <span className="block">{copy.referralsHeadingLineTwo}</span>
           </h1>
-          <p className="pt-3 text-[16px] leading-6 text-[#47564d]">
+          <p className="max-w-[42rem] pt-3 text-[16px] leading-6 text-[#47564d]">
             {regionScope === "king"
               ? copy.referralsIntroKing
               : copy.referralsIntroFallback}
@@ -145,7 +145,7 @@ export default async function FindHumanPage({
           </section>
         ) : null}
 
-        <section className="flex flex-1 flex-col gap-3 pb-4">
+        <section className="grid flex-1 gap-3 pb-4 lg:grid-cols-2 lg:items-start lg:pb-8">
           {referrals.map((resource) => {
             const formattedVerifiedDate = formatResourceDate(
               resource.lastVerified,
@@ -154,7 +154,7 @@ export default async function FindHumanPage({
             return (
               <article
                 key={resource.id}
-                className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+                className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)] lg:min-h-full"
               >
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-[18px] font-semibold leading-6 text-[#1f2923]">

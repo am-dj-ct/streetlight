@@ -33,8 +33,8 @@ export function InfoPageShell({
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4">
-        <header className="pb-4">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-6">
+        <header className="pb-4 lg:pb-6">
           <div className="flex items-center justify-between">
             <Link
               href={buildHomeHref(currentLanguage.code)}
@@ -51,7 +51,7 @@ export function InfoPageShell({
             />
           </div>
 
-          <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18]">
+          <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18] sm:text-[34px]">
             {title}
           </h1>
           <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
@@ -64,7 +64,7 @@ export function InfoPageShell({
           ) : null}
         </header>
 
-        <section className="flex-1 space-y-6 pb-4">{children}</section>
+        <section className="flex-1 space-y-6 pb-4 lg:pb-8">{children}</section>
       </div>
 
       <CrisisFooter

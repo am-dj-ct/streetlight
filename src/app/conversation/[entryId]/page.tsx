@@ -66,7 +66,7 @@ export default async function ConversationPage({
   return (
     <>
       <LocalDevBadge
-        className="mx-auto flex w-full max-w-md px-4 pt-4"
+        className="mx-auto flex w-full max-w-md px-4 pt-4 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8"
         languageCode={currentLanguage.code}
       />
       <ConversationClient

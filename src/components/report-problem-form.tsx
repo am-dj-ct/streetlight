@@ -341,7 +341,7 @@ export function ReportProblemForm({
           <legend className="text-[15px] font-semibold leading-6 text-[#1f2923]">
             {copy.reportPageWrongLabel}
           </legend>
-          <div className="grid gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {problemOptions.map((option) => (
               <label
                 key={option.value}
@@ -378,20 +378,20 @@ export function ReportProblemForm({
         <p className="text-[15px] leading-6 text-[#5f6d64]">
           {copy.reportPageParaphraseReminder}
         </p>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => {
               void handleOpenEmail();
             }}
-            className="inline-flex min-h-12 items-center justify-center rounded-[18px] bg-[#1f6a43] px-4 text-[17px] font-semibold text-white"
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] bg-[#1f6a43] px-4 text-[17px] font-semibold text-white"
           >
             {copy.reportPageOpenEmail}
           </button>
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex min-h-12 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] font-semibold text-[#1f2923]"
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] font-semibold text-[#1f2923]"
           >
             {copy.reportPageCopy}
           </button>
