@@ -1,6 +1,7 @@
 import {
   getDeployCommitSha,
   getDeployEnvironment,
+  hasLiveModelConfig,
   isDevMockChatEnabled,
   isProductionMockMisconfigured,
 } from "./env";
@@ -21,11 +22,15 @@ export function getChatMode(): ChatMode {
 }
 
 export function getRuntimeState(): RuntimeState {
+  const deployEnv = getDeployEnvironment();
+
   return {
     chatMode: getChatMode(),
     commitSha: getDeployCommitSha() ?? "local-dev",
-    deployConfigOk: !isProductionMockMisconfigured(),
-    deployEnv: getDeployEnvironment(),
+    deployConfigOk:
+      !isProductionMockMisconfigured() &&
+      (deployEnv !== "production" || hasLiveModelConfig()),
+    deployEnv,
     ok: true,
     service: "access-tool",
   };

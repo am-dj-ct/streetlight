@@ -120,6 +120,14 @@ export function isProductionMockMisconfigured(): boolean {
   return readOptionalEnv("VERCEL_ENV") === "production" && isDevMockChatEnabled();
 }
 
+export function hasLiveModelConfig(): boolean {
+  return Boolean(
+    readOptionalEnv("ANTHROPIC_API_KEY") &&
+      readOptionalEnv("MAIN_MODEL") &&
+      readOptionalEnv("CLASSIFIER_MODEL"),
+  );
+}
+
 export function getDeployEnvironment(): string {
   return readOptionalEnv("VERCEL_ENV") ?? "local";
 }
