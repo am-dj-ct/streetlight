@@ -1280,6 +1280,11 @@ export function ConversationClient({
               {copy.saveExplainButton}
             </button>
           </div>
+          {saveStatusMessage && !showSaveModal ? (
+            <p role="status" className="mb-3 text-[14px] leading-6 text-[#47564d]">
+              {saveStatusMessage}
+            </p>
+          ) : null}
 
           <form
             className="flex items-end gap-2"
