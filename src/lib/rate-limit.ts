@@ -83,7 +83,7 @@ function getSecondsUntilUtcMidnight(now: Date): number {
 export async function checkPerIpRateLimit(
   request: Request,
 ): Promise<RateLimitResult> {
-  if (!hasKvConfig()) {
+  if (!hasKvConfig() || !hasHashedIpSalt()) {
     return {
       allowed: true,
       limit: MAX_TURNS_PER_DAY,
