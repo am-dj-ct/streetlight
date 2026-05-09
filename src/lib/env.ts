@@ -29,11 +29,11 @@ function readOptionalBooleanEnv(name: string): boolean {
 function readOptionalNumberEnv(name: string): null | number {
   const value = readOptionalEnv(name);
 
-  if (!value) {
+  if (!value?.trim()) {
     return null;
   }
 
-  const parsed = Number(value);
+  const parsed = Number(value.trim());
 
   if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error(`Invalid non-negative numeric environment variable: ${name}`);
