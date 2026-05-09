@@ -24,3 +24,14 @@ body {
 button {
   font: inherit;
 }
+
+a,
+button,
+h1,
+h2,
+h3,
+li,
+p,
+textarea {
+  overflow-wrap: anywhere;
+}

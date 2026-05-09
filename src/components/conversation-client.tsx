@@ -986,7 +986,7 @@ export function ConversationClient({
           ref={threadRef}
           aria-busy={isStreaming}
           aria-live="polite"
-          className="min-h-0 flex-1 overflow-y-auto pb-4"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
         >
           <div className="flex flex-col gap-5">
             {!hasTranslatedCopy && currentLanguageCode !== "en" ? (
@@ -1008,9 +1008,9 @@ export function ConversationClient({
                   key={message.id}
                   className={`flex ${isAssistant ? "justify-start" : "justify-end"}`}
                 >
-                  <div className="max-w-[88%]">
+                  <div className="min-w-0 max-w-[88%]">
                     <article
-                      className={`px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
+                      className={`break-words px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
                         isAssistant
                           ? "rounded-[18px] rounded-bl-[6px] bg-white text-[#1f2923]"
                           : "rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
