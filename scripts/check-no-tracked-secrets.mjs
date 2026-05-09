@@ -3,6 +3,16 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 const cwd = process.cwd();
+const forbiddenTrackedPathPatterns = [
+  {
+    label: "local env file",
+    pattern: /^\.env(?:\..*)?\.local$/,
+  },
+  {
+    label: "Vercel project metadata",
+    pattern: /^\.vercel(?:\/|$)/,
+  },
+];
 const secretPatterns = [
   {
     label: "Anthropic API key",
@@ -49,6 +59,14 @@ if (trackedFilesResult.status !== 0) {
 
 const trackedFiles = trackedFilesResult.stdout.split("\0").filter(Boolean);
 const violations = [];
+
+for (const relativePath of trackedFiles) {
+  for (const { label, pattern } of forbiddenTrackedPathPatterns) {
+    if (pattern.test(relativePath)) {
+      violations.push(`${relativePath}: tracked ${label}`);
+    }
+  }
+}
 
 for (const relativePath of trackedFiles) {
   const source = await readFile(path.join(cwd, relativePath), "utf8");
