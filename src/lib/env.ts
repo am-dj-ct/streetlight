@@ -15,15 +15,17 @@ function readOptionalEnv(name: string): null | string {
 function readOptionalBooleanEnv(name: string): boolean {
   const value = readOptionalEnv(name);
 
-  if (!value) {
+  if (!value?.trim()) {
     return false;
   }
 
-  if (value !== "true" && value !== "false") {
+  const trimmedValue = value.trim();
+
+  if (trimmedValue !== "true" && trimmedValue !== "false") {
     throw new Error(`Invalid boolean environment variable: ${name}`);
   }
 
-  return value === "true";
+  return trimmedValue === "true";
 }
 
 function readOptionalNumberEnv(name: string): null | number {

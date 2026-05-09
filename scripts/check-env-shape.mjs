@@ -106,11 +106,13 @@ function validateEnvValues(values, relativePath) {
   for (const variable of booleanVariables) {
     const value = values.get(variable);
 
-    if (value === undefined || value === "") {
+    if (value === undefined || value.trim() === "") {
       continue;
     }
 
-    if (value !== "true" && value !== "false") {
+    const trimmedValue = value.trim();
+
+    if (trimmedValue !== "true" && trimmedValue !== "false") {
       fail(`${relativePath}: ${variable} must be "true", "false", or empty.`);
     }
   }
