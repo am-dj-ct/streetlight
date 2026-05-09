@@ -203,21 +203,19 @@ export function ReportProblemForm({
     whereLabel,
   ]);
 
-  const mailtoHref = useMemo(
-    () =>
-      buildMailtoHref({
-        subject: reportSubject,
-        body: reportBody,
-      }),
-    [reportBody, reportSubject],
-  );
-
   function toggleProblem(problem: ProblemValue) {
     setSelectedProblems((current) =>
       current.includes(problem)
         ? current.filter((value) => value !== problem)
         : [...current, problem],
     );
+  }
+
+  function handleOpenEmail() {
+    window.location.href = buildMailtoHref({
+      subject: reportSubject,
+      body: reportBody,
+    });
   }
 
   async function handleCopy() {
@@ -374,12 +372,13 @@ export function ReportProblemForm({
           {copy.reportPageParaphraseReminder}
         </p>
         <div className="flex flex-col gap-3">
-          <a
-            href={mailtoHref}
+          <button
+            type="button"
+            onClick={handleOpenEmail}
             className="inline-flex min-h-12 items-center justify-center rounded-[18px] bg-[#1f6a43] px-4 text-[17px] font-semibold text-white"
           >
             {copy.reportPageOpenEmail}
-          </a>
+          </button>
           <button
             type="button"
             onClick={handleCopy}
