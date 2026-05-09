@@ -30,6 +30,13 @@ function appendVaryHeader(headers: Headers, value: string) {
   headers.set("Vary", Array.from(entries).join(", "));
 }
 
+function setBrowserSecurityHeaders(headers: Headers) {
+  headers.set("Permissions-Policy", "camera=(), geolocation=(), payment=(), usb=()");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
+}
+
 function renderHardPausePage(languageCode: string) {
   const problemReportHref = buildMailtoHref({
     subject: "Access Tool problem report",
@@ -166,6 +173,7 @@ export function proxy(request: NextRequest) {
       },
     });
 
+    setBrowserSecurityHeaders(response.headers);
     appendVaryHeader(response.headers, "Accept-Language");
     appendVaryHeader(response.headers, "Cookie");
 
@@ -197,6 +205,7 @@ export function proxy(request: NextRequest) {
   });
 
   response.headers.set("Content-Language", resolvedLanguageCode);
+  setBrowserSecurityHeaders(response.headers);
 
   if (
     isSupportedLanguageCode(requestedLanguageCode) &&
