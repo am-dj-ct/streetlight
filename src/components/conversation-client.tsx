@@ -407,6 +407,7 @@ export function ConversationClient({
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
+  const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [shareSupported, setShareSupported] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -713,6 +714,7 @@ export function ConversationClient({
     chooseBestVoice(voiceOptions, voiceLanguage)?.voiceURI ||
     "";
   const selectedReadAloudVoiceLabel = effectiveAzureVoice.label;
+  const isCompactComposer = isComposerFocused;
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
 
@@ -1491,8 +1493,12 @@ export function ConversationClient({
           </div>
         </section>
 
-        <section className="shrink-0 border-t border-[#d4ddd6] py-3">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+        <section
+          className={`shrink-0 border-t border-[#d4ddd6] ${isCompactComposer ? "py-2 sm:py-3" : "py-3"}`}
+        >
+          <div
+            className={`flex flex-wrap items-center gap-2 ${isCompactComposer ? "mb-0 hidden sm:flex" : "mb-3"}`}
+          >
             <button
               type="button"
               onClick={handleSavePress}
@@ -1513,7 +1519,10 @@ export function ConversationClient({
             </button>
           </div>
           {saveStatusMessage && !showSaveModal ? (
-            <p role="status" className="mb-3 text-[14px] leading-6 text-[#47564d]">
+            <p
+              role="status"
+              className={`text-[14px] leading-6 text-[#47564d] ${isCompactComposer ? "mb-0 hidden sm:block sm:mb-3" : "mb-3"}`}
+            >
               {saveStatusMessage}
             </p>
           ) : null}
@@ -1535,6 +1544,8 @@ export function ConversationClient({
                 rows={1}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                onFocus={() => setIsComposerFocused(true)}
+                onBlur={() => setIsComposerFocused(false)}
                 onKeyDown={(event) => {
                   if (
                     event.key !== "Enter" ||
@@ -1549,7 +1560,11 @@ export function ConversationClient({
                 }}
                 maxLength={maxClientMessageTextLength}
                 placeholder={copy.composerPlaceholder}
-                className="max-h-40 min-h-14 w-full resize-none overflow-y-auto rounded-[18px] border border-[#b7c7bd] bg-white px-4 py-[15px] text-[17px] leading-6 text-[#1f2923] outline-none placeholder:text-[#7c8a82]"
+                className={`w-full resize-none overflow-y-auto rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] leading-6 text-[#1f2923] outline-none placeholder:text-[#7c8a82] ${
+                  isCompactComposer
+                    ? "max-h-32 min-h-12 py-3 sm:max-h-40 sm:min-h-14 sm:py-[15px]"
+                    : "max-h-40 min-h-14 py-[15px]"
+                }`}
               />
             </label>
             <button
@@ -1557,7 +1572,9 @@ export function ConversationClient({
               aria-label={copy.micAssistiveLabel}
               onClick={handleMicInput}
               disabled={micUnavailable}
-              className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22]"
+              className={`flex items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22] ${
+                isCompactComposer ? "min-h-12 min-w-12 sm:min-h-14 sm:min-w-14" : "min-h-14 min-w-14"
+              }`}
             >
               {isListening ? copy.micStopLabel : copy.micLabel}
             </button>
@@ -1565,7 +1582,9 @@ export function ConversationClient({
               type="submit"
               aria-label={copy.sendAssistiveLabel}
               disabled={isStreaming || draft.trim().length === 0}
-              className="flex min-h-14 min-w-14 items-center justify-center rounded-[18px] bg-[#1f5f43] text-[20px] font-semibold text-white disabled:opacity-60"
+              className={`flex items-center justify-center rounded-[18px] bg-[#1f5f43] text-[20px] font-semibold text-white disabled:opacity-60 ${
+                isCompactComposer ? "min-h-12 min-w-12 sm:min-h-14 sm:min-w-14" : "min-h-14 min-w-14"
+              }`}
             >
               ^
             </button>
