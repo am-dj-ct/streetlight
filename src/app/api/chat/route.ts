@@ -381,13 +381,9 @@ export async function POST(request: Request) {
                     mainUsage,
                     classifierUsage: classifierResponse.usage,
                   });
-                } catch (error: unknown) {
-                  const spendErrorMessage =
-                    error instanceof Error ? error.message : "";
-                  const isSpendKvError = spendErrorMessage.includes("@vercel/kv");
-
+                } catch {
                   console.error({
-                    code: isSpendKvError ? "daily_spend_record_failed" : "daily_spend_record_failed",
+                    code: "daily_spend_record_failed",
                     errorType: "SpendTrackingError",
                     modelMain: model,
                     modelClassifier: classifierModel,
