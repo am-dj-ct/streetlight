@@ -509,6 +509,27 @@ async function checkWrongChatMethod() {
   assertNoStore(optionsResponse, "Wrong method OPTIONS response");
 }
 
+async function checkWrongHealthMethods() {
+  for (const method of ["OPTIONS", "POST"]) {
+    const response = await fetch(new URL("/healthz", baseUrl), {
+      headers: {
+        Accept: "application/json",
+      },
+      method,
+    });
+
+    if (response.status !== 405) {
+      fail(`Expected 405 from /healthz ${method}, got ${response.status}.`);
+    }
+
+    if (response.headers.get("allow") !== "GET, HEAD") {
+      fail(`Expected /healthz ${method} to advertise GET, HEAD.`);
+    }
+
+    assertNoStore(response, `${method} /healthz response`);
+  }
+}
+
 async function checkOversizedChatBody() {
   const response = await fetch(endpoint, {
     method: "POST",
@@ -1114,6 +1135,8 @@ const healthResponse = await fetch(new URL("/healthz", baseUrl), {
 });
 assertBrowserSecurityHeaders(healthResponse, "/healthz");
 console.log(`Health check ok (/healthz, chatMode=${health.chatMode}).`);
+await checkWrongHealthMethods();
+console.log("Health method handling ok (/healthz rejects non-GET requests).");
 await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
 await checkLanguagePersistence();
