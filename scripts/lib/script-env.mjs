@@ -1,27 +1,31 @@
 export function readOptionalPositiveIntegerEnv(name) {
   const value = process.env[name];
 
-  if (value === undefined || value === "") {
+  if (value === undefined || value.trim() === "") {
     return null;
   }
 
-  if (!/^[1-9]\d*$/.test(value)) {
+  const trimmedValue = value.trim();
+
+  if (!/^[1-9]\d*$/.test(trimmedValue)) {
     throw new Error(`${name} must be a positive integer when set.`);
   }
 
-  return Number(value);
+  return Number(trimmedValue);
 }
 
 export function readBooleanEnv(name) {
   const value = process.env[name];
 
-  if (value === undefined || value === "") {
+  if (value === undefined || value.trim() === "") {
     return false;
   }
 
-  if (value !== "true" && value !== "false") {
+  const trimmedValue = value.trim();
+
+  if (trimmedValue !== "true" && trimmedValue !== "false") {
     throw new Error(`${name} must be "true", "false", or empty.`);
   }
 
-  return value === "true";
+  return trimmedValue === "true";
 }
