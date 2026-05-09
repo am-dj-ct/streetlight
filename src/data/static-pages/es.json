@@ -25,7 +25,7 @@
           "heading": "Cómo sabemos que no eres tú.",
           "paragraphs": [
             "No pedimos tu nombre. No pedimos tu email. No pedimos tu número de teléfono. No tenemos sistema de cuentas. No hay forma de que sepamos quién eres.",
-            "Sí vemos la dirección de internet que está usando tu teléfono. La convertimos en un código revuelto para poder evitar que alguien llene la herramienta de spam. No podemos convertirlo de vuelta en tu dirección."
+            "Sí vemos la dirección de internet que está usando tu dispositivo. La convertimos en un código revuelto para poder evitar que alguien llene la herramienta de spam. No podemos convertirlo de vuelta en tu dirección."
           ]
         },
         {
@@ -36,9 +36,9 @@
           ]
         },
         {
-          "heading": "Si guardas una conversación en tu teléfono.",
+          "heading": "Si guardas una conversación en este dispositivo.",
           "paragraphs": [
-            "Puedes guardar una conversación si quieres. Si lo haces, queda en tu teléfono, no en nuestros servidores. Si otra persona usa tu teléfono, podría verla. Si estás usando un teléfono prestado o una computadora de biblioteca, no guardes aquí. Puedes enviártela por email en su lugar."
+            "Puedes guardar una conversación si quieres. Si lo haces, queda en este dispositivo, no en nuestros servidores. Si otra persona usa este dispositivo, podría verla. Si estás usando un dispositivo compartido o prestado, o una computadora de biblioteca, no guardes aquí. Puedes enviártela por email en su lugar."
           ]
         },
         {
@@ -80,7 +80,7 @@
         {
           "heading": "Qué es esto.",
           "paragraphs": [
-            "Access Tool es una herramienta de IA gratuita para web móvil y de interés público, para personas que enfrentan inseguridad de vivienda, pobreza u otro estrés serio.",
+            "Access Tool es una herramienta web de IA gratuita y de interés público, para personas que enfrentan inseguridad de vivienda, pobreza u otro estrés serio.",
             "Está pensada para ayudar con tareas reales: entender una carta, escribir algo difícil, averiguar qué hacer después o hablar algo para ordenarlo."
           ]
         },

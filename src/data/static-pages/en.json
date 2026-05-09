@@ -25,7 +25,7 @@
           "heading": "How we know it's not you.",
           "paragraphs": [
             "We don't ask for your name. We don't ask for your email. We don't ask for your phone number. We don't have an account system. There's no way for us to know who you are.",
-            "We do see the internet address your phone is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address."
+            "We do see the internet address your device is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address."
           ]
         },
         {
@@ -36,9 +36,9 @@
           ]
         },
         {
-          "heading": "If you save a conversation on your phone.",
+          "heading": "If you save a conversation on this device.",
           "paragraphs": [
-            "You can save a conversation if you want. If you do, it stays on your phone, not on our servers. If someone else uses your phone, they could see it. If you're using a borrowed phone or a library computer, don't save here. You can email it to yourself instead."
+            "You can save a conversation if you want. If you do, it stays on this device, not on our servers. If someone else uses this device, they could see it. If you're using a shared or borrowed device, or a library computer, don't save here. You can email it to yourself instead."
           ]
         },
         {
@@ -80,7 +80,7 @@
         {
           "heading": "What this is.",
           "paragraphs": [
-            "Access Tool is a free public mobile-web AI tool for people dealing with housing insecurity, poverty, or other serious stress.",
+            "Access Tool is a free public web AI tool for people dealing with housing insecurity, poverty, or other serious stress.",
             "It is meant to help with real tasks: understanding a letter, writing something hard, figuring out what to do next, or talking something through."
           ]
         },
