@@ -122,10 +122,11 @@ function getContentContractSummary() {
 }
 
 function getSafetyCheckSummary() {
+  runNodeScript("scripts/check-env-shape.mjs");
   runNodeScript("scripts/check-forbidden-integrations.mjs");
   runNodeScript("scripts/check-no-tracked-secrets.mjs");
 
-  return "forbidden integrations and tracked secrets ok";
+  return "env shapes, forbidden integrations, and tracked secrets ok";
 }
 
 const [
