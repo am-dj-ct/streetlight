@@ -4,6 +4,11 @@ import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
 const sourceRoots = ["src", "scripts"];
+const rootSourceFiles = [
+  "eslint.config.mjs",
+  "next.config.ts",
+  "postcss.config.mjs",
+];
 const scannedExtensions = new Set([
   ".cjs",
   ".js",
@@ -126,19 +131,23 @@ if (lockfileViolations.length > 0) {
 
 const importViolations = [];
 
+const sourceFiles = [
+  ...rootSourceFiles.map((fileName) => path.join(cwd, fileName)),
+];
+
 for (const rootName of sourceRoots) {
-  const sourceFiles = await collectSourceFiles(path.join(cwd, rootName));
+  sourceFiles.push(...await collectSourceFiles(path.join(cwd, rootName)));
+}
 
-  for (const filePath of sourceFiles) {
-    const source = await readFile(filePath, "utf8");
-    const specifiers = extractImportSpecifiers(source);
+for (const filePath of sourceFiles) {
+  const source = await readFile(filePath, "utf8");
+  const specifiers = extractImportSpecifiers(source);
 
-    for (const specifier of specifiers) {
-      if (isForbiddenSpecifier(specifier)) {
-        importViolations.push(
-          `${path.relative(cwd, filePath)} imports ${specifier}`,
-        );
-      }
+  for (const specifier of specifiers) {
+    if (isForbiddenSpecifier(specifier)) {
+      importViolations.push(
+        `${path.relative(cwd, filePath)} imports ${specifier}`,
+      );
     }
   }
 }
