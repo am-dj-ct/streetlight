@@ -4,9 +4,11 @@ export const maxMailtoHrefLength = 6000;
 export function buildMailtoHref({
   body,
   subject,
+  to = supportEmail,
 }: {
   body?: string;
   subject: string;
+  to?: string;
 }) {
   const params = new URLSearchParams();
 
@@ -16,7 +18,7 @@ export function buildMailtoHref({
     params.set("body", body);
   }
 
-  return `mailto:${supportEmail}?${params.toString()}`;
+  return `mailto:${to}?${params.toString()}`;
 }
 
 export function isMailtoHrefWithinLimit(href: string) {

@@ -739,6 +739,7 @@ export function ConversationClient({
     const href = buildMailtoHref({
       subject: copy.conversationExportTitle,
       body: fileContents,
+      to: "",
     });
 
     if (!isMailtoHrefWithinLimit(href)) {
