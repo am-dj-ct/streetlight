@@ -152,6 +152,24 @@ function fail(message) {
   throw new Error(message);
 }
 
+function assertBrowserSecurityHeaders(response, label) {
+  const expectedHeaders = [
+    ["referrer-policy", "strict-origin-when-cross-origin"],
+    ["x-content-type-options", "nosniff"],
+    ["x-frame-options", "DENY"],
+  ];
+
+  for (const [name, expectedValue] of expectedHeaders) {
+    const actualValue = response.headers.get(name);
+
+    if (actualValue !== expectedValue) {
+      fail(
+        `${label} must set ${name}: ${expectedValue}; received ${actualValue ?? "(missing)"}.`,
+      );
+    }
+  }
+}
+
 async function loadCases() {
   const allCases = validateSmokeCases(
     await readJsonFile(casesPath),
@@ -172,11 +190,13 @@ async function loadCases() {
 
 async function checkPages() {
   for (const page of pageChecks) {
-    const { html } = await fetchHtmlPage({
+    const { html, response } = await fetchHtmlPage({
       baseUrl,
       fail,
       path: page.path,
     });
+
+    assertBrowserSecurityHeaders(response, page.path);
 
     if (!html.includes(page.expectedText)) {
       fail(`Expected text not found on ${page.path}.`);
@@ -815,6 +835,12 @@ const health = await getHealth({
   fail,
   requireDeployConfigOk: true,
 });
+const healthResponse = await fetch(new URL("/healthz", baseUrl), {
+  headers: {
+    Accept: "application/json",
+  },
+});
+assertBrowserSecurityHeaders(healthResponse, "/healthz");
 console.log(`Health check ok (/healthz, chatMode=${health.chatMode}).`);
 await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
