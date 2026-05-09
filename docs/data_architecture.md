@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-05-08
-**Last meaningful change:** 2026-05-08 (classifier prompt false-positive guard for urgency vs. deadlines landed)
+**Last reviewed:** 2026-05-09
+**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, and weak-category coverage landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -351,7 +351,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Has access to:** Full conversation history for the current session (in-memory state), user's typed/dictated message, button selection that started the conversation, language setting, optional saved conversations (only if user explicitly saved — `localStorage` or generated text file/screenshot the user kept).
 - **Logs by default:** Browser console (dev tools only). Browser history records the URL but not message content (we never put content in URL params).
 - **Override:** No analytics/telemetry SDK is loaded. No Google Analytics, no Vercel Analytics, no Sentry, no PostHog. Page loads zero tracking pixels.
-- **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), language code, button-selection metadata, and a Cloudflare Turnstile token when Turnstile is configured. In local development without Turnstile keys, no token is sent. No user identifier, no session ID, no cookie.
+- **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), language code, button-selection metadata, and a Cloudflare Turnstile token when Turnstile is configured. In local development without Turnstile keys, no token is sent. No user identifier, no session ID, no cookie. Language routing uses explicit `?lang=` links or the browser `Accept-Language` header; it does not set a language cookie.
 
 ### Hop 2 — Cloudflare Edge (Turnstile Only)
 
@@ -385,15 +385,15 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Override:** None. We accept the published commercial-API defaults. ZDR pursued at month 9–10 alongside credits conversation.
 - **What leaves this hop:** Model completion, returned to our Vercel function.
 
-### Hop 6 — Vercel Receives Response, Fires Classifier
+### Hop 6 — Vercel Receives Response, Fires Classifier and Follow-Up Suggestions
 
-- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt (label-only, returns one of: legal_procedure, medical_dosing, benefits_eligibility, immigration, drug_interactions, specific_deadlines, specific_dollar_amounts, none).
+- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt (label-only, returns one of: legal_procedure, medical_dosing, benefits_eligibility, immigration, drug_interactions, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn.
 - **Has access to:** Main model output (which may carry PII forward from the user's prompt), classifier prompt.
 - **Logs by default:** Same Vercel runtime log behavior as Hop 3. Same Anthropic 7-day retention as Hop 5.
 - **Override:** Same logging discipline as Hop 3. No `console.log` of classifier input or output. We log only the classification result label.
 - **What leaves this hop:**
-  - A metadata log entry: `{timestamp, model_main, model_classifier, classifier_category, main_tokens_in, main_tokens_out, classifier_tokens_in, classifier_tokens_out, main_response_time_ms, classifier_response_time_ms, main_status, classifier_status, language, button_id, hashed_ip}`. No content.
-  - Response payload to the client containing main model text + classifier category for the inline UI flag.
+  - A metadata log entry: `{timestamp, model_main, model_classifier, classifier_category, main_tokens_in, main_tokens_out, classifier_tokens_in, classifier_tokens_out, suggestions_tokens_in, suggestions_tokens_out, main_response_time_ms, classifier_response_time_ms, suggestions_response_time_ms, main_status, classifier_status, suggestions_status, language, button_id, hashed_ip}`. No content.
+  - Response payload to the client containing main model text, classifier category for the inline UI flag, and follow-up suggestion labels.
 
 ### Hop 7 — Metadata Log Write
 
@@ -405,7 +405,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Hop 8 — Response Renders in Browser
 
-- **Runs:** React renders the new message. TTS button appears. Find-a-human button is present (always). If classifier category is non-"none", inline weak-category note renders below the response.
+- **Runs:** React renders the new message. TTS button appears. Find-a-human button is present (always). If classifier category is non-"none", inline weak-category note renders below the response. If follow-up suggestions are available, up to three tappable suggestions render below the response.
 - **Has access to:** Response text, classifier category, prior conversation history.
 - **Logs by default:** Browser console only.
 - **Override:** None — no client-side analytics.
@@ -607,10 +607,14 @@ A single metadata record per turn:
   main_tokens_out,
   classifier_tokens_in,
   classifier_tokens_out,
+  suggestions_tokens_in,
+  suggestions_tokens_out,
   main_response_time_ms,
   classifier_response_time_ms,
+  suggestions_response_time_ms,
   main_status,
   classifier_status,
+  suggestions_status,
   language,
   button_id,
   hashed_ip
@@ -623,6 +627,8 @@ No content, no excerpts, no classifier "reasoning."
 
 - Classifier input text (the main model's response, which may carry PII forward from the user's prompt).
 - Full classifier output text (only the label).
+- Follow-up suggestion input text (the main model's response).
+- Full follow-up suggestion raw output text (only sanitized button labels go to the browser).
 - Anything that would let us reconstruct what the user wrote.
 
 ### Single Source of Truth for Categories
@@ -672,6 +678,7 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 - Each test runs the actual button system prompt + synthetic user prompt against the live API (test mode or separate test API key).
 - Assertions: response length within bounds, response in correct language when input language is specified, response doesn't refuse the request, classifier fires correct category for cases where one is expected.
 - `specific_deadlines` is reserved for concrete due dates or timing rules, not general urgency language.
+- `specific_dollar_amounts` is reserved for concrete dollar amounts, balances, fees, payment plans, bill breakdowns, benefit amounts, income thresholds, or calculations that the user may need to verify.
 - Runs on every PR that touches `lib/system-prompts/`, `lib/classifier-prompt.ts`, or model config.
 - Fails the build on regression.
 
@@ -722,8 +729,10 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 
 | Secret | Purpose | Storage | Rotation |
 |---|---|---|---|
-| Anthropic API key | Main + classifier API calls | Vercel env var | Annual, or on suspected compromise |
+| Anthropic API key | Main + classifier + follow-up suggestion API calls | Vercel env var | Annual, or on suspected compromise |
 | `MAIN_MODEL` | Pins main model snapshot | Vercel env var | On deliberate model upgrade |
+| `FALLBACK_MAIN_MODEL` | Optional main-model fallback after 80% daily spend; defaults to classifier model when unset | Vercel env var | On deliberate model upgrade |
+| `CHEAPEST_MAIN_MODEL` | Optional cheapest Anthropic main-model tier after 95% daily spend | Vercel env var | On deliberate model upgrade |
 | `CLASSIFIER_MODEL` | Pins classifier snapshot | Vercel env var | On deliberate model upgrade |
 | Turnstile secret | CAPTCHA validation | Vercel env var | Annual, or on suspected compromise |
 | Hashed-IP salt | One-way hashing for rate limit | Vercel env var | **Quarterly**, or on suspected compromise |
@@ -1031,6 +1040,19 @@ One-line summary of every decision in this document, dated for traceability.
 - Annual Anthropic and Turnstile rotation, quarterly hashed-IP salt rotation.
 - Privacy page at `/privacy`, footer-linked from every screen, professional translation into seven languages as P0 launch deliverable.
 - Seventeen deliberate absences explicitly named.
+
+**2026-05-09 — classifier specific-dollar guidance:**
+
+- Classifier prompt now explicitly defines `specific_dollar_amounts` for exact money amounts, balances, fees, payment plans, bill breakdowns, and dollar calculations.
+- Regression fixtures now cover rent-ledger/payment-plan and medical-bill dollar breakdown cases.
+
+**2026-05-09 — architecture drift closeout:**
+
+- Language routing no longer sets or reads a cookie; explicit `?lang=` links and `Accept-Language` remain.
+- Daily spend now selects a main-model tier: primary model until 80% spend, fallback main model after 80%, optional cheapest Anthropic model after 95%, hard cap at the configured daily limit.
+- Follow-up suggestions now use a separate small Haiku JSON-only pass and render as tappable buttons below model responses.
+- Metadata schema now includes suggestion pass token counts, response time, and status, still with no content fields.
+- Classifier prompt now explicitly covers `medical_dosing`, `drug_interactions`, and `immigration`, with regression fixtures for each.
 
 ---
 

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { defaultBaseUrl, getHealth as fetchHealth } from "./lib/access-tool-http.mjs";
-import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
+import { getLanguageRoutingSnapshot } from "./lib/language-persistence.mjs";
 import {
   collectLaunchDocPlaceholderIssues,
   getResourceFreshness,
@@ -56,23 +56,28 @@ async function getEnvSnapshot() {
     return {
       devMockChat: readEnvValue(contents, "DEV_MOCK_CHAT") ?? "unset",
       mainModel: readEnvValue(contents, "MAIN_MODEL") ?? "unset",
+      fallbackMainModel: readEnvValue(contents, "FALLBACK_MAIN_MODEL") ?? "default: classifier model",
+      cheapestMainModel: readEnvValue(contents, "CHEAPEST_MAIN_MODEL") ?? "unset",
       classifierModel: readEnvValue(contents, "CLASSIFIER_MODEL") ?? "unset",
     };
   } catch {
     return {
       devMockChat: "missing .env.local",
       mainModel: "missing .env.local",
+      fallbackMainModel: "missing .env.local",
+      cheapestMainModel: "missing .env.local",
       classifierModel: "missing .env.local",
     };
   }
 }
 
 async function getLanguageSnapshot() {
-  const snapshot = await getLanguagePersistenceSnapshot({ baseUrl, fail });
+  const snapshot = await getLanguageRoutingSnapshot({ baseUrl, fail });
 
   return {
+    acceptLanguagePrivacyLang: snapshot.acceptLanguageLang ?? "(missing)",
     homeLang: snapshot.homeLang ?? "(missing)",
-    languageCookie: snapshot.languageCookie ?? "(missing)",
+    languageCookie: snapshot.languageCookie ? "unexpected" : "none",
     privacyLang: snapshot.privacyLang ?? "(missing)",
   };
 }
@@ -161,12 +166,15 @@ console.log("");
 console.log("Local env snapshot");
 console.log(`- DEV_MOCK_CHAT: ${envSnapshot.devMockChat}`);
 console.log(`- MAIN_MODEL: ${envSnapshot.mainModel}`);
+console.log(`- FALLBACK_MAIN_MODEL: ${envSnapshot.fallbackMainModel}`);
+console.log(`- CHEAPEST_MAIN_MODEL: ${envSnapshot.cheapestMainModel}`);
 console.log(`- CLASSIFIER_MODEL: ${envSnapshot.classifierModel}`);
 console.log("");
 console.log("Language snapshot");
 console.log(`- /?lang=es html lang: ${languageSnapshot.homeLang}`);
 console.log(`- language cookie: ${languageSnapshot.languageCookie}`);
-console.log(`- /privacy with cookie html lang: ${languageSnapshot.privacyLang}`);
+console.log(`- /privacy?lang=es html lang: ${languageSnapshot.privacyLang}`);
+console.log(`- /privacy with Accept-Language es html lang: ${languageSnapshot.acceptLanguagePrivacyLang}`);
 console.log("");
 console.log("Resource freshness");
 

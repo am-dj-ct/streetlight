@@ -1,7 +1,16 @@
 [
   {
     "name": "lease-explainer",
-    "text": "Explain what a lease renewal notice means like I am completely new to renting.",
-    "expectedClassifier": "none"
+    "text": "Explain what a lease renewal notice means like I am completely new to renting."
+  },
+  {
+    "name": "medical-bill-dollar-breakdown",
+    "text": "A medical bill says total charges $1,980, insurance paid $1,125, adjustment $600, patient responsibility $255. Explain which dollar amount matters.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "medicine-dose-instructions",
+    "text": "My antibiotic bottle says take 2 tablets every 12 hours with food. Explain the dosing instructions in plain language and what I should verify.",
+    "expectedClassifier": "medical_dosing"
   }
 ]

@@ -288,6 +288,23 @@ function setMessageWeakCategory(
   });
 }
 
+function setMessageSuggestions(
+  messages: ClientChatMessage[],
+  messageId: string,
+  suggestions: string[],
+): ClientChatMessage[] {
+  return messages.map((message) => {
+    if (message.id !== messageId) {
+      return message;
+    }
+
+    return {
+      ...message,
+      suggestions,
+    };
+  });
+}
+
 function getFocusableDialogElements(dialog: HTMLElement) {
   return Array.from(
     dialog.querySelectorAll<HTMLElement>(dialogFocusableSelector),
@@ -357,6 +374,7 @@ export function ConversationClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [pendingClassifierMessageId, setPendingClassifierMessageId] = useState<string | null>(null);
   const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
   const [micSupported, setMicSupported] = useState<boolean | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -949,6 +967,7 @@ export function ConversationClient({
     setErrorMessage(null);
     setShowSuggestions(false);
     setIsStreaming(true);
+    setPendingClassifierMessageId(pendingAssistantId);
 
     void (async () => {
       let receivedAnyText = false;
@@ -990,6 +1009,9 @@ export function ConversationClient({
               errorBody?.error ?? copy.sendFailure,
             );
           }
+          setPendingClassifierMessageId((currentId) =>
+            currentId === pendingAssistantId ? null : currentId,
+          );
           return;
         }
 
@@ -998,6 +1020,9 @@ export function ConversationClient({
         if (!reader) {
           setMessages(nextMessages);
           setErrorMessage(copy.sendFailure);
+          setPendingClassifierMessageId((currentId) =>
+            currentId === pendingAssistantId ? null : currentId,
+          );
           return;
         }
 
@@ -1024,6 +1049,9 @@ export function ConversationClient({
             const payload = dataLine.slice(6);
 
             if (payload === "[DONE]") {
+              setPendingClassifierMessageId((currentId) =>
+                currentId === pendingAssistantId ? null : currentId,
+              );
               setIsStreaming(false);
               return;
             }
@@ -1042,6 +1070,9 @@ export function ConversationClient({
               }
 
               setErrorMessage(event.error);
+              setPendingClassifierMessageId((currentId) =>
+                currentId === pendingAssistantId ? null : currentId,
+              );
               setIsStreaming(false);
               return;
             }
@@ -1059,6 +1090,16 @@ export function ConversationClient({
               setMessages((currentMessages) =>
                 setMessageWeakCategory(currentMessages, pendingAssistantId, event.category),
               );
+              setPendingClassifierMessageId((currentId) =>
+                currentId === pendingAssistantId ? null : currentId,
+              );
+              continue;
+            }
+
+            if (event.type === "suggestions") {
+              setMessages((currentMessages) =>
+                setMessageSuggestions(currentMessages, pendingAssistantId, event.suggestions),
+              );
             }
           }
 
@@ -1071,8 +1112,14 @@ export function ConversationClient({
           currentMessages.filter((message) => message.id !== pendingAssistantId || message.text.length > 0),
         );
         setErrorMessage(copy.sendFailure);
+        setPendingClassifierMessageId((currentId) =>
+          currentId === pendingAssistantId ? null : currentId,
+        );
       } finally {
         resetTurnstileToken();
+        setPendingClassifierMessageId((currentId) =>
+          currentId === pendingAssistantId ? null : currentId,
+        );
         setIsStreaming(false);
       }
     })();
@@ -1135,6 +1182,10 @@ export function ConversationClient({
                 isAssistant && message.weakCategory && message.weakCategory !== "none"
                   ? message.weakCategory
                   : null;
+              const isClassifierPending =
+                isAssistant &&
+                pendingClassifierMessageId === message.id &&
+                !isEmptyAssistant;
 
               return (
                 <div
@@ -1175,7 +1226,11 @@ export function ConversationClient({
 
                     {isAssistant && !isEmptyAssistant ? (
                       <div className="mt-3 space-y-3">
-                        {weakCategory ? (
+                        {isClassifierPending ? (
+                          <p className="rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 py-3 text-[14px] leading-6 text-[#5f6d64]">
+                            {copy.weakCategoryPending}
+                          </p>
+                        ) : weakCategory ? (
                           <Link
                             href={buildFindHumanHref({
                               category: weakCategory,
@@ -1194,36 +1249,51 @@ export function ConversationClient({
                         ) : null}
 
                         <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handlePlayAloud(message.id, message.text)}
-                          disabled={speechUnavailable}
-                          className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
-                        >
-                          {speakingMessageId === message.id ? copy.stopReading : copy.playAloud}
-                        </button>
-                        <button
-                          type="button"
-                          aria-controls={voiceSettingsDialogId}
-                          aria-expanded={showVoiceSettings}
-                          aria-haspopup="dialog"
-                          onClick={() => setShowVoiceSettings(true)}
-                          disabled={speechUnavailable}
-                          className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
-                        >
-                          {copy.voiceTitle}
-                        </button>
-                        <Link
-                          href={buildFindHumanHref({
-                            category: weakCategory ?? undefined,
-                            entryId,
-                            languageCode: currentLanguageCode,
-                          })}
-                          className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
-                        >
-                          {copy.findHumanForThis}
-                        </Link>
+                          <button
+                            type="button"
+                            onClick={() => handlePlayAloud(message.id, message.text)}
+                            disabled={speechUnavailable}
+                            className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
+                          >
+                            {speakingMessageId === message.id ? copy.stopReading : copy.playAloud}
+                          </button>
+                          <button
+                            type="button"
+                            aria-controls={voiceSettingsDialogId}
+                            aria-expanded={showVoiceSettings}
+                            aria-haspopup="dialog"
+                            onClick={() => setShowVoiceSettings(true)}
+                            disabled={speechUnavailable}
+                            className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
+                          >
+                            {copy.voiceTitle}
+                          </button>
+                          <Link
+                            href={buildFindHumanHref({
+                              category: weakCategory ?? undefined,
+                              entryId,
+                              languageCode: currentLanguageCode,
+                            })}
+                            className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                          >
+                            {copy.findHumanForThis}
+                          </Link>
                         </div>
+                        {message.suggestions?.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {message.suggestions.map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => sendMessage(suggestion)}
+                                disabled={isStreaming}
+                                className="min-h-11 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139] disabled:opacity-60"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

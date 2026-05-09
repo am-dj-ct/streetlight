@@ -9,5 +9,15 @@
     "language": "es",
     "text": "Mi carta dice: 'Para mantener sus beneficios de comida, mande prueba de ingresos antes del viernes o sus beneficios pueden parar.' Dime que me esta pidiendo.",
     "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "rent-ledger-payment-plan",
+    "text": "My rent ledger says balance due $2,386.50, late fee $75, and payment plan $200 every Friday. Explain the exact money amounts I need to verify.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "uscis-asylum-interview-notice",
+    "text": "My USCIS notice says my asylum interview was rescheduled and I need to bring identity documents and any new evidence. Explain what this immigration letter is asking for.",
+    "expectedClassifier": "immigration"
   }
 ]

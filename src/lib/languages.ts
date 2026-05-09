@@ -15,7 +15,6 @@ export type LanguageOption = {
 };
 
 export const defaultLanguageCode: SupportedLanguageCode = "en";
-export const languageCookieName = "access_tool_lang";
 export const languageHeaderName = "x-access-tool-lang";
 export const supportedLanguageCodes: readonly SupportedLanguageCode[] = [
   "en",

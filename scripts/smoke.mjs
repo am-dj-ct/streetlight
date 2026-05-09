@@ -9,7 +9,7 @@ import {
 } from "./lib/access-tool-http.mjs";
 import { isChatStreamEvent } from "./lib/chat-stream.mjs";
 import { readJsonFile } from "./lib/json-file.mjs";
-import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
+import { getLanguageRoutingSnapshot } from "./lib/language-persistence.mjs";
 import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 import { validateSmokeCases } from "./lib/prompt-fixtures.mjs";
 import { readOptionalPositiveIntegerEnv } from "./lib/script-env.mjs";
@@ -295,10 +295,10 @@ async function checkPages() {
 }
 
 async function checkLanguagePersistence() {
-  const snapshot = await getLanguagePersistenceSnapshot({ baseUrl, fail });
+  const snapshot = await getLanguageRoutingSnapshot({ baseUrl, fail });
 
-  if (snapshot.languageCookie !== "access_tool_lang=es") {
-    fail("Expected Spanish language cookie was not set.");
+  if (snapshot.languageCookie) {
+    fail("Language selection must not set a cookie.");
   }
 
   if (snapshot.homeContentLanguage !== "es") {
@@ -306,15 +306,23 @@ async function checkLanguagePersistence() {
   }
 
   if (extractHtmlLang(snapshot.privacyHtml ?? "") !== "es") {
-    fail("Expected persisted Spanish html lang on /privacy.");
+    fail("Expected explicit Spanish html lang on /privacy?lang=es.");
   }
 
   if (snapshot.privacyContentLanguage !== "es") {
-    fail("Expected persisted Spanish Content-Language header on /privacy.");
+    fail("Expected explicit Spanish Content-Language header on /privacy?lang=es.");
   }
 
   if (!snapshot.privacyHtml?.includes("Privacidad")) {
-    fail("Expected Spanish privacy page content on /privacy with persisted language cookie.");
+    fail("Expected Spanish privacy page content on /privacy?lang=es.");
+  }
+
+  if (snapshot.acceptLanguageLang !== "es") {
+    fail("Expected Spanish html lang on /privacy with Accept-Language: es.");
+  }
+
+  if (snapshot.acceptLanguageContentLanguage !== "es") {
+    fail("Expected Spanish Content-Language header on /privacy with Accept-Language: es.");
   }
 }
 
@@ -1149,7 +1157,7 @@ console.log("Health method handling ok (/healthz rejects non-GET requests).");
 await checkPages();
 console.log("Page checks ok (landing, conversation, referrals, support pages).");
 await checkLanguagePersistence();
-console.log("Language persistence ok (query -> cookie -> later request).");
+  console.log("Language routing ok (query param and Accept-Language, no cookie).");
 await checkInvalidJsonBody();
 console.log("Invalid JSON handling ok (/api/chat rejects malformed JSON bodies).");
 await checkWrongChatMethod();

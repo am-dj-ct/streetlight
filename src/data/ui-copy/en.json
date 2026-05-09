@@ -153,6 +153,7 @@
     "stopReading": "Stop reading",
     "thinking": "Thinking...",
     "sendAssistiveLabel": "Send message",
+    "weakCategoryPending": "Checking whether this needs a note to verify with a person...",
     "weakCategoryLead": "AI sometimes gets this wrong.",
     "weakCategoryTail": "Worth verifying with a person who does",
     "turnstileWait": "Still checking that you're human. Please try again in a moment.",

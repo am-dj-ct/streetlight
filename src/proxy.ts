@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  defaultLanguageCode,
-  isSupportedLanguageCode,
-  languageCookieName,
+  getPreferredLanguageCode,
   languageHeaderName,
 } from "./lib/languages";
 import { isHardPauseEnabled } from "./lib/env";
@@ -159,12 +157,10 @@ function renderHardPausePage(languageCode: string) {
 export function proxy(request: NextRequest) {
   const documentRequest = isDocumentRequest(request);
   const requestedLanguageCode = request.nextUrl.searchParams.get("lang");
-  const storedLanguageCode = request.cookies.get(languageCookieName)?.value;
-  const resolvedLanguageCode = isSupportedLanguageCode(requestedLanguageCode)
-    ? requestedLanguageCode
-    : isSupportedLanguageCode(storedLanguageCode)
-      ? storedLanguageCode
-      : defaultLanguageCode;
+  const resolvedLanguageCode = getPreferredLanguageCode({
+    acceptLanguageHeader: request.headers.get("accept-language"),
+    requestedLanguageCode,
+  });
 
   if (isHardPauseEnabled()) {
     const response = new NextResponse(renderHardPausePage(resolvedLanguageCode), {
@@ -178,18 +174,6 @@ export function proxy(request: NextRequest) {
 
     setBrowserSecurityHeaders(response.headers);
     appendVaryHeader(response.headers, "Accept-Language");
-    appendVaryHeader(response.headers, "Cookie");
-
-    if (
-      isSupportedLanguageCode(requestedLanguageCode) &&
-      requestedLanguageCode !== storedLanguageCode
-    ) {
-      response.cookies.set(languageCookieName, requestedLanguageCode, {
-        httpOnly: false,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      });
-    }
 
     return response;
   }
@@ -209,17 +193,7 @@ export function proxy(request: NextRequest) {
 
   response.headers.set("Content-Language", resolvedLanguageCode);
   setBrowserSecurityHeaders(response.headers);
-
-  if (
-    isSupportedLanguageCode(requestedLanguageCode) &&
-    requestedLanguageCode !== storedLanguageCode
-  ) {
-    response.cookies.set(languageCookieName, requestedLanguageCode, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-  }
+  appendVaryHeader(response.headers, "Accept-Language");
 
   return response;
 }

@@ -3,5 +3,10 @@
     "name": "basic-shelter-question",
     "text": "I feel dumb asking this, but what do people usually do if they need a place to sleep tonight and have never used a shelter before?",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "benadryl-anxiety-medicine-alcohol",
+    "text": "I am embarrassed to ask, but is it risky to take Benadryl with my anxiety medicine if I also had alcohol? Explain what interaction warning I should verify.",
+    "expectedClassifier": "drug_interactions"
   }
 ]

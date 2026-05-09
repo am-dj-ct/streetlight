@@ -9,10 +9,18 @@ import {
   isProductionMockMisconfigured,
   isSoftPauseEnabled,
 } from "../../../lib/env";
+import {
+  followUpSuggestionsPrompt,
+  parseFollowUpSuggestions,
+} from "../../../lib/follow-up-suggestions";
 import { checkPerIpRateLimit, getHashedIp } from "../../../lib/rate-limit";
 import { logChatTurnMetadata } from "../../../lib/metadata-log";
 import { buildMockChatTurn } from "../../../lib/mock-chat";
-import { checkDailySpendCap, recordDailySpendUsd } from "../../../lib/spend-control";
+import {
+  recordDailySpendUsd,
+  selectMainModelForSpend,
+  type MainModelTier,
+} from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
 import {
@@ -138,6 +146,7 @@ export async function POST(request: Request) {
   const requestStartedAt = Date.now();
   let model = process.env.MAIN_MODEL ?? "missing";
   let classifierModel = process.env.CLASSIFIER_MODEL ?? "missing";
+  let mainModelTier: MainModelTier = "primary";
   const hashedIp = getHashedIp(request);
   let loggedTurnMetadata = false;
 
@@ -149,6 +158,9 @@ export async function POST(request: Request) {
     mainResponseTimeMs = Date.now() - requestStartedAt,
     mainStatus,
     mainUsage = null,
+    suggestionsResponseTimeMs = null,
+    suggestionsStatus = "not_started",
+    suggestionsUsage = null,
   }: {
     classifierCategory?: WeakCategory;
     classifierResponseTimeMs?: null | number;
@@ -175,6 +187,14 @@ export async function POST(request: Request) {
       input_tokens: null | number;
       output_tokens: number;
     };
+    suggestionsResponseTimeMs?: null | number;
+    suggestionsStatus?: "completed" | "error_suggestions" | "not_started";
+    suggestionsUsage?: null | {
+      cache_creation_input_tokens: null | number;
+      cache_read_input_tokens: null | number;
+      input_tokens: null | number;
+      output_tokens: number;
+    };
   }) {
     if (loggedTurnMetadata) {
       return;
@@ -194,6 +214,9 @@ export async function POST(request: Request) {
       mainUsage,
       modelClassifier: classifierModel,
       modelMain: model,
+      suggestionsResponseTimeMs,
+      suggestionsStatus,
+      suggestionsUsage,
     });
   }
 
@@ -216,7 +239,7 @@ export async function POST(request: Request) {
     if (isDevMockChatEnabled()) {
       model = "mock-local-main";
       classifierModel = "mock-local-classifier";
-      const { classifierCategory, responseText } = buildMockChatTurn(body);
+      const { classifierCategory, responseText, suggestions } = buildMockChatTurn(body);
       const encoder = new TextEncoder();
       const chunks = responseText.match(/.{1,120}(\s|$)/g) ?? [responseText];
 
@@ -238,6 +261,14 @@ export async function POST(request: Request) {
               })}\n\n`,
             ),
           );
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: "suggestions",
+                suggestions,
+              })}\n\n`,
+            ),
+          );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
 
@@ -246,6 +277,8 @@ export async function POST(request: Request) {
             classifierResponseTimeMs: 0,
             classifierStatus: "completed",
             mainStatus: "completed",
+            suggestionsResponseTimeMs: 0,
+            suggestionsStatus: "completed",
           });
         },
       });
@@ -308,9 +341,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const spendLimit = await checkDailySpendCap();
+    model = getMainModel();
+    classifierModel = getClassifierModel();
+    const modelSelection = await selectMainModelForSpend({
+      primaryModel: model,
+    });
 
-    if (!spendLimit.allowed) {
+    if (!modelSelection.allowed) {
       logTurnMetadataOnce({
         mainStatus: "blocked_daily_spend",
       });
@@ -324,7 +361,7 @@ export async function POST(request: Request) {
         {
           status: 503,
           headers: {
-            "Retry-After": String(spendLimit.resetInSeconds),
+            "Retry-After": String(modelSelection.resetInSeconds),
           },
         },
       );
@@ -333,8 +370,8 @@ export async function POST(request: Request) {
     const anthropic = new Anthropic({
       apiKey: getAnthropicApiKey(),
     });
-    model = getMainModel();
-    classifierModel = getClassifierModel();
+    model = modelSelection.model;
+    mainModelTier = modelSelection.tier;
     const stream = anthropic.messages.stream({
       model,
       max_tokens: 900,
@@ -357,6 +394,17 @@ export async function POST(request: Request) {
               output_tokens: number;
             }
           | null = null;
+        let suggestionsResponseTimeMs: null | number = null;
+        let suggestionsUsage:
+          | {
+              cache_creation_input_tokens: null | number;
+              cache_read_input_tokens: null | number;
+              input_tokens: null | number;
+              output_tokens: number;
+            }
+          | null = null;
+        let suggestionsStatus: "completed" | "error_suggestions" | "not_started" =
+          "not_started";
         let mainUsage:
           | {
               cache_creation_input_tokens: null | number;
@@ -390,9 +438,10 @@ export async function POST(request: Request) {
               ),
             );
           } else {
+            const finalMessage = await stream.finalMessage();
+            mainUsage = finalMessage.usage;
+
             try {
-              const finalMessage = await stream.finalMessage();
-              mainUsage = finalMessage.usage;
               const classifierStartedAt = Date.now();
               const classifierResponse = await anthropic.messages.create({
                 model: classifierModel,
@@ -420,31 +469,6 @@ export async function POST(request: Request) {
                   `data: ${JSON.stringify({ type: "classifier", category })}\n\n`,
                 ),
               );
-
-              if (mainUsage) {
-                try {
-                  await recordDailySpendUsd({
-                    mainUsage,
-                    classifierUsage: classifierResponse.usage,
-                  });
-                } catch {
-                  console.error({
-                    code: "daily_spend_record_failed",
-                    errorType: "SpendTrackingError",
-                    modelMain: model,
-                    modelClassifier: classifierModel,
-                  });
-                }
-              }
-
-              logTurnMetadataOnce({
-                classifierCategory,
-                classifierResponseTimeMs,
-                classifierStatus: "completed",
-                classifierUsage,
-                mainStatus: "completed",
-                mainUsage,
-              });
             } catch (error: unknown) {
               const responseTimeMs = Date.now() - requestStartedAt;
               const apiError = error instanceof Anthropic.APIError ? error : null;
@@ -457,16 +481,90 @@ export async function POST(request: Request) {
                 modelClassifier: classifierModel,
                 responseTimeMs,
               });
+            }
 
-              logTurnMetadataOnce({
-                classifierCategory,
-                classifierResponseTimeMs,
-                classifierStatus: "error_classifier",
-                classifierUsage,
-                mainStatus: "completed",
-                mainUsage,
+            try {
+              const suggestionsStartedAt = Date.now();
+              const suggestionsResponse = await anthropic.messages.create({
+                model: classifierModel,
+                max_tokens: 160,
+                system: followUpSuggestionsPrompt,
+                messages: [
+                  {
+                    role: "user",
+                    content: responseText,
+                  },
+                ],
+              });
+              const suggestionsText = suggestionsResponse.content
+                .filter((block) => block.type === "text")
+                .map((block) => block.text)
+                .join(" ")
+                .trim();
+              const suggestions = parseFollowUpSuggestions(suggestionsText);
+
+              suggestionsResponseTimeMs = Date.now() - suggestionsStartedAt;
+              suggestionsUsage = suggestionsResponse.usage;
+              suggestionsStatus = "completed";
+
+              if (suggestions.length > 0) {
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: "suggestions", suggestions })}\n\n`,
+                  ),
+                );
+              }
+            } catch (error: unknown) {
+              const responseTimeMs = Date.now() - requestStartedAt;
+              const apiError = error instanceof Anthropic.APIError ? error : null;
+              suggestionsStatus = "error_suggestions";
+
+              console.error({
+                code: "anthropic_suggestions_failed",
+                errorType: apiError?.name ?? "UnknownError",
+                status: apiError?.status ?? 500,
+                modelMain: model,
+                modelClassifier: classifierModel,
+                responseTimeMs,
               });
             }
+
+            if (mainUsage) {
+              try {
+                const emptyUsage = {
+                  cache_creation_input_tokens: null,
+                  cache_read_input_tokens: null,
+                  input_tokens: 0,
+                  output_tokens: 0,
+                };
+
+                await recordDailySpendUsd({
+                  mainModelTier,
+                  mainUsage,
+                  classifierUsage: classifierUsage ?? emptyUsage,
+                  suggestionsUsage,
+                });
+              } catch {
+                console.error({
+                  code: "daily_spend_record_failed",
+                  errorType: "SpendTrackingError",
+                  modelMain: model,
+                  modelClassifier: classifierModel,
+                });
+              }
+            }
+
+            logTurnMetadataOnce({
+              classifierCategory,
+              classifierResponseTimeMs,
+              classifierStatus: classifierUsage ? "completed" : "error_classifier",
+              classifierUsage,
+              mainStatus: "completed",
+              mainUsage,
+              suggestionsResponseTimeMs,
+              suggestionsStatus,
+              suggestionsUsage,
+            });
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));

@@ -68,6 +68,7 @@ export function isWeakCategory(
 export type ClientChatMessage = {
   id: string;
   role: "user" | "assistant";
+  suggestions?: string[];
   text: string;
   weakCategory?: WeakCategory;
 };
@@ -93,6 +94,9 @@ export function isClientChatMessage(value: unknown): value is ClientChatMessage 
     (candidate.role === "user" || candidate.role === "assistant") &&
     typeof candidate.text === "string" &&
     candidate.text.length <= maxClientMessageTextLength &&
+    (candidate.suggestions === undefined ||
+      (Array.isArray(candidate.suggestions) &&
+        candidate.suggestions.every((suggestion) => typeof suggestion === "string"))) &&
     (candidate.weakCategory === undefined ||
       isWeakCategory(candidate.weakCategory))
   );
@@ -131,6 +135,10 @@ export type ChatStreamEvent =
       category: WeakCategory;
     }
   | {
+      type: "suggestions";
+      suggestions: string[];
+    }
+  | {
       type: "error";
       error: string;
     };
@@ -153,6 +161,13 @@ export function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
 
   if (candidate.type === "classifier") {
     return isWeakCategory(candidate.category);
+  }
+
+  if (candidate.type === "suggestions") {
+    return (
+      Array.isArray(candidate.suggestions) &&
+      candidate.suggestions.every((suggestion) => typeof suggestion === "string")
+    );
   }
 
   if (candidate.type === "error") {

@@ -2,7 +2,7 @@ import {
   defaultBaseUrl,
   getHealth,
 } from "./lib/access-tool-http.mjs";
-import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
+import { getLanguageRoutingSnapshot } from "./lib/language-persistence.mjs";
 import {
   getReferralsSnapshot,
   getReportProblemSnapshot,
@@ -15,7 +15,7 @@ function fail(message) {
 }
 
 const health = await getHealth({ baseUrl, fail });
-const languageSnapshot = await getLanguagePersistenceSnapshot({ baseUrl, fail });
+const languageSnapshot = await getLanguageRoutingSnapshot({ baseUrl, fail });
 const reportSnapshot = await getReportProblemSnapshot({
   baseUrl,
   fail,
@@ -27,8 +27,9 @@ const referralsSnapshot = await getReferralsSnapshot({
   path: "/find-human?entryId=understand-letter-or-form&lang=en",
 });
 const spanishHomeHtmlLang = languageSnapshot.homeLang;
-const persistedLanguageCookie = languageSnapshot.languageCookie;
-const persistedPrivacyHtmlLang = languageSnapshot.privacyLang;
+const languageCookieStatus = languageSnapshot.languageCookie ? "unexpected" : "none";
+const spanishPrivacyHtmlLang = languageSnapshot.privacyLang;
+const acceptLanguagePrivacyHtmlLang = languageSnapshot.acceptLanguageLang;
 
 console.log("Access Tool local diagnostics");
 console.log("");
@@ -40,8 +41,9 @@ console.log(`Health deployConfigOk: ${health.deployConfigOk === true ? "true" : 
 console.log("");
 console.log("Language snapshot");
 console.log(`- /?lang=es html lang: ${spanishHomeHtmlLang ?? "(missing)"}`);
-console.log(`- language cookie set: ${persistedLanguageCookie ?? "(missing)"}`);
-console.log(`- /privacy with cookie html lang: ${persistedPrivacyHtmlLang ?? "(missing)"}`);
+console.log(`- language cookie set: ${languageCookieStatus}`);
+console.log(`- /privacy?lang=es html lang: ${spanishPrivacyHtmlLang ?? "(missing)"}`);
+console.log(`- /privacy with Accept-Language es html lang: ${acceptLanguagePrivacyHtmlLang ?? "(missing)"}`);
 console.log("");
 console.log("Report page snapshot");
 console.log(`- chat mode: ${reportSnapshot.chatMode ?? "(missing)"}`);

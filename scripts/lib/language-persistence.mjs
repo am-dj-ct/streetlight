@@ -1,6 +1,6 @@
 import { extractHtmlLang, fetchHtmlPage } from "./access-tool-http.mjs";
 
-export async function getLanguagePersistenceSnapshot({
+export async function getLanguageRoutingSnapshot({
   baseUrl,
   fail,
   requestedLanguageCode = "es",
@@ -10,20 +10,30 @@ export async function getLanguagePersistenceSnapshot({
     fail,
     path: `/?lang=${requestedLanguageCode}`,
   });
-  const languageCookie = languageResponse.headers
-    .get("set-cookie")
-    ?.split(";")[0]
-    ?.trim();
+  const languageCookie = languageResponse.headers.get("set-cookie");
   const homeContentLanguage = languageResponse.headers.get("content-language");
-  const { html: privacyHtml, response: persistedResponse } = await fetchHtmlPage({
+  const { html: privacyHtml, response: explicitPrivacyResponse } = await fetchHtmlPage({
     baseUrl,
     fail,
-    headers: languageCookie ? { Cookie: languageCookie } : {},
+    path: `/privacy?lang=${requestedLanguageCode}`,
+  });
+  const privacyContentLanguage = explicitPrivacyResponse.headers.get("content-language");
+  const {
+    html: acceptLanguageHtml,
+    response: acceptLanguageResponse,
+  } = await fetchHtmlPage({
+    baseUrl,
+    fail,
+    headers: {
+      "Accept-Language": `${requestedLanguageCode},en;q=0.8`,
+    },
     path: "/privacy",
   });
-  const privacyContentLanguage = persistedResponse.headers.get("content-language");
 
   return {
+    acceptLanguageContentLanguage: acceptLanguageResponse.headers.get("content-language"),
+    acceptLanguageHtml,
+    acceptLanguageLang: extractHtmlLang(acceptLanguageHtml),
     homeContentLanguage,
     homeHtml,
     homeLang: extractHtmlLang(homeHtml),

@@ -1,8 +1,14 @@
 import { kv } from "@vercel/kv";
 import {
+  getCheapestMainModel,
+  getCheapestMainModelInputCostPerMillionUsd,
+  getCheapestMainModelOutputCostPerMillionUsd,
   getClassifierModelInputCostPerMillionUsd,
   getClassifierModelOutputCostPerMillionUsd,
   getDailySpendLimitUsd,
+  getFallbackMainModel,
+  getFallbackMainModelInputCostPerMillionUsd,
+  getFallbackMainModelOutputCostPerMillionUsd,
   getMainModelInputCostPerMillionUsd,
   getMainModelOutputCostPerMillionUsd,
   hasKvConfig,
@@ -30,6 +36,29 @@ type SpendLimitResult =
       resetInSeconds: number;
       reason: "limit_reached";
     };
+
+export type MainModelTier = "primary" | "fallback" | "cheapest";
+
+type MainModelSelectionResult =
+  | {
+      allowed: true;
+      currentSpendUsd: number;
+      limitUsd: null | number;
+      model: string;
+      resetInSeconds: number;
+      reason: "allowed" | "disabled";
+      tier: MainModelTier;
+    }
+  | {
+      allowed: false;
+      currentSpendUsd: number;
+      limitUsd: number;
+      resetInSeconds: number;
+      reason: "limit_reached";
+    };
+
+const fallbackModelThreshold = 0.8;
+const cheapestModelThreshold = 0.95;
 
 function getUtcDateKey(now: Date): string {
   return now.toISOString().slice(0, 10);
@@ -77,6 +106,60 @@ function hasSpendConfig(): boolean {
   );
 }
 
+function getConfiguredCostPair({
+  input,
+  output,
+}: {
+  input: null | number;
+  output: null | number;
+}): null | {
+  inputCostPerMillionUsd: number;
+  outputCostPerMillionUsd: number;
+} {
+  if (input === null || output === null) {
+    return null;
+  }
+
+  return {
+    inputCostPerMillionUsd: input,
+    outputCostPerMillionUsd: output,
+  };
+}
+
+function getMainModelCostPair(tier: MainModelTier) {
+  const classifierCosts = getConfiguredCostPair({
+    input: getClassifierModelInputCostPerMillionUsd(),
+    output: getClassifierModelOutputCostPerMillionUsd(),
+  });
+
+  if (tier === "primary") {
+    return getConfiguredCostPair({
+      input: getMainModelInputCostPerMillionUsd(),
+      output: getMainModelOutputCostPerMillionUsd(),
+    });
+  }
+
+  if (tier === "fallback") {
+    return (
+      getConfiguredCostPair({
+        input: getFallbackMainModelInputCostPerMillionUsd(),
+        output: getFallbackMainModelOutputCostPerMillionUsd(),
+      }) ?? classifierCosts
+    );
+  }
+
+  return (
+    getConfiguredCostPair({
+      input: getCheapestMainModelInputCostPerMillionUsd(),
+      output: getCheapestMainModelOutputCostPerMillionUsd(),
+    }) ?? classifierCosts
+  );
+}
+
+async function getCurrentSpendUsd(key: string): Promise<number> {
+  return Number((await kv.get<string | number>(key).catch(() => 0)) ?? 0);
+}
+
 export async function checkDailySpendCap(): Promise<SpendLimitResult> {
   const now = new Date();
   const resetInSeconds = getSecondsUntilUtcMidnight(now);
@@ -93,9 +176,7 @@ export async function checkDailySpendCap(): Promise<SpendLimitResult> {
   }
 
   const key = `daily-spend:${getUtcDateKey(now)}`;
-  const currentSpendUsd = Number(
-    (await kv.get<string | number>(key).catch(() => 0)) ?? 0,
-  );
+  const currentSpendUsd = await getCurrentSpendUsd(key);
 
   if (currentSpendUsd >= limitUsd) {
     return {
@@ -116,29 +197,104 @@ export async function checkDailySpendCap(): Promise<SpendLimitResult> {
   };
 }
 
+export async function selectMainModelForSpend({
+  primaryModel,
+}: {
+  primaryModel: string;
+}): Promise<MainModelSelectionResult> {
+  const now = new Date();
+  const resetInSeconds = getSecondsUntilUtcMidnight(now);
+  const limitUsd = getDailySpendLimitUsd();
+
+  if (!hasSpendConfig() || limitUsd === null) {
+    return {
+      allowed: true,
+      currentSpendUsd: 0,
+      limitUsd,
+      model: primaryModel,
+      resetInSeconds,
+      reason: "disabled",
+      tier: "primary",
+    };
+  }
+
+  const key = `daily-spend:${getUtcDateKey(now)}`;
+  const currentSpendUsd = await getCurrentSpendUsd(key);
+
+  if (currentSpendUsd >= limitUsd) {
+    return {
+      allowed: false,
+      currentSpendUsd,
+      limitUsd,
+      resetInSeconds,
+      reason: "limit_reached",
+    };
+  }
+
+  const spendRatio = limitUsd > 0 ? currentSpendUsd / limitUsd : 1;
+  const cheapestModel = getCheapestMainModel();
+
+  if (cheapestModel && spendRatio >= cheapestModelThreshold) {
+    return {
+      allowed: true,
+      currentSpendUsd,
+      limitUsd,
+      model: cheapestModel,
+      resetInSeconds,
+      reason: "allowed",
+      tier: "cheapest",
+    };
+  }
+
+  if (spendRatio >= fallbackModelThreshold) {
+    return {
+      allowed: true,
+      currentSpendUsd,
+      limitUsd,
+      model: getFallbackMainModel(),
+      resetInSeconds,
+      reason: "allowed",
+      tier: "fallback",
+    };
+  }
+
+  return {
+    allowed: true,
+    currentSpendUsd,
+    limitUsd,
+    model: primaryModel,
+    resetInSeconds,
+    reason: "allowed",
+    tier: "primary",
+  };
+}
+
 export async function recordDailySpendUsd({
   classifierUsage,
+  mainModelTier,
   mainUsage,
+  suggestionsUsage,
 }: {
   classifierUsage: UsageShape;
+  mainModelTier: MainModelTier;
   mainUsage: UsageShape;
+  suggestionsUsage?: null | UsageShape;
 }): Promise<null | {
   classifierCostUsd: number;
   mainCostUsd: number;
+  suggestionsCostUsd: number;
   totalCostUsd: number;
 }> {
   if (!hasSpendConfig()) {
     return null;
   }
 
-  const mainInputCostPerMillionUsd = getMainModelInputCostPerMillionUsd();
-  const mainOutputCostPerMillionUsd = getMainModelOutputCostPerMillionUsd();
+  const mainCostPair = getMainModelCostPair(mainModelTier);
   const classifierInputCostPerMillionUsd = getClassifierModelInputCostPerMillionUsd();
   const classifierOutputCostPerMillionUsd = getClassifierModelOutputCostPerMillionUsd();
 
   if (
-    mainInputCostPerMillionUsd === null ||
-    mainOutputCostPerMillionUsd === null ||
+    mainCostPair === null ||
     classifierInputCostPerMillionUsd === null ||
     classifierOutputCostPerMillionUsd === null
   ) {
@@ -147,15 +303,22 @@ export async function recordDailySpendUsd({
 
   const mainCostUsd = calculateUsageCostUsd(
     mainUsage,
-    mainInputCostPerMillionUsd,
-    mainOutputCostPerMillionUsd,
+    mainCostPair.inputCostPerMillionUsd,
+    mainCostPair.outputCostPerMillionUsd,
   );
   const classifierCostUsd = calculateUsageCostUsd(
     classifierUsage,
     classifierInputCostPerMillionUsd,
     classifierOutputCostPerMillionUsd,
   );
-  const totalCostUsd = mainCostUsd + classifierCostUsd;
+  const suggestionsCostUsd = suggestionsUsage
+    ? calculateUsageCostUsd(
+        suggestionsUsage,
+        classifierInputCostPerMillionUsd,
+        classifierOutputCostPerMillionUsd,
+      )
+    : 0;
+  const totalCostUsd = mainCostUsd + classifierCostUsd + suggestionsCostUsd;
   const now = new Date();
   const key = `daily-spend:${getUtcDateKey(now)}`;
   const resetInSeconds = getSecondsUntilUtcMidnight(now);
@@ -174,6 +337,7 @@ export async function recordDailySpendUsd({
   return {
     classifierCostUsd,
     mainCostUsd,
+    suggestionsCostUsd,
     totalCostUsd,
   };
 }

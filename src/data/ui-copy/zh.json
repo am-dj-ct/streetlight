@@ -153,6 +153,7 @@
     "stopReading": "停止朗读",
     "thinking": "正在思考...",
     "sendAssistiveLabel": "发送消息",
+    "weakCategoryPending": "正在检查这里是否需要找真人核实的提示...",
     "weakCategoryLead": "AI 有时会在这里出错。",
     "weakCategoryTail": "值得找懂这件事的人核实一下",
     "turnstileWait": "仍在确认你是真人。请稍后再试。",

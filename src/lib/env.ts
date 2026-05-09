@@ -58,6 +58,14 @@ export function getClassifierModel(): string {
   return readEnv("CLASSIFIER_MODEL");
 }
 
+export function getFallbackMainModel(): string {
+  return readOptionalEnv("FALLBACK_MAIN_MODEL") ?? getClassifierModel();
+}
+
+export function getCheapestMainModel(): null | string {
+  return readOptionalEnv("CHEAPEST_MAIN_MODEL");
+}
+
 export function getTurnstileSecretKey(): string {
   return readEnv("TURNSTILE_SECRET_KEY");
 }
@@ -98,6 +106,22 @@ export function getMainModelInputCostPerMillionUsd(): null | number {
 
 export function getMainModelOutputCostPerMillionUsd(): null | number {
   return readOptionalNumberEnv("MAIN_MODEL_OUTPUT_COST_PER_MILLION_USD");
+}
+
+export function getFallbackMainModelInputCostPerMillionUsd(): null | number {
+  return readOptionalNumberEnv("FALLBACK_MAIN_MODEL_INPUT_COST_PER_MILLION_USD");
+}
+
+export function getFallbackMainModelOutputCostPerMillionUsd(): null | number {
+  return readOptionalNumberEnv("FALLBACK_MAIN_MODEL_OUTPUT_COST_PER_MILLION_USD");
+}
+
+export function getCheapestMainModelInputCostPerMillionUsd(): null | number {
+  return readOptionalNumberEnv("CHEAPEST_MAIN_MODEL_INPUT_COST_PER_MILLION_USD");
+}
+
+export function getCheapestMainModelOutputCostPerMillionUsd(): null | number {
+  return readOptionalNumberEnv("CHEAPEST_MAIN_MODEL_OUTPUT_COST_PER_MILLION_USD");
 }
 
 export function getClassifierModelInputCostPerMillionUsd(): null | number {

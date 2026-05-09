@@ -13,6 +13,13 @@ export function isChatStreamEvent(value) {
     return typeof value.category === "string" && isWeakCategory(value.category);
   }
 
+  if (value.type === "suggestions") {
+    return (
+      Array.isArray(value.suggestions) &&
+      value.suggestions.every((suggestion) => typeof suggestion === "string")
+    );
+  }
+
   if (value.type === "error") {
     return typeof value.error === "string";
   }

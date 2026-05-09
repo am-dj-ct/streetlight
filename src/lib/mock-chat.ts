@@ -134,6 +134,17 @@ function buildMockResponse({
   }
 }
 
+function buildMockSuggestions(entryId: ConversationEntryId): string[] {
+  switch (entryId) {
+    case "write-something":
+      return ["Make it shorter", "Make it more direct", "Help me send it"];
+    case "talk-instead":
+      return ["Ask me one question", "Make it easier to say", "Start with one sentence"];
+    default:
+      return ["What should I do first?", "Help me make a plan", "Find a human for this"];
+  }
+}
+
 export function buildMockChatTurn(body: ChatRequestBody) {
   const latestUserText = getLatestUserText(body.messages);
 
@@ -146,5 +157,6 @@ export function buildMockChatTurn(body: ChatRequestBody) {
       entryId: body.entryId,
       latestUserText,
     }),
+    suggestions: buildMockSuggestions(body.entryId),
   };
 }

@@ -23,6 +23,11 @@ export type ClassifierStatus =
   | "completed"
   | "error_classifier";
 
+export type SuggestionsStatus =
+  | "not_started"
+  | "completed"
+  | "error_suggestions";
+
 export type ChatTurnMetadata = {
   timestamp: string;
   model_main: string;
@@ -32,10 +37,14 @@ export type ChatTurnMetadata = {
   main_tokens_out: null | number;
   classifier_tokens_in: null | number;
   classifier_tokens_out: null | number;
+  suggestions_tokens_in: null | number;
+  suggestions_tokens_out: null | number;
   main_response_time_ms: null | number;
   classifier_response_time_ms: null | number;
+  suggestions_response_time_ms: null | number;
   main_status: MainStatus;
   classifier_status: ClassifierStatus;
+  suggestions_status: SuggestionsStatus;
   language: string;
   button_id: ConversationEntryId;
   hashed_ip: null | string;
@@ -74,6 +83,9 @@ export function logChatTurnMetadata({
   mainUsage,
   modelClassifier,
   modelMain,
+  suggestionsResponseTimeMs,
+  suggestionsStatus,
+  suggestionsUsage,
 }: {
   buttonId: ConversationEntryId;
   classifierCategory: WeakCategory;
@@ -87,6 +99,9 @@ export function logChatTurnMetadata({
   mainUsage?: null | UsageShape;
   modelClassifier: string;
   modelMain: string;
+  suggestionsResponseTimeMs: null | number;
+  suggestionsStatus: SuggestionsStatus;
+  suggestionsUsage?: null | UsageShape;
 }) {
   const metadata: ChatTurnMetadata = {
     timestamp: new Date().toISOString(),
@@ -97,10 +112,14 @@ export function logChatTurnMetadata({
     main_tokens_out: getOutputTokens(mainUsage),
     classifier_tokens_in: getInputTokens(classifierUsage),
     classifier_tokens_out: getOutputTokens(classifierUsage),
+    suggestions_tokens_in: getInputTokens(suggestionsUsage),
+    suggestions_tokens_out: getOutputTokens(suggestionsUsage),
     main_response_time_ms: mainResponseTimeMs,
     classifier_response_time_ms: classifierResponseTimeMs,
+    suggestions_response_time_ms: suggestionsResponseTimeMs,
     main_status: mainStatus,
     classifier_status: classifierStatus,
+    suggestions_status: suggestionsStatus,
     language,
     button_id: buttonId,
     hashed_ip: hashedIp,

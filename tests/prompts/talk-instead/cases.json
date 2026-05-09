@@ -1,7 +1,7 @@
 [
   {
     "name": "speakable-steps",
-    "text": "Talk me through the first steps I should take after getting a benefits warning letter.",
-    "expectedClassifier": "none"
+    "text": "Talk me through the first steps I should take after getting a Basic Food benefits warning letter that says I need to send proof of income to keep benefits.",
+    "expectedClassifier": "benefits_eligibility"
   }
 ]
