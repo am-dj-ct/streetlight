@@ -59,6 +59,7 @@ const pageChecks = [
       "Resource list checked through:",
       "Source:",
       "Verified:",
+      'target="_blank" rel="noopener noreferrer"',
     ],
     path: "/find-human?entryId=understand-letter-or-form&lang=en",
     reportLinkSnippet:

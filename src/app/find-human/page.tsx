@@ -194,7 +194,7 @@ export default async function FindHumanPage({
                   <a
                     href={resource.website}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     aria-label={`${copy.referralsWebsiteLabel} ${resource.name}`}
                     className="flex min-h-11 items-center rounded-full bg-[#1f5f43] px-4 text-[15px] font-semibold text-white"
                   >
