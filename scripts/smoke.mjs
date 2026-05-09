@@ -10,12 +10,13 @@ import { readJsonFile } from "./lib/json-file.mjs";
 import { getLanguagePersistenceSnapshot } from "./lib/language-persistence.mjs";
 import { getReferralsSnapshot, getReportProblemSnapshot } from "./lib/page-snapshots.mjs";
 import { validateSmokeCases } from "./lib/prompt-fixtures.mjs";
+import { readOptionalPositiveIntegerEnv } from "./lib/script-env.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
 const endpoint = new URL("/api/chat", baseUrl).toString();
 const casesPath = path.join(cwd, "tests/prompts/smoke-cases.json");
-const smokeCaseLimit = Number.parseInt(process.env.SMOKE_CASE_LIMIT ?? "", 10);
+const smokeCaseLimit = readOptionalPositiveIntegerEnv("SMOKE_CASE_LIMIT");
 const smokeCaseFilter = (process.env.SMOKE_CASE_FILTER ?? "").trim().toLowerCase();
 const pageChecks = [
   {
@@ -162,7 +163,7 @@ async function loadCases() {
       )
     : allCases;
 
-  if (Number.isFinite(smokeCaseLimit) && smokeCaseLimit > 0) {
+  if (smokeCaseLimit !== null) {
     return filteredCases.slice(0, smokeCaseLimit);
   }
 

@@ -4,14 +4,18 @@ import { defaultBaseUrl, getHealth } from "./lib/access-tool-http.mjs";
 import { isChatStreamEvent } from "./lib/chat-stream.mjs";
 import { readJsonFile } from "./lib/json-file.mjs";
 import { validateRegressionCases } from "./lib/prompt-fixtures.mjs";
+import {
+  readBooleanEnv,
+  readOptionalPositiveIntegerEnv,
+} from "./lib/script-env.mjs";
 
 const cwd = process.cwd();
 const baseUrl = defaultBaseUrl;
 const endpoint = new URL("/api/chat", baseUrl).toString();
 const fixturesRoot = path.join(cwd, "tests/prompts");
-const promptCaseLimit = Number.parseInt(process.env.PROMPT_CASE_LIMIT ?? "", 10);
+const promptCaseLimit = readOptionalPositiveIntegerEnv("PROMPT_CASE_LIMIT");
 const promptCaseFilter = (process.env.PROMPT_CASE_FILTER ?? "").trim().toLowerCase();
-const allowMockRegression = process.env.ALLOW_MOCK_REGRESSION === "true";
+const allowMockRegression = readBooleanEnv("ALLOW_MOCK_REGRESSION");
 
 const refusalPattern =
   /\b(i can't help with that|i cannot help with that|i can't assist with that|i cannot assist with that)\b/i;
@@ -48,7 +52,7 @@ async function loadCases() {
       })
     : allCases;
 
-  if (Number.isFinite(promptCaseLimit) && promptCaseLimit > 0) {
+  if (promptCaseLimit !== null) {
     return filteredCases.slice(0, promptCaseLimit);
   }
 
