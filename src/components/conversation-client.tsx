@@ -99,10 +99,13 @@ type ConversationClientProps = {
   regionScope: RegionScope;
 };
 
+const languageSheetDialogId = "language-sheet-dialog";
 const languageSheetTitleId = "language-sheet-title";
 const languageSheetDescriptionId = "language-sheet-description";
+const saveDialogId = "save-dialog";
 const saveDialogTitleId = "save-dialog-title";
 const saveDialogDescriptionId = "save-dialog-description";
+const voiceSettingsDialogId = "voice-settings-dialog";
 const voiceSettingsTitleId = "voice-settings-title";
 const voiceSettingsDescriptionId = "voice-settings-description";
 const dialogFocusableSelector = [
@@ -1070,6 +1073,9 @@ export function ConversationClient({
           <button
             type="button"
             aria-label={copy.chooseLanguageLabel}
+            aria-controls={languageSheetDialogId}
+            aria-expanded={showLanguageSheet}
+            aria-haspopup="dialog"
             onClick={() => setShowLanguageSheet(true)}
             className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036]"
           >
@@ -1166,6 +1172,9 @@ export function ConversationClient({
                         </button>
                         <button
                           type="button"
+                          aria-controls={voiceSettingsDialogId}
+                          aria-expanded={showVoiceSettings}
+                          aria-haspopup="dialog"
                           onClick={() => setShowVoiceSettings(true)}
                           disabled={speechUnavailable}
                           className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
@@ -1233,6 +1242,9 @@ export function ConversationClient({
             <button
               type="button"
               aria-label={copy.saveExplainLabel}
+              aria-controls={saveDialogId}
+              aria-expanded={showSaveModal}
+              aria-haspopup="dialog"
               onClick={() => setShowSaveModal(true)}
               className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#b7c7bd] bg-white px-3 text-[15px] font-semibold text-[#1d2a22]"
             >
@@ -1285,6 +1297,7 @@ export function ConversationClient({
       {showVoiceSettings ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
           <div
+            id={voiceSettingsDialogId}
             ref={voiceSettingsRef}
             role="dialog"
             aria-modal="true"
@@ -1354,6 +1367,7 @@ export function ConversationClient({
       {showLanguageSheet ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
           <div
+            id={languageSheetDialogId}
             ref={languageSheetRef}
             role="dialog"
             aria-modal="true"
@@ -1408,6 +1422,7 @@ export function ConversationClient({
       {showSaveModal ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
           <div
+            id={saveDialogId}
             ref={saveDialogRef}
             role="dialog"
             aria-modal="true"
