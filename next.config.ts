@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
             value: "strict-origin-when-cross-origin",
           },
           {
+            key: "Permissions-Policy",
+            value: "camera=(), geolocation=(), payment=(), usb=()",
+          },
+          {
             key: "X-Content-Type-Options",
             value: "nosniff",
           },

@@ -162,6 +162,7 @@ function fail(message) {
 
 function assertBrowserSecurityHeaders(response, label) {
   const expectedHeaders = [
+    ["permissions-policy", "camera=(), geolocation=(), payment=(), usb=()"],
     ["referrer-policy", "strict-origin-when-cross-origin"],
     ["x-content-type-options", "nosniff"],
     ["x-frame-options", "DENY"],
