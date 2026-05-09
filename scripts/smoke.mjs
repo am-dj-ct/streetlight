@@ -415,6 +415,36 @@ async function checkWrongChatMethod() {
   }
 }
 
+async function checkOversizedChatBody() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-oversized-body",
+          role: "user",
+          text: "x".repeat(65000),
+        },
+      ],
+    }),
+  });
+
+  if (response.status !== 413) {
+    fail(`Expected 413 from /api/chat for oversized body, got ${response.status}.`);
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Request body too large.") {
+    fail("Unexpected oversized-body response from /api/chat.");
+  }
+}
+
 async function checkNullJsonBody() {
   await expectInvalidChatRequestShape(null, "null JSON body");
 }
@@ -899,6 +929,8 @@ await checkInvalidJsonBody();
 console.log("Invalid JSON handling ok (/api/chat rejects malformed JSON bodies).");
 await checkWrongChatMethod();
 console.log("Wrong method handling ok (/api/chat rejects GET requests).");
+await checkOversizedChatBody();
+console.log("Oversized body handling ok (/api/chat rejects huge JSON before parsing).");
 await checkNullJsonBody();
 console.log("Null JSON handling ok (/api/chat rejects null bodies).");
 await checkStringJsonBody();

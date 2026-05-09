@@ -30,6 +30,7 @@ export const conversationEntryIds: readonly ConversationEntryId[] = [
 export const maxChatMessages = 24;
 export const maxClientMessageTextLength = 8000;
 export const maxChatRequestTextLength = 24000;
+export const maxChatRequestBodyBytes = 64000;
 
 export function isConversationEntryId(
   value: null | string | undefined,

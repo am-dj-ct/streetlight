@@ -17,12 +17,29 @@ import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
 import {
   isChatRequestBody,
+  maxChatRequestBodyBytes,
   type ChatRequestBody,
   type WeakCategory,
 } from "../../../lib/chat-types";
 
 export async function POST(request: Request) {
   let body: ChatRequestBody;
+  const contentLengthHeader = request.headers.get("content-length");
+
+  if (contentLengthHeader) {
+    const contentLength = Number(contentLengthHeader);
+
+    if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+      return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
+    }
+
+    if (contentLength > maxChatRequestBodyBytes) {
+      return NextResponse.json(
+        { error: "Request body too large." },
+        { status: 413 },
+      );
+    }
+  }
 
   try {
     const parsedBody = await request.json();
