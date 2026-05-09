@@ -389,10 +389,10 @@ export function ReportProblemForm({
           </button>
         </div>
         {copyState === "copied" ? (
-          <p className="text-[14px] leading-6 text-[#37634d]">{copy.reportPageCopied}</p>
+          <p role="status" className="text-[14px] leading-6 text-[#37634d]">{copy.reportPageCopied}</p>
         ) : null}
         {copyState === "failed" ? (
-          <p className="text-[14px] leading-6 text-[#8b3a3a]">
+          <p role="status" className="text-[14px] leading-6 text-[#8b3a3a]">
             {copy.reportPageCopyFailed}
           </p>
         ) : null}
