@@ -39,6 +39,9 @@ const pageChecks = [
   },
   {
     expectedText: "Paste the letter or form here",
+    extraExpectedText: [
+      'maxLength="8000"',
+    ],
     path: "/conversation/understand-letter-or-form?lang=en",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=conversation&amp;entryId=understand-letter-or-form&amp;source=%2Fconversation%2Funderstand-letter-or-form%3Flang%3Den",

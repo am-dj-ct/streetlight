@@ -916,6 +916,7 @@ export function ConversationClient({
 
           <button
             type="button"
+            aria-label={copy.chooseLanguageLabel}
             onClick={() => setShowLanguageSheet(true)}
             className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036]"
           >
