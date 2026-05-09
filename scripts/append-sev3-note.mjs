@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { parseStrictIsoDate } from "./lib/iso-date.mjs";
 
 function fail(message) {
   console.error(message);
@@ -34,8 +35,8 @@ const args = parseArgs(process.argv.slice(2));
 const date = args.date ?? new Date().toISOString().slice(0, 10);
 const dryRun = args["dry-run"] === "true";
 
-if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-  fail("Date must use YYYY-MM-DD.");
+if (parseStrictIsoDate(date) === null) {
+  fail("Date must use a valid YYYY-MM-DD calendar date.");
 }
 
 if (!args.what || !args.action || !args.outcome) {

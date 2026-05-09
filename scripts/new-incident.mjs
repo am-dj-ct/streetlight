@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { parseStrictIsoDate } from "./lib/iso-date.mjs";
 
 function fail(message) {
   console.error(message);
@@ -31,7 +32,7 @@ function parseArgs(argv) {
 }
 
 function isValidDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  return parseStrictIsoDate(value) !== null;
 }
 
 function normalizeSeverity(value) {
