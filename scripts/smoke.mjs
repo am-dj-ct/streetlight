@@ -477,6 +477,7 @@ async function checkInvalidJsonBody() {
     fail("Unexpected invalid-JSON response body from /api/chat.");
   }
 
+  assertBrowserSecurityHeaders(response, "Invalid JSON /api/chat response");
   assertNoStore(response, "Invalid JSON response");
 }
 
@@ -496,6 +497,7 @@ async function checkWrongChatMethod() {
     fail("/api/chat GET response must advertise Allow: POST.");
   }
 
+  assertBrowserSecurityHeaders(response, "GET /api/chat response");
   assertNoStore(response, "Wrong method response");
 
   if (optionsResponse.status !== 405) {
@@ -506,6 +508,7 @@ async function checkWrongChatMethod() {
     fail("/api/chat OPTIONS response must advertise Allow: POST.");
   }
 
+  assertBrowserSecurityHeaders(optionsResponse, "OPTIONS /api/chat response");
   assertNoStore(optionsResponse, "Wrong method OPTIONS response");
 }
 
@@ -526,6 +529,7 @@ async function checkWrongHealthMethods() {
       fail(`Expected /healthz ${method} to advertise GET, HEAD.`);
     }
 
+    assertBrowserSecurityHeaders(response, `${method} /healthz response`);
     assertNoStore(response, `${method} /healthz response`);
   }
 }
