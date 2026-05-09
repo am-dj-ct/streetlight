@@ -22,6 +22,26 @@ import {
   type WeakCategory,
 } from "../../../lib/chat-types";
 
+function jsonNoStore(
+  body: { assistantNotice?: string; error: string },
+  {
+    headers,
+    status,
+  }: {
+    headers?: HeadersInit;
+    status: number;
+  },
+) {
+  const response = NextResponse.json(body, {
+    status,
+    headers,
+  });
+
+  response.headers.set("Cache-Control", "no-store");
+
+  return response;
+}
+
 export async function POST(request: Request) {
   let body: ChatRequestBody;
   const contentLengthHeader = request.headers.get("content-length");
@@ -30,11 +50,11 @@ export async function POST(request: Request) {
     const contentLength = Number(contentLengthHeader);
 
     if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
-      return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
+      return jsonNoStore({ error: "Invalid request shape." }, { status: 400 });
     }
 
     if (contentLength > maxChatRequestBodyBytes) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Request body too large." },
         { status: 413 },
       );
@@ -45,12 +65,12 @@ export async function POST(request: Request) {
     const parsedBody = await request.json();
 
     if (!isChatRequestBody(parsedBody)) {
-      return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
+      return jsonNoStore({ error: "Invalid request shape." }, { status: 400 });
     }
 
     body = parsedBody;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return jsonNoStore({ error: "Invalid JSON body." }, { status: 400 });
   }
 
   const messages = body.messages
@@ -62,11 +82,11 @@ export async function POST(request: Request) {
   const latestMessage = messages.at(-1);
 
   if (messages.length === 0) {
-    return NextResponse.json({ error: "No messages to send." }, { status: 400 });
+    return jsonNoStore({ error: "No messages to send." }, { status: 400 });
   }
 
   if (latestMessage?.role !== "user") {
-    return NextResponse.json({ error: "Invalid request shape." }, { status: 400 });
+    return jsonNoStore({ error: "Invalid request shape." }, { status: 400 });
   }
 
   const requestStartedAt = Date.now();
@@ -137,7 +157,7 @@ export async function POST(request: Request) {
         mainStatus: "error_request_setup",
       });
 
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: "This deployment is misconfigured.",
           assistantNotice:
@@ -198,7 +218,7 @@ export async function POST(request: Request) {
         mainStatus: "blocked_soft_pause",
       });
 
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: "The tool is paused right now. Please try again later today.",
           assistantNotice:
@@ -218,7 +238,7 @@ export async function POST(request: Request) {
         mainStatus: "blocked_turnstile",
       });
 
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Please try again." },
         { status: 403 },
       );
@@ -231,7 +251,7 @@ export async function POST(request: Request) {
         mainStatus: "blocked_rate_limit",
       });
 
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "Too many messages today. Please try again tomorrow." },
         {
           status: 429,
@@ -249,7 +269,7 @@ export async function POST(request: Request) {
         mainStatus: "blocked_daily_spend",
       });
 
-      return NextResponse.json(
+      return jsonNoStore(
         {
           error: "Today's limit has been reached. Please try again tomorrow.",
           assistantNotice:
@@ -453,7 +473,7 @@ export async function POST(request: Request) {
       error.message.startsWith("Missing required environment variable:");
 
     if (missingConfig) {
-      return NextResponse.json(
+      return jsonNoStore(
         { error: "The response did not come through. Please try again." },
         { status: 503 },
       );
@@ -476,7 +496,7 @@ export async function POST(request: Request) {
       mainStatus: "error_request_setup",
     });
 
-    return NextResponse.json(
+    return jsonNoStore(
       { error: "The response did not come through. Please try again." },
       { status: 502 },
     );

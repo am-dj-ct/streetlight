@@ -179,6 +179,12 @@ function assertBrowserSecurityHeaders(response, label) {
   }
 }
 
+function assertNoStore(response, label) {
+  if (response.headers.get("cache-control") !== "no-store") {
+    fail(`${label} must set Cache-Control: no-store.`);
+  }
+}
+
 async function loadCases() {
   const allCases = validateSmokeCases(
     await readJsonFile(casesPath),
@@ -408,6 +414,8 @@ async function checkInvalidJsonBody() {
   if (payload?.error !== "Invalid JSON body.") {
     fail("Unexpected invalid-JSON response body from /api/chat.");
   }
+
+  assertNoStore(response, "Invalid JSON response");
 }
 
 async function checkWrongChatMethod() {
@@ -448,6 +456,8 @@ async function checkOversizedChatBody() {
   if (payload?.error !== "Request body too large.") {
     fail("Unexpected oversized-body response from /api/chat.");
   }
+
+  assertNoStore(response, "Oversized body response");
 }
 
 async function checkNullJsonBody() {
