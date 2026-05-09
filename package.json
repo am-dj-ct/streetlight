@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:audit": "npm audit",
     "check:locales": "node scripts/report-missing-locales.mjs",
     "check:locales:summary": "node scripts/report-missing-locales.mjs --summary",
     "check:launch": "node scripts/check-launch-readiness.mjs",

@@ -53,6 +53,7 @@ this. Code stays public on GitHub regardless.
 - `npm run dev:mock` — runs the app with zero-cost local mock chat replies
 - `npm run dev:live` — runs the app against the configured live model path
 - `npm run build`
+- `npm run check:audit` — runs npm audit for dependency advisories
 - `npm run check:locales`
 - `npm run check:locales:summary` — quieter locale-gap summary for routine
   verification loops
