@@ -99,6 +99,8 @@ this. Code stays public on GitHub regardless.
   model behavior
 - `npm run verify:quick` — lower-cost local check for active setup work, now
   including the diagnostics snapshot and quick regression plumbing pass
+- `npm run verify:mock` — full local no-spend verification with all smoke
+  cases and all prompt fixtures in mock plumbing mode
 - `npm run verify` — runs the local pre-launch verification stack
 
 `npm run dev:mock` is for zero-cost local UI work. `npm run dev:live` is the

@@ -33,6 +33,7 @@
     "incident:sev3": "node scripts/append-sev3-note.mjs",
     "ops:status": "node scripts/ops-status.mjs",
     "verify:quick": "npm run lint && npm run build && npm run check:locales:summary && npm run check:translation-worklist && npm run check:content && npm run check:ops && npm run validate:data && npm run diagnostics:local && npm run smoke:quick && npm run regression:quick",
+    "verify:mock": "npm run lint && npm run build && npm run check:locales:summary && npm run check:translation-worklist && npm run check:content && npm run check:ops && npm run validate:data && npm run diagnostics:local && npm run smoke && npm run regression:mock",
     "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run check:content && npm run validate:data && npm run smoke && npm run regression:prompts"
   },
   "dependencies": {
