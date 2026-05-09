@@ -1,5 +1,5 @@
 function readEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
 
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
@@ -9,7 +9,9 @@ function readEnv(name: string): string {
 }
 
 function readOptionalEnv(name: string): null | string {
-  return process.env[name] ?? null;
+  const value = process.env[name]?.trim();
+
+  return value || null;
 }
 
 function readOptionalBooleanEnv(name: string): boolean {
