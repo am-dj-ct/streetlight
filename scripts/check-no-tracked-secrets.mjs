@@ -39,6 +39,16 @@ const secretPatterns = [
     pattern: /^TURNSTILE_SECRET_KEY=.+/m,
   },
 ];
+const binaryExtensions = new Set([
+  ".avif",
+  ".gif",
+  ".ico",
+  ".jpeg",
+  ".jpg",
+  ".pdf",
+  ".png",
+  ".webp",
+]);
 
 function fail(message) {
   throw new Error(message);
@@ -69,6 +79,10 @@ for (const relativePath of trackedFiles) {
 }
 
 for (const relativePath of trackedFiles) {
+  if (binaryExtensions.has(path.extname(relativePath).toLowerCase())) {
+    continue;
+  }
+
   const source = await readFile(path.join(cwd, relativePath), "utf8");
 
   for (const { label, pattern } of secretPatterns) {
