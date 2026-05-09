@@ -102,6 +102,14 @@ type ConversationClientProps = {
 const languageSheetTitleId = "language-sheet-title";
 const saveDialogTitleId = "save-dialog-title";
 const voiceSettingsTitleId = "voice-settings-title";
+const dialogFocusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
 
 function makeMessageId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -263,6 +271,12 @@ function setMessageWeakCategory(
   });
 }
 
+function getFocusableDialogElements(dialog: HTMLElement) {
+  return Array.from(
+    dialog.querySelectorAll<HTMLElement>(dialogFocusableSelector),
+  ).filter((element) => element.tabIndex >= 0);
+}
+
 export function ConversationClient({
   currentLanguageCode,
   currentLanguageLabel,
@@ -277,13 +291,16 @@ export function ConversationClient({
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const languageSheetDoneRef = useRef<HTMLButtonElement | null>(null);
+  const languageSheetRef = useRef<HTMLDivElement | null>(null);
   const languageSheetReturnFocusRef = useRef<HTMLElement | null>(null);
   const saveCancelRef = useRef<HTMLButtonElement | null>(null);
+  const saveDialogRef = useRef<HTMLDivElement | null>(null);
   const saveDialogReturnFocusRef = useRef<HTMLElement | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voiceSettingsDoneRef = useRef<HTMLButtonElement | null>(null);
+  const voiceSettingsRef = useRef<HTMLDivElement | null>(null);
   const voiceSettingsReturnFocusRef = useRef<HTMLElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const dictationBaseDraftRef = useRef("");
@@ -323,7 +340,56 @@ export function ConversationClient({
       return;
     }
 
-    function handleEscape(event: KeyboardEvent) {
+    function getOpenDialog() {
+      if (showSaveModal) {
+        return saveDialogRef.current;
+      }
+
+      if (showVoiceSettings) {
+        return voiceSettingsRef.current;
+      }
+
+      return languageSheetRef.current;
+    }
+
+    function handleSheetKeydown(event: KeyboardEvent) {
+      if (event.key === "Tab") {
+        const dialog = getOpenDialog();
+
+        if (!dialog) {
+          return;
+        }
+
+        const focusableElements = getFocusableDialogElements(dialog);
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements.at(-1);
+
+        if (!firstElement || !lastElement) {
+          event.preventDefault();
+          dialog.focus();
+          return;
+        }
+
+        if (!dialog.contains(document.activeElement)) {
+          event.preventDefault();
+          firstElement.focus();
+          return;
+        }
+
+        if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+          return;
+        }
+
+        if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
+
+        return;
+      }
+
       if (event.key !== "Escape") {
         return;
       }
@@ -344,10 +410,10 @@ export function ConversationClient({
       setShowLanguageSheet(false);
     }
 
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("keydown", handleSheetKeydown);
 
     return () => {
-      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("keydown", handleSheetKeydown);
     };
   }, [showLanguageSheet, showSaveModal, showVoiceSettings]);
 
@@ -1211,9 +1277,11 @@ export function ConversationClient({
       {showVoiceSettings ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
           <div
+            ref={voiceSettingsRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={voiceSettingsTitleId}
+            tabIndex={-1}
             className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
@@ -1277,9 +1345,11 @@ export function ConversationClient({
       {showLanguageSheet ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
           <div
+            ref={languageSheetRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={languageSheetTitleId}
+            tabIndex={-1}
             className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
@@ -1328,9 +1398,11 @@ export function ConversationClient({
       {showSaveModal ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
           <div
+            ref={saveDialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={saveDialogTitleId}
+            tabIndex={-1}
             className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
