@@ -115,6 +115,28 @@ if (!invalidIncidentDateOutput.includes("Opened date must use YYYY-MM-DD.")) {
   fail("new-incident invalid date check did not fail as expected.");
 }
 
+const invalidIncidentRangeOutput = runNodeScriptExpectingFailure(
+  "scripts/new-incident.mjs",
+  [
+    "--slug",
+    "invalid-date-range-check",
+    "--opened",
+    "2026-03-02",
+    "--resolved",
+    "2026-03-01",
+    "--dry-run",
+    "true",
+  ],
+);
+
+if (
+  !invalidIncidentRangeOutput.includes(
+    "Resolved date cannot be earlier than opened date.",
+  )
+) {
+  fail("new-incident invalid date range check did not fail as expected.");
+}
+
 const invalidSev3DateOutput = runNodeScriptExpectingFailure(
   "scripts/append-sev3-note.mjs",
   [

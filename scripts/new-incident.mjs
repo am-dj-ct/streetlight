@@ -31,10 +31,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function isValidDate(value) {
-  return parseStrictIsoDate(value) !== null;
-}
-
 function normalizeSeverity(value) {
   if (!value) {
     return "Sev-2";
@@ -77,14 +73,25 @@ if (!/^[a-z0-9-]+$/.test(slug)) {
   fail("Slug must use lowercase letters, numbers, and hyphens only.");
 }
 
-if (!isValidDate(openedDate)) {
+const parsedOpenedDate = parseStrictIsoDate(openedDate);
+
+if (parsedOpenedDate === null) {
   fail("Opened date must use YYYY-MM-DD.");
 }
 
 const resolvedDate = args.resolved ?? "";
+const parsedResolvedDate = resolvedDate ? parseStrictIsoDate(resolvedDate) : null;
 
-if (resolvedDate && !isValidDate(resolvedDate)) {
+if (resolvedDate && parsedResolvedDate === null) {
   fail("Resolved date must use YYYY-MM-DD.");
+}
+
+if (
+  parsedResolvedDate !== null &&
+  parsedOpenedDate !== null &&
+  parsedResolvedDate < parsedOpenedDate
+) {
+  fail("Resolved date cannot be earlier than opened date.");
 }
 
 const severity = normalizeSeverity(args.severity);
