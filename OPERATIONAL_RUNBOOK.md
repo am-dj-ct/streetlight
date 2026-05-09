@@ -75,9 +75,9 @@ pause message.
 7. Save.
 8. Wait for the redeploy to finish.
 
-[Screenshot: Vercel project settings]
-[Screenshot: Environment Variables]
-[Screenshot: SOFT_PAUSE_ENABLED set to true]
+[![Vercel project settings](docs/assets/runbook/vercel-project-settings.png)](docs/assets/runbook/vercel-project-settings.png)
+[![Environment Variables](docs/assets/runbook/vercel-environment-variables.png)](docs/assets/runbook/vercel-environment-variables.png)
+[![SOFT_PAUSE_ENABLED set to true](docs/assets/runbook/vercel-soft-pause-enabled.png)](docs/assets/runbook/vercel-soft-pause-enabled.png)
 
 ### What to check after
 
@@ -111,7 +111,7 @@ Every route serves the pause page.
 7. Save.
 8. Wait for the redeploy to finish.
 
-[Screenshot: HARD_PAUSE_ENABLED set to true]
+[![HARD_PAUSE_ENABLED set to true](docs/assets/runbook/vercel-hard-pause-enabled.png)](docs/assets/runbook/vercel-hard-pause-enabled.png)
 
 ### What to check after
 
@@ -166,7 +166,7 @@ Use this to confirm:
 - when it happened
 - whether the latest build succeeded
 
-[Screenshot: Deployments tab]
+[![Deployments tab](docs/assets/runbook/vercel-deployments.png)](docs/assets/runbook/vercel-deployments.png)
 
 ### Runtime logs
 
@@ -180,7 +180,7 @@ Use this for:
 Do **not** go looking for user content. This app is designed so there should
 not be any in logs.
 
-[Screenshot: Runtime logs]
+[![Runtime logs](docs/assets/runbook/vercel-runtime-logs.png)](docs/assets/runbook/vercel-runtime-logs.png)
 
 ### Usage / billing
 
@@ -190,7 +190,7 @@ Use this if:
 - you suspect abuse
 - a partner says the app stopped responding
 
-[Screenshot: Usage view]
+[![Usage view](docs/assets/runbook/vercel-usage.png)](docs/assets/runbook/vercel-usage.png)
 
 ---
 
