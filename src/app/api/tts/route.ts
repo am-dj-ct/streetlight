@@ -148,7 +148,7 @@ export async function POST(request: Request) {
 
   const requestStartedAt = Date.now();
   const language = body.language;
-  const voiceName = getAzureVoiceName(language);
+  const voiceName = getAzureVoiceName(language, body.voiceName);
   const region = getAzureSpeechRegion();
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), 12000);
@@ -158,6 +158,7 @@ export async function POST(request: Request) {
       body: buildAzureSsml({
         languageCode: language,
         text: speechText,
+        voiceName,
       }),
       headers: {
         "Content-Type": "application/ssml+xml",

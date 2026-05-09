@@ -140,6 +140,8 @@
     "voiceTitle": "Cod",
     "voiceDone": "Dhammee",
     "voiceOptionLabel": "Doorashada codka",
+    "naturalVoiceOptionLabel": "Cod akhris oo dabiici ah",
+    "deviceVoiceOptionLabel": "Codka kaydka ah ee qalabka",
     "voiceSpeedLabel": "Xawaare",
     "voiceDefaultOption": "Caadi",
     "voiceOnlyOneOption": "Browser-kan wuxuu luqaddan u muujinayaa hal cod oo keliya.",

@@ -422,7 +422,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 ### Side Path — TTS Button Tap
 
 - **Runs:** Browser first calls `/api/tts` for provider-backed read-aloud. If provider read-aloud is disabled, unavailable, or blocked by the daily character cap, the browser falls back to the Web Speech API device voice when available.
-- **Has access to:** The assistant response text being read aloud, the selected UI language, Azure Speech key (server-side only), and Azure Speech region.
+- **Has access to:** The assistant response text being read aloud, the selected UI language, selected read-aloud voice, Azure Speech key (server-side only), and Azure Speech region.
 - **Logs by default:** Vercel runtime logs for `/api/tts` request metadata. The route may log safe operational error metadata: provider, status, language, voice name, character count, response time. It never logs the text. Azure AI Speech receives the answer text and returns audio. The browser/OS may have its own behavior for Web Speech API fallback.
 - **Override:** Audio generation is explicit tap-only, never autoplay. The Azure key is never exposed to the browser. The response is returned with `Cache-Control: no-store`. Audio is played from an in-memory blob URL and revoked after use. No audio cache, no stored audio file, no service worker cache, no CDN.
 - **What leaves this hop:** HTTPS POST to `/api/tts`, then server-side HTTPS POST to Azure AI Speech containing SSML built from the assistant response text. No user identifier, no account, no session ID.

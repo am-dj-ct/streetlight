@@ -17,6 +17,7 @@ import {
 } from "../lib/routes";
 import { buildMailtoHref, isMailtoHrefWithinLimit } from "../lib/support";
 import { stripMarkdownForSpeech } from "../lib/speech-text";
+import { getAzureVoiceOption, getAzureVoiceOptions } from "../lib/azure-tts";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
   ChatErrorBody,
@@ -34,6 +35,7 @@ import { isTtsErrorBody } from "../lib/tts-types";
 import type { RegionScope } from "../lib/geo";
 import {
   getSpeechLocaleForLanguageCode,
+  isSupportedLanguageCode,
   languageOptions,
   type SupportedLanguageCode,
 } from "../lib/languages";
@@ -112,6 +114,7 @@ const saveDialogDescriptionId = "save-dialog-description";
 const voiceSettingsDialogId = "voice-settings-dialog";
 const voiceSettingsTitleId = "voice-settings-title";
 const voiceSettingsDescriptionId = "voice-settings-description";
+const azureVoiceStorageKey = "access-tool-azure-voice-names";
 const dialogFocusableSelector = [
   "a[href]",
   "button:not([disabled])",
@@ -320,6 +323,35 @@ function writeLocalStorage(key: string, value: string) {
   }
 }
 
+function readAzureVoicePreferences(): Partial<Record<SupportedLanguageCode, string>> {
+  try {
+    const rawValue = readLocalStorage(azureVoiceStorageKey);
+    const parsedValue = rawValue ? JSON.parse(rawValue) : null;
+
+    if (!parsedValue || typeof parsedValue !== "object") {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsedValue).filter(
+        (entry): entry is [SupportedLanguageCode, string] =>
+          isSupportedLanguageCode(entry[0]) && typeof entry[1] === "string",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeAzureVoicePreference(
+  languageCode: SupportedLanguageCode,
+  voiceName: string,
+) {
+  const preferences = readAzureVoicePreferences();
+  preferences[languageCode] = voiceName;
+  writeLocalStorage(azureVoiceStorageKey, JSON.stringify(preferences));
+}
+
 export function ConversationClient({
   currentLanguageCode,
   currentLanguageLabel,
@@ -365,6 +397,7 @@ export function ConversationClient({
   const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
   const [micSupported, setMicSupported] = useState<boolean | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedAzureVoiceName, setSelectedAzureVoiceName] = useState("");
   const [selectedVoiceUri, setSelectedVoiceUri] = useState("");
   const [speechRate, setSpeechRate] = useState(0.92);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
@@ -554,6 +587,17 @@ export function ConversationClient({
       setSpeechRate(savedSpeechRate);
     }
 
+    const savedAzureVoiceName = readAzureVoicePreferences()[currentLanguageCode];
+
+    if (
+      savedAzureVoiceName &&
+      getAzureVoiceOptions(currentLanguageCode).some(
+        (voiceOption) => voiceOption.name === savedAzureVoiceName,
+      )
+    ) {
+      setSelectedAzureVoiceName(savedAzureVoiceName);
+    }
+
     let loadVoices: (() => void) | null = null;
 
     if ("speechSynthesis" in window) {
@@ -591,7 +635,7 @@ export function ConversationClient({
       setSpeakingMessageId(null);
       setSpeechLoadingMessageId(null);
     };
-  }, []);
+  }, [currentLanguageCode]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -658,15 +702,17 @@ export function ConversationClient({
   }, [turnstileScriptReady, turnstileSiteKey]);
 
   const voiceLanguage = getSpeechLocaleForLanguageCode(currentLanguageCode);
+  const azureVoiceOptions = getAzureVoiceOptions(currentLanguageCode);
+  const effectiveAzureVoice = getAzureVoiceOption(
+    currentLanguageCode,
+    selectedAzureVoiceName,
+  );
   const voiceOptions = getVoiceOptions(availableVoices, voiceLanguage);
   const effectiveVoiceUri =
     selectedVoiceUri ||
     chooseBestVoice(voiceOptions, voiceLanguage)?.voiceURI ||
     "";
-  const selectedVoiceName =
-    voiceOptions.find((voice) => voice.voiceURI === effectiveVoiceUri)?.name ??
-    copy.voiceDefaultOption;
-  const speechUnavailable = speechSupported === false;
+  const selectedReadAloudVoiceLabel = effectiveAzureVoice.label;
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
 
@@ -911,6 +957,7 @@ export function ConversationClient({
         body: JSON.stringify({
           language: currentLanguageCode,
           text: speechText,
+          voiceName: effectiveAzureVoice.name,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -1376,7 +1423,6 @@ export function ConversationClient({
                             aria-expanded={showVoiceSettings}
                             aria-haspopup="dialog"
                             onClick={() => setShowVoiceSettings(true)}
-                            disabled={speechUnavailable}
                             className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
                           >
                             {copy.voiceTitle}
@@ -1543,7 +1589,7 @@ export function ConversationClient({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 id={voiceSettingsTitleId} className="text-[18px] font-semibold text-[#1f2923]">{copy.voiceTitle}</h2>
-                <p id={voiceSettingsDescriptionId} className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
+                <p id={voiceSettingsDescriptionId} className="text-[14px] text-[#5f6d64]">{selectedReadAloudVoiceLabel}</p>
               </div>
               <button
                 ref={voiceSettingsDoneRef}
@@ -1557,7 +1603,25 @@ export function ConversationClient({
 
             <div className="space-y-4">
               <label className="block">
-                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">{copy.voiceOptionLabel}</span>
+                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">{copy.naturalVoiceOptionLabel}</span>
+                <select
+                  value={effectiveAzureVoice.name}
+                  onChange={(event) => {
+                    setSelectedAzureVoiceName(event.target.value);
+                    writeAzureVoicePreference(currentLanguageCode, event.target.value);
+                  }}
+                  className="min-h-12 w-full rounded-[16px] border border-[#cfd7cf] bg-white px-4 text-[16px] text-[#1f2923]"
+                >
+                  {azureVoiceOptions.map((voiceOption) => (
+                    <option key={voiceOption.name} value={voiceOption.name}>
+                      {voiceOption.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">{copy.deviceVoiceOptionLabel}</span>
                 <select
                   value={effectiveVoiceUri}
                   onChange={(event) => setSelectedVoiceUri(event.target.value)}

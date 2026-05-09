@@ -140,6 +140,8 @@
     "voiceTitle": "Voice",
     "voiceDone": "Done",
     "voiceOptionLabel": "Voice option",
+    "naturalVoiceOptionLabel": "Natural read-aloud voice",
+    "deviceVoiceOptionLabel": "Device backup voice",
     "voiceSpeedLabel": "Speed",
     "voiceDefaultOption": "Default",
     "voiceOnlyOneOption": "This browser is only exposing one voice for this language.",

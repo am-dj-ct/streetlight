@@ -140,6 +140,8 @@
     "voiceTitle": "Голос",
     "voiceDone": "Готово",
     "voiceOptionLabel": "Вариант голоса",
+    "naturalVoiceOptionLabel": "Естественный голос для чтения",
+    "deviceVoiceOptionLabel": "Запасной голос устройства",
     "voiceSpeedLabel": "Скорость",
     "voiceDefaultOption": "По умолчанию",
     "voiceOnlyOneOption": "Этот браузер показывает только один голос для этого языка.",

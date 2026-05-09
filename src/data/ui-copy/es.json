@@ -140,6 +140,8 @@
     "voiceTitle": "Voz",
     "voiceDone": "Listo",
     "voiceOptionLabel": "Opción de voz",
+    "naturalVoiceOptionLabel": "Voz natural de lectura",
+    "deviceVoiceOptionLabel": "Voz de respaldo del dispositivo",
     "voiceSpeedLabel": "Velocidad",
     "voiceDefaultOption": "Predeterminada",
     "voiceOnlyOneOption": "Este navegador solo muestra una voz para este idioma.",

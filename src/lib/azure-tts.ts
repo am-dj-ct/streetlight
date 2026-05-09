@@ -1,14 +1,46 @@
 import type { SupportedLanguageCode } from "./languages";
 import { getSpeechLocaleForLanguageCode } from "./languages";
 
-const azureVoiceByLanguage: Record<SupportedLanguageCode, string> = {
-  am: "am-ET-MekdesNeural",
-  en: "en-US-JennyNeural",
-  es: "es-US-PalomaNeural",
-  ru: "ru-RU-SvetlanaNeural",
-  so: "so-SO-UbaxNeural",
-  vi: "vi-VN-HoaiMyNeural",
-  zh: "zh-CN-XiaoxiaoNeural",
+export type AzureVoiceOption = {
+  label: string;
+  locale: string;
+  name: string;
+};
+
+const azureVoiceOptionsByLanguage: Record<SupportedLanguageCode, AzureVoiceOption[]> = {
+  am: [
+    { label: "Mekdes", locale: "am-ET", name: "am-ET-MekdesNeural" },
+    { label: "Ameha", locale: "am-ET", name: "am-ET-AmehaNeural" },
+  ],
+  en: [
+    { label: "Sonia (British woman)", locale: "en-GB", name: "en-GB-SoniaNeural" },
+    { label: "Libby (British woman)", locale: "en-GB", name: "en-GB-LibbyNeural" },
+    { label: "Olivia (British woman)", locale: "en-GB", name: "en-GB-OliviaNeural" },
+    { label: "Jenny (US woman)", locale: "en-US", name: "en-US-JennyNeural" },
+    { label: "Ryan (British man)", locale: "en-GB", name: "en-GB-RyanNeural" },
+  ],
+  es: [
+    { label: "Paloma", locale: "es-US", name: "es-US-PalomaNeural" },
+    { label: "Alonso", locale: "es-US", name: "es-US-AlonsoNeural" },
+  ],
+  ru: [
+    { label: "Svetlana", locale: "ru-RU", name: "ru-RU-SvetlanaNeural" },
+    { label: "Dariya", locale: "ru-RU", name: "ru-RU-DariyaNeural" },
+    { label: "Dmitry", locale: "ru-RU", name: "ru-RU-DmitryNeural" },
+  ],
+  so: [
+    { label: "Ubax", locale: "so-SO", name: "so-SO-UbaxNeural" },
+    { label: "Muuse", locale: "so-SO", name: "so-SO-MuuseNeural" },
+  ],
+  vi: [
+    { label: "Hoai My", locale: "vi-VN", name: "vi-VN-HoaiMyNeural" },
+    { label: "Nam Minh", locale: "vi-VN", name: "vi-VN-NamMinhNeural" },
+  ],
+  zh: [
+    { label: "Xiaoxiao", locale: "zh-CN", name: "zh-CN-XiaoxiaoNeural" },
+    { label: "Yunxi", locale: "zh-CN", name: "zh-CN-YunxiNeural" },
+    { label: "Xiaoyi", locale: "zh-CN", name: "zh-CN-XiaoyiNeural" },
+  ],
 };
 
 function escapeXml(value: string): string {
@@ -20,8 +52,38 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-export function getAzureVoiceName(languageCode: SupportedLanguageCode): string {
-  return azureVoiceByLanguage[languageCode];
+export function getAzureVoiceOptions(
+  languageCode: SupportedLanguageCode,
+): AzureVoiceOption[] {
+  return azureVoiceOptionsByLanguage[languageCode];
+}
+
+export function getAzureVoiceOption(
+  languageCode: SupportedLanguageCode,
+  voiceName?: null | string,
+): AzureVoiceOption {
+  const voiceOptions = getAzureVoiceOptions(languageCode);
+
+  return (
+    voiceOptions.find((voiceOption) => voiceOption.name === voiceName) ??
+    voiceOptions[0]
+  );
+}
+
+export function getAzureVoiceName(
+  languageCode: SupportedLanguageCode,
+  voiceName?: null | string,
+): string {
+  return getAzureVoiceOption(languageCode, voiceName).name;
+}
+
+export function isAzureVoiceNameForLanguage(
+  languageCode: SupportedLanguageCode,
+  voiceName: string,
+): boolean {
+  return getAzureVoiceOptions(languageCode).some(
+    (voiceOption) => voiceOption.name === voiceName,
+  );
 }
 
 export function getAzureTtsEndpoint(region: string): string {
@@ -33,16 +95,18 @@ export function getAzureTtsEndpoint(region: string): string {
 export function buildAzureSsml({
   languageCode,
   text,
+  voiceName,
 }: {
   languageCode: SupportedLanguageCode;
   text: string;
+  voiceName?: null | string;
 }): string {
-  const locale = getSpeechLocaleForLanguageCode(languageCode);
-  const voiceName = getAzureVoiceName(languageCode);
+  const voiceOption = getAzureVoiceOption(languageCode, voiceName);
+  const locale = voiceOption.locale || getSpeechLocaleForLanguageCode(languageCode);
 
   return [
     `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">`,
-    `<voice name="${voiceName}">`,
+    `<voice name="${voiceOption.name}">`,
     escapeXml(text),
     "</voice>",
     "</speak>",

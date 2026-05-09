@@ -810,6 +810,14 @@ async function checkInvalidTtsRequestShapes() {
   await expectInvalidTtsRequestShape(
     {
       language: "en",
+      text: "hello",
+      voiceName: "ru-RU-SvetlanaNeural",
+    },
+    "wrong-language TTS voice",
+  );
+  await expectInvalidTtsRequestShape(
+    {
+      language: "en",
       text: "   \n   ",
     },
     "blank TTS text",
@@ -836,6 +844,7 @@ async function checkMockTtsResponseWhenEnabled() {
     body: JSON.stringify({
       language: "en",
       text: "Read this aloud.",
+      voiceName: "en-GB-SoniaNeural",
     }),
   });
 

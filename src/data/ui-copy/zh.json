@@ -140,6 +140,8 @@
     "voiceTitle": "语音",
     "voiceDone": "完成",
     "voiceOptionLabel": "语音选项",
+    "naturalVoiceOptionLabel": "自然朗读语音",
+    "deviceVoiceOptionLabel": "设备备用语音",
     "voiceSpeedLabel": "速度",
     "voiceDefaultOption": "默认",
     "voiceOnlyOneOption": "这个浏览器只为此语言提供一个语音。",

@@ -140,6 +140,8 @@
     "voiceTitle": "ድምፅ",
     "voiceDone": "ጨርስ",
     "voiceOptionLabel": "የድምፅ አማራጭ",
+    "naturalVoiceOptionLabel": "ተፈጥሯዊ የንባብ ድምፅ",
+    "deviceVoiceOptionLabel": "የመሳሪያ  backup ድምፅ",
     "voiceSpeedLabel": "ፍጥነት",
     "voiceDefaultOption": "ነባሪ",
     "voiceOnlyOneOption": "ይህ browser ለዚህ ቋንቋ አንድ ድምፅ ብቻ እያሳየ ነው.",

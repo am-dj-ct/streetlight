@@ -140,6 +140,8 @@
     "voiceTitle": "Giọng nói",
     "voiceDone": "Xong",
     "voiceOptionLabel": "Tùy chọn giọng nói",
+    "naturalVoiceOptionLabel": "Giọng đọc tự nhiên",
+    "deviceVoiceOptionLabel": "Giọng dự phòng trên thiết bị",
     "voiceSpeedLabel": "Tốc độ",
     "voiceDefaultOption": "Mặc định",
     "voiceOnlyOneOption": "Trình duyệt này chỉ hiển thị một giọng nói cho ngôn ngữ này.",
