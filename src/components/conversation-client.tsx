@@ -99,6 +99,10 @@ type ConversationClientProps = {
   regionScope: RegionScope;
 };
 
+const languageSheetTitleId = "language-sheet-title";
+const saveDialogTitleId = "save-dialog-title";
+const voiceSettingsTitleId = "voice-settings-title";
+
 function makeMessageId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -895,7 +899,7 @@ export function ConversationClient({
   }
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
+    <main className="relative flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
       {turnstileSiteKey ? (
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
@@ -1131,11 +1135,16 @@ export function ConversationClient({
 
       {showVoiceSettings ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
-          <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={voiceSettingsTitleId}
+            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
+          >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-[18px] font-semibold text-[#1f2923]">{copy.voiceTitle}</h2>
+                <h2 id={voiceSettingsTitleId} className="text-[18px] font-semibold text-[#1f2923]">{copy.voiceTitle}</h2>
                 <p className="text-[14px] text-[#5f6d64]">{selectedVoiceName}</p>
               </div>
               <button
@@ -1191,11 +1200,16 @@ export function ConversationClient({
 
       {showLanguageSheet ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
-          <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={languageSheetTitleId}
+            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
+          >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-[18px] font-semibold text-[#1f2923]">
+                <h2 id={languageSheetTitleId} className="text-[18px] font-semibold text-[#1f2923]">
                   {copy.languageSheetTitle}
                 </h2>
                 <p className="text-[14px] text-[#5f6d64]">
@@ -1236,9 +1250,14 @@ export function ConversationClient({
 
       {showSaveModal ? (
         <div className="absolute inset-0 z-20 flex items-end bg-[rgba(18,24,20,0.24)]">
-          <div className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={saveDialogTitleId}
+            className="w-full rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)]"
+          >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
-            <h2 className="text-[20px] font-semibold text-[#1f2923]">
+            <h2 id={saveDialogTitleId} className="text-[20px] font-semibold text-[#1f2923]">
               {copy.saveTitle}
             </h2>
             <div className="pt-4 space-y-4 text-[16px] leading-7 text-[#3c4b42]">
