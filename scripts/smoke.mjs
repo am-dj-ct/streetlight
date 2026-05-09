@@ -28,7 +28,7 @@ const pageChecks = [
     reportLinkSnippet: "/report-problem?lang=en&amp;area=main-screen&amp;source=%2F%3Flang%3Den",
   },
   {
-    expectedText: "Full UI translation is still being added for this language.",
+    expectedText: "¿Qué necesitas?",
     expectedHtmlLang: "es",
     path: "/?lang=es",
     reportLinkSnippet: "/report-problem?lang=es&amp;area=main-screen&amp;source=%2F%3Flang%3Des",
@@ -303,12 +303,8 @@ async function checkLanguagePersistence() {
     fail("Expected persisted Spanish Content-Language header on /privacy.");
   }
 
-  if (
-    !snapshot.privacyHtml?.includes(
-      "This page is still showing the English version while human translation is being added.",
-    )
-  ) {
-    fail("Expected non-English fallback notice on /privacy with persisted language cookie.");
+  if (!snapshot.privacyHtml?.includes("Privacidad")) {
+    fail("Expected Spanish privacy page content on /privacy with persisted language cookie.");
   }
 }
 
