@@ -16,9 +16,9 @@ Before launch:
 ## Fill this in before launch
 
 - Live URL: `https://access-tool-eight.vercel.app`
-- Bus-factor person: `[ADD-NAME]`
-- Best phone or text: `[ADD-PHONE]`
-- Backup email: `[ADD-EMAIL]`
+- Bus-factor person: `Jesse Dunn`
+- Best phone or text: `206-388-8748`
+- Backup email: `jesse.c.dunn@outlook.com` (`jesse@balancedlivingtherapy.com` also reaches Jesse)
 
 ---
 
