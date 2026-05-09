@@ -679,26 +679,43 @@ export function ConversationClient({
     setHasSeenSaveWarning(true);
   }
 
-  function downloadConversation() {
+  function downloadConversation(fileContents: string) {
     if (typeof window === "undefined") {
-      return;
+      return false;
     }
 
+    try {
+      const blob = new Blob([fileContents], { type: "text/plain;charset=utf-8" });
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+
+      anchor.href = objectUrl;
+      anchor.download = makeExportFilename(entryId);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function saveConversationLocally() {
     const fileContents = formatConversationForExport(messages, {
       copy,
       entryLabel: exportEntryLabel,
       languageLabel: currentLanguageLabel,
     });
-    const blob = new Blob([fileContents], { type: "text/plain;charset=utf-8" });
-    const objectUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
 
-    anchor.href = objectUrl;
-    anchor.download = makeExportFilename(entryId);
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(objectUrl);
+    if (downloadConversation(fileContents)) {
+      setSaveStatusMessage(null);
+      return;
+    }
+
+    setSaveStatusMessage(
+      await copyTextToClipboard(fileContents) ? copy.saveCopied : copy.saveCopyFailed,
+    );
   }
 
   function emailConversationToSelf() {
@@ -718,22 +735,22 @@ export function ConversationClient({
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }
 
-  function handleSavePress() {
+  async function handleSavePress() {
     setSaveStatusMessage(null);
 
     if (hasSeenSaveWarning) {
-      downloadConversation();
+      await saveConversationLocally();
       return;
     }
 
     setShowSaveModal(true);
   }
 
-  function handleSaveHere() {
+  async function handleSaveHere() {
     markSaveWarningSeen();
     setSaveStatusMessage(null);
     setShowSaveModal(false);
-    downloadConversation();
+    await saveConversationLocally();
   }
 
   function handleEmailToSelf() {
