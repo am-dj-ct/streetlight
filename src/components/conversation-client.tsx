@@ -313,6 +313,39 @@ export function ConversationClient({
   });
 
   useEffect(() => {
+    if (!showLanguageSheet && !showSaveModal && !showVoiceSettings) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (showSaveModal) {
+        setSaveStatusMessage(null);
+        setShowSaveModal(false);
+        return;
+      }
+
+      if (showVoiceSettings) {
+        setShowVoiceSettings(false);
+        return;
+      }
+
+      setShowLanguageSheet(false);
+    }
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [showLanguageSheet, showSaveModal, showVoiceSettings]);
+
+  useEffect(() => {
     const thread = threadRef.current;
 
     if (!thread) {
