@@ -46,6 +46,7 @@ const pageChecks = [
       'maxLength="8000"',
       'href="tel:988"',
       'href="tel:911"',
+      'href="tel:8664274747"',
     ],
     path: "/conversation/understand-letter-or-form?lang=en",
     reportLinkSnippet:
@@ -64,6 +65,8 @@ const pageChecks = [
       "Resource list checked through:",
       "Source:",
       "Verified:",
+      'href="tel:211"',
+      'href="tel:8006214636"',
       'target="_blank" rel="noopener noreferrer"',
     ],
     path: "/find-human?entryId=understand-letter-or-form&lang=en",
