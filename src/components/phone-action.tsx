@@ -11,6 +11,7 @@ type PhoneActionCopy = {
   phoneActionCopyFailed: string;
   phoneActionOpen: string;
   phoneActionClose: string;
+  referralsWebsiteLabel: string;
 };
 
 type PhoneActionProps = {
@@ -19,6 +20,7 @@ type PhoneActionProps = {
   copy: PhoneActionCopy;
   label: string;
   phone: string;
+  websiteUrl?: string;
 };
 
 function formatTelephoneHref(phone: string) {
@@ -31,6 +33,7 @@ export function PhoneAction({
   copy,
   label,
   phone,
+  websiteUrl,
 }: PhoneActionProps) {
   const dialogId = useId();
   const titleId = useId();
@@ -95,6 +98,16 @@ export function PhoneAction({
               >
                 {copy.phoneActionCopy}
               </button>
+              {websiteUrl ? (
+                <a
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] font-semibold text-[#1f2923]"
+                >
+                  {copy.referralsWebsiteLabel}
+                </a>
+              ) : null}
               <a
                 href={formatTelephoneHref(phone)}
                 className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] bg-[#1f6a43] px-4 text-[17px] font-semibold text-white"

@@ -52,12 +52,14 @@ export function CrisisFooter({
             copy={copy}
             label={copy.footerEmergency}
             phone="988"
+            websiteUrl="https://988lifeline.org/"
             buttonClassName="font-semibold underline"
           />
           <PhoneAction
             copy={copy}
             label={copy.footerDangerNow}
             phone="911"
+            websiteUrl="https://www.911.gov/"
             buttonClassName="font-semibold underline"
           />
           <span>
@@ -71,6 +73,7 @@ export function CrisisFooter({
               copy={copy}
               label={`${resource.label} ${resource.phone}`}
               phone={resource.phone}
+              websiteUrl={resource.url}
               buttonClassName="font-semibold underline"
             />
           ))}
