@@ -424,6 +424,9 @@ async function checkWrongChatMethod() {
   const response = await fetch(endpoint, {
     method: "GET",
   });
+  const optionsResponse = await fetch(endpoint, {
+    method: "OPTIONS",
+  });
 
   if (response.status !== 405) {
     fail(`Expected 405 from /api/chat for GET, got ${response.status}.`);
@@ -434,6 +437,16 @@ async function checkWrongChatMethod() {
   }
 
   assertNoStore(response, "Wrong method response");
+
+  if (optionsResponse.status !== 405) {
+    fail(`Expected 405 from /api/chat for OPTIONS, got ${optionsResponse.status}.`);
+  }
+
+  if (optionsResponse.headers.get("allow") !== "POST") {
+    fail("/api/chat OPTIONS response must advertise Allow: POST.");
+  }
+
+  assertNoStore(optionsResponse, "Wrong method OPTIONS response");
 }
 
 async function checkOversizedChatBody() {

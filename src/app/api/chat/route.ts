@@ -510,3 +510,15 @@ export function GET() {
     },
   );
 }
+
+export function OPTIONS() {
+  return jsonNoStore(
+    { error: "Method not allowed." },
+    {
+      headers: {
+        Allow: "POST",
+      },
+      status: 405,
+    },
+  );
+}
