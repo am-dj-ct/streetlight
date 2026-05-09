@@ -382,6 +382,7 @@ export function ConversationClient({
   const voiceSettingsReturnFocusRef = useRef<HTMLElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const dictationBaseDraftRef = useRef("");
+  const maxVisualViewportHeightRef = useRef(0);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     {
       id: "assistant-seed",
@@ -408,6 +409,7 @@ export function ConversationClient({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
+  const [isKeyboardViewportCompressed, setIsKeyboardViewportCompressed] = useState(false);
   const [shareSupported, setShareSupported] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -560,6 +562,51 @@ export function ConversationClient({
     composer.style.height = "0px";
     composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
   }, [draft]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const visualViewport = window.visualViewport;
+
+    function updateKeyboardViewportState() {
+      if (!mediaQuery.matches) {
+        maxVisualViewportHeightRef.current = Math.max(
+          maxVisualViewportHeightRef.current,
+          visualViewport.height,
+        );
+        setIsKeyboardViewportCompressed(false);
+        return;
+      }
+
+      if (!isComposerFocused) {
+        maxVisualViewportHeightRef.current = Math.max(
+          maxVisualViewportHeightRef.current,
+          visualViewport.height,
+        );
+      }
+
+      const baselineHeight =
+        maxVisualViewportHeightRef.current || visualViewport.height;
+      const isCompressed = baselineHeight - visualViewport.height > 120;
+
+      setIsKeyboardViewportCompressed(isCompressed);
+    }
+
+    updateKeyboardViewportState();
+
+    visualViewport.addEventListener("resize", updateKeyboardViewportState);
+    visualViewport.addEventListener("scroll", updateKeyboardViewportState);
+    window.addEventListener("resize", updateKeyboardViewportState);
+
+    return () => {
+      visualViewport.removeEventListener("resize", updateKeyboardViewportState);
+      visualViewport.removeEventListener("scroll", updateKeyboardViewportState);
+      window.removeEventListener("resize", updateKeyboardViewportState);
+    };
+  }, [isComposerFocused]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -714,7 +761,7 @@ export function ConversationClient({
     chooseBestVoice(voiceOptions, voiceLanguage)?.voiceURI ||
     "";
   const selectedReadAloudVoiceLabel = effectiveAzureVoice.label;
-  const isCompactComposer = isComposerFocused;
+  const isCompactComposer = isComposerFocused || isKeyboardViewportCompressed;
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
 
