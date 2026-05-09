@@ -69,8 +69,10 @@ export function InfoPageShell({
 
       <CrisisFooter
         area={area}
+        compact
         languageCode={currentLanguage.code}
         regionScope={regionScope}
+        showFindHumanInCompact
         sourcePath={sourcePath}
       />
     </main>

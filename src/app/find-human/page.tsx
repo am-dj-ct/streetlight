@@ -220,9 +220,11 @@ export default async function FindHumanPage({
 
       <CrisisFooter
         area="find-human"
+        compact
         entryId={safeEntryId}
         languageCode={languageCode}
         regionScope={regionScope}
+        showFindHumanInCompact
         sourcePath={buildFindHumanHref({
           category,
           entryId: safeEntryId,
