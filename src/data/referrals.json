@@ -97,7 +97,7 @@
     "sourceName": "KCSARC",
     "lastVerified": "2026-05-08",
     "website": "https://www.kcsarc.org/en/",
-    "categories": ["all"],
+    "categories": ["crisis"],
     "regions": ["king"]
   },
   {
@@ -142,7 +142,7 @@
     "sourceName": "988 Lifeline",
     "lastVerified": "2026-05-08",
     "website": "https://988lifeline.org/",
-    "categories": ["all"],
+    "categories": ["crisis"],
     "regions": ["fallback"]
   },
   {
@@ -164,7 +164,7 @@
     "sourceName": "National Domestic Violence Hotline",
     "lastVerified": "2026-05-08",
     "website": "https://www.thehotline.org/",
-    "categories": ["all"],
+    "categories": ["crisis"],
     "regions": ["fallback"]
   }
 ]

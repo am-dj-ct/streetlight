@@ -89,6 +89,9 @@ const pageChecks = [
     extraExpectedText: [
       "href=\"/find-human?entryId=understand-letter-or-form&amp;lang=en\"",
     ],
+    notExpectedText: [
+      "King County Sexual Assault Resource Center",
+    ],
     path: "/find-human?category=benefits_eligibility&entryId=understand-letter-or-form&lang=en",
     reportLinkSnippet:
       "/report-problem?lang=en&amp;area=find-human&amp;entryId=understand-letter-or-form&amp;source=%2Ffind-human%3Fcategory%3Dbenefits_eligibility%26entryId%3Dunderstand-letter-or-form%26lang%3Den",
@@ -276,6 +279,12 @@ async function checkPages() {
     for (const extraExpectedText of page.extraExpectedText ?? []) {
       if (!html.includes(extraExpectedText)) {
         fail(`Expected extra text not found on ${page.path}: ${extraExpectedText}`);
+      }
+    }
+
+    for (const notExpectedText of page.notExpectedText ?? []) {
+      if (html.includes(notExpectedText)) {
+        fail(`Unexpected text found on ${page.path}: ${notExpectedText}`);
       }
     }
 

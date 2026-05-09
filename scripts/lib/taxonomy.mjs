@@ -19,7 +19,7 @@ export const weakCategories = Object.freeze([
   "none",
 ]);
 
-export const referralCategories = Object.freeze(["all", ...weakCategories]);
+export const referralCategories = Object.freeze(["all", "crisis", ...weakCategories]);
 
 export const referralCoverageCategories = Object.freeze(
   weakCategories.filter((category) => category !== "none"),

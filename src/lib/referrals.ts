@@ -15,7 +15,7 @@ import {
   type InternalAppPath,
 } from "./routes";
 
-type ReferralCategory = WeakCategory | "all";
+type ReferralCategory = WeakCategory | "all" | "crisis";
 type ReferralRegion = "king" | "fallback";
 
 export type ReferralResource = {
@@ -33,6 +33,7 @@ export type ReferralResource = {
 
 const validReferralCategories: readonly ReferralCategory[] = [
   "all",
+  "crisis",
   ...weakCategories,
 ];
 const validReferralRegions: readonly ReferralRegion[] = ["king", "fallback"];
