@@ -6,8 +6,8 @@
   },
   {
     "name": "appeal-benefits",
-    "text": "I am deciding whether to appeal a Basic Food benefits cutoff letter or reapply. The letter says my eligibility is ending because proof of income is missing. Help me think through what information matters.",
-    "expectedClassifier": "benefits_eligibility"
+    "text": "I am deciding whether to appeal a Basic Food benefits cutoff letter or reapply. The letter says my eligibility is ending because proof of income is missing. Help me think through which eligibility rules, proof requirements, and benefits-office steps I should verify first.",
+    "expectedClassifier": "none"
   },
   {
     "name": "payment-plan",

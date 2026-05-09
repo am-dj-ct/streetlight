@@ -48,6 +48,10 @@ Keep the existing categories and keep the same single-label classifier design.
 - `src/lib/classifier-prompt.ts` now defines the three labels directly and adds
   tie-break rules against benefits, immigration, legal procedure, medical
   dosing, and drug interactions.
+- Live regression tuning then tightened classifier wording for edge overlaps:
+  USCIS-vs-documents, legal-procedure-vs-deadlines, benefit appeals phrased as
+  planning, employment-rights prep-language prompts, and appointment-logistics
+  prompts that should remain `none`.
 - `src/data/referrals.json` now tags a small set of existing resources for the
   new categories rather than creating new routing branches.
 - Regression fixtures now include explicit positive and overlap cases for the

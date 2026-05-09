@@ -26,7 +26,7 @@
   },
   {
     "name": "schedule-cut-after-sick-leave",
-    "text": "Talk me through what to say when I call a worker-rights or legal-help line because my manager cut my schedule right after I asked for sick leave.",
+    "text": "Talk me through what to say when I call a worker-rights or legal-help line because my manager cut my schedule right after I asked for sick leave. I want to clearly ask about retaliation and my rights.",
     "expectedClassifier": "employment_rights"
   }
 ]

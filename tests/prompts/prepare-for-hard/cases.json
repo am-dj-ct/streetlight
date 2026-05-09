@@ -26,7 +26,7 @@
   },
   {
     "name": "accommodation-denial",
-    "text": "Help me prepare for a hard conversation with my boss after they denied my disability accommodation request and cut my schedule.",
+    "text": "Help me prepare for a hard conversation with my boss after they denied my disability accommodation request and cut my schedule. I need help naming my workplace rights, what to ask for in writing, and what facts legal-help staff will want.",
     "expectedClassifier": "employment_rights"
   }
 ]

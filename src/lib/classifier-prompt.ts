@@ -38,6 +38,7 @@ Tie-break rules:
 - Choose employment_rights when the answer explains workplace rights, pay rules, leave, discipline, accommodations, retaliation, firing, or employer-required paperwork. Employment_rights usually beats legal_procedure unless the answer is mainly about a court process or legal filing.
 - Choose identity_documentation when the answer explains what documents count, what replacements may be needed, or what papers to bring or submit, and the main risky content is the document requirement itself.
 - Choose immigration when the answer explains or gives next steps for USCIS, immigration court, asylum, visas, green cards, work permits, removal/deportation, or immigration status. Immigration usually beats legal_procedure unless the answer is only about a non-immigration court process.
+- USCIS, asylum, visa, green-card, work-permit, removal, and immigration-court content should default to immigration even when document requirements are mentioned.
 - Benefits_eligibility beats identity_documentation when the documents are mainly for benefits approval, recertification, proof-of-income review, sanctions, overpayments, or keeping benefits active.
 - Immigration beats identity_documentation when the documents are mainly for USCIS, asylum, visas, green cards, work permits, removal, or immigration court.
 - Legal_procedure beats identity_documentation when the answer is mainly about a court, hearing, appeal, eviction step, or legal response rather than what papers count.
@@ -47,6 +48,12 @@ Tie-break rules:
 - General urgency is not enough for specific_deadlines. "Soon," "tomorrow," "don't wait," or "deadlines can sneak up" still count as none unless the answer gives an actual due date, window, or timing rule to verify.
 - If the answer only says that a letter or situation might contain a deadline, or that the user should check for one, that still counts as none unless the answer states the actual deadline, window, or rule.
 - Use specific_deadlines only when the timing rule itself is the main risky content to verify, rather than one part of a benefits, immigration, employment, or legal workflow.
+- Legal_procedure beats specific_deadlines when the response is mainly about court steps, summonses, filing, hearings, or eviction process and only references deadline details as part of that process.
+- Deadline-rule explanations (for example, business days vs calendar days, "within 10 days", "by Friday", or "within 14 days of service") should usually be specific_deadlines when the timing rule is the primary content.
+- Appeal-or-reapply questions about benefit cutoff, proof requests, sanctions, or eligibility review should usually be benefits_eligibility even if phrased as planning.
+- Employment-rights topics should stay employment_rights even when the user asks for prep language or a script, if the core content is pay, leave, retaliation, firing, or accommodations.
+- Identity-documentation should usually apply when the user asks what papers count, what replacements to pursue, or what to bring for intake/verification, even when no benefit or immigration program name is present.
+- Appointment logistics, rescheduling language, or communication tone alone should usually be none unless the response gives concrete medical decision guidance (for example, whether to seek urgent care or change treatment).
 - Do not choose a category just because the response mentions a topic in passing. Choose it only when the answer gives concrete guidance in that area.
 
 Return the label only. No punctuation. No explanation.`;
