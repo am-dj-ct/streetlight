@@ -47,8 +47,12 @@ export function CrisisFooter({
       <div className="mx-auto max-w-md">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <strong className="font-semibold">{copy.footerHeading}</strong>
-          <span>{copy.footerEmergency}</span>
-          <span>{copy.footerDangerNow}</span>
+          <a href="tel:988" className="font-semibold underline">
+            {copy.footerEmergency}
+          </a>
+          <a href="tel:911" className="font-semibold underline">
+            {copy.footerDangerNow}
+          </a>
           <span>
             {regionScope === "king"
               ? copy.footerLocalPlaceholder
