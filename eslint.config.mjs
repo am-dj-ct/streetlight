@@ -11,17 +11,17 @@ const eslintConfig = defineConfig([
         "error",
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] MemberExpression[object.name='req'][property.name='body']",
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(info|log|warn|error)$/] MemberExpression[object.name='req'][property.name='body']",
           message: "Do not log req.body.",
         },
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name=/^(body|parsedBody|requestBody|messages)$/]",
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(info|log|warn|error)$/] Identifier[name=/^(body|parsedBody|requestBody|messages)$/]",
           message: "Do not log request bodies or conversation messages.",
         },
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name=/^(log|warn|error)$/] Identifier[name=/^(request|response|completion|classifierResponse|finalMessage|stream)$/]",
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(info|log|warn|error)$/] Identifier[name=/^(request|response|completion|classifierResponse|finalMessage|stream)$/]",
           message: "Do not log raw request, response, stream, or completion objects.",
         },
         {
