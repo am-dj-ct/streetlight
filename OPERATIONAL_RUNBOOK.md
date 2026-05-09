@@ -19,6 +19,9 @@ Before launch:
 - Bus-factor person: `Jesse Dunn`
 - Best phone or text: `206-388-8748`
 - Backup email: `jesse.c.dunn@outlook.com` (`jesse@balancedlivingtherapy.com` also reaches Jesse)
+- Secondary ops contact: `Malia Clancy`
+- Secondary phone or text: `425-350-4707`
+- Secondary email: `malia.clancy@live.com`
 
 ---
 
