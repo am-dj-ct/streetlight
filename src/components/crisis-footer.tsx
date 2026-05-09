@@ -20,6 +20,7 @@ export function CrisisFooter({
   entryId,
   languageCode = "en",
   regionScope = "king",
+  showFindHumanInCompact = false,
   sourcePath,
 }: {
   area?: ReportArea;
@@ -27,6 +28,7 @@ export function CrisisFooter({
   entryId?: ConversationEntryId;
   languageCode?: SupportedLanguageCode;
   regionScope?: RegionScope;
+  showFindHumanInCompact?: boolean;
   sourcePath?: InternalAppPath;
 }) {
   const copy = getUiCopy(languageCode);
@@ -125,6 +127,14 @@ export function CrisisFooter({
                   />
                 </div>
               </div>
+
+              {showFindHumanInCompact ? (
+                <div className="mt-2">
+                  <Link href={findHumanHref} className="font-semibold underline">
+                    {copy.footerFindHuman}
+                  </Link>
+                </div>
+              ) : null}
 
               <details className="mt-2">
                 <summary className="cursor-pointer rounded-[14px] border border-[#cbd6cf] bg-white px-3 py-2 text-[13px] font-medium text-[#25342b]">

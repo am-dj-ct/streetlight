@@ -102,8 +102,10 @@ export default async function Home({ searchParams }: HomePageProps) {
       </div>
       <CrisisFooter
         area="main-screen"
+        compact
         languageCode={currentLanguage.code}
         regionScope={regionScope}
+        showFindHumanInCompact
         sourcePath={buildHomeHref(currentLanguage.code)}
       />
     </main>
