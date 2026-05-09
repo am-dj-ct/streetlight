@@ -102,22 +102,36 @@ export function CrisisFooter({
       <div className="mx-auto max-w-md sm:max-w-2xl lg:max-w-4xl">
         {compact ? (
           <>
-            <div className="flex items-center gap-3 sm:hidden">
-              <strong className="font-semibold">{copy.footerHeading}</strong>
-              <PhoneAction
-                copy={copy}
-                label="988"
-                phone="988"
-                websiteUrl="https://988lifeline.org/"
-                buttonClassName="font-semibold underline"
-              />
-              <PhoneAction
-                copy={copy}
-                label="911"
-                phone="911"
-                websiteUrl="https://www.911.gov/"
-                buttonClassName="font-semibold underline"
-              />
+            <div className="sm:hidden">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <strong className="font-semibold">Immediate Help:</strong>
+                  <PhoneAction
+                    copy={copy}
+                    label="911"
+                    phone="911"
+                    websiteUrl="https://www.911.gov/"
+                    buttonClassName="font-semibold underline"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <strong className="font-semibold">Mental health crisis help:</strong>
+                  <PhoneAction
+                    copy={copy}
+                    label="988"
+                    phone="988"
+                    websiteUrl="https://988lifeline.org/"
+                    buttonClassName="font-semibold underline"
+                  />
+                </div>
+              </div>
+
+              <details className="mt-2">
+                <summary className="cursor-pointer rounded-[14px] border border-[#cbd6cf] bg-white px-3 py-2 text-[13px] font-medium text-[#25342b]">
+                  More Crisis Resources and App Info
+                </summary>
+                <div className="pt-2">{fullFooterContent}</div>
+              </details>
             </div>
             <div className="hidden sm:block">{fullFooterContent}</div>
           </>
