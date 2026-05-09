@@ -22,6 +22,23 @@ function runNodeScript(scriptPath, args) {
   return result.stdout;
 }
 
+function runNodeScriptExpectingFailure(scriptPath, args) {
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+  });
+
+  if (result.error) {
+    fail(`Failed to run ${scriptPath}: ${result.error.message}`);
+  }
+
+  if (result.status === 0) {
+    fail(`${scriptPath} unexpectedly passed.`);
+  }
+
+  return `${result.stderr}${result.stdout}`;
+}
+
 const newIncidentOutput = runNodeScript("scripts/new-incident.mjs", [
   "--slug",
   "ops-script-check",
@@ -80,6 +97,42 @@ if (
   !sev3Output.includes("Synthetic ops script check")
 ) {
   fail("append-sev3-note dry run did not include the expected log preview.");
+}
+
+const invalidIncidentDateOutput = runNodeScriptExpectingFailure(
+  "scripts/new-incident.mjs",
+  [
+    "--slug",
+    "invalid-date-check",
+    "--opened",
+    "2026-02-31",
+    "--dry-run",
+    "true",
+  ],
+);
+
+if (!invalidIncidentDateOutput.includes("Opened date must use YYYY-MM-DD.")) {
+  fail("new-incident invalid date check did not fail as expected.");
+}
+
+const invalidSev3DateOutput = runNodeScriptExpectingFailure(
+  "scripts/append-sev3-note.mjs",
+  [
+    "--date",
+    "2026-02-31",
+    "--what",
+    "Synthetic invalid date check",
+    "--action",
+    "Ran the dry-run validator",
+    "--outcome",
+    "Should fail",
+    "--dry-run",
+    "true",
+  ],
+);
+
+if (!invalidSev3DateOutput.includes("valid YYYY-MM-DD calendar date")) {
+  fail("append-sev3-note invalid date check did not fail as expected.");
 }
 
 const resourceStatusOutput = runNodeScript("scripts/print-resource-status.mjs", []);
