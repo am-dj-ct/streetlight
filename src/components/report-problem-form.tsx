@@ -10,7 +10,7 @@ import {
 } from "../lib/report-problem";
 import { reportAreas, type ReportArea } from "../lib/report-areas";
 import type { ChatMode } from "../lib/runtime-state";
-import { buildMailtoHref } from "../lib/support";
+import { buildMailtoHref, isMailtoHrefWithinLimit } from "../lib/support";
 import {
   getLanguageOption,
   isSupportedLanguageCode,
@@ -212,11 +212,19 @@ export function ReportProblemForm({
     );
   }
 
-  function handleOpenEmail() {
-    window.location.href = buildMailtoHref({
+  async function handleOpenEmail() {
+    const href = buildMailtoHref({
       subject: reportSubject,
       body: reportBody,
     });
+
+    if (!isMailtoHrefWithinLimit(href)) {
+      setCopyState(await copyTextToClipboard(reportBody) ? "copied" : "failed");
+      return;
+    }
+
+    setCopyState("idle");
+    window.location.href = href;
   }
 
   async function handleCopy() {
@@ -370,7 +378,9 @@ export function ReportProblemForm({
         <div className="flex flex-col gap-3">
           <button
             type="button"
-            onClick={handleOpenEmail}
+            onClick={() => {
+              void handleOpenEmail();
+            }}
             className="inline-flex min-h-12 items-center justify-center rounded-[18px] bg-[#1f6a43] px-4 text-[17px] font-semibold text-white"
           >
             {copy.reportPageOpenEmail}

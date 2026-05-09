@@ -1,4 +1,5 @@
 export const supportEmail = "jesse.c.dunn@outlook.com";
+export const maxMailtoHrefLength = 6000;
 
 export function buildMailtoHref({
   body,
@@ -16,4 +17,8 @@ export function buildMailtoHref({
   }
 
   return `mailto:${supportEmail}?${params.toString()}`;
+}
+
+export function isMailtoHrefWithinLimit(href: string) {
+  return href.length <= maxMailtoHrefLength;
 }

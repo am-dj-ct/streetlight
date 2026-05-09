@@ -15,6 +15,7 @@ import {
   buildHomeHref,
   buildPrivacyHref,
 } from "../lib/routes";
+import { buildMailtoHref, isMailtoHrefWithinLimit } from "../lib/support";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
   ChatErrorBody,
@@ -655,6 +656,14 @@ export function ConversationClient({
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
 
+  function getConversationExportText() {
+    return formatConversationForExport(messages, {
+      copy,
+      entryLabel: exportEntryLabel,
+      languageLabel: currentLanguageLabel,
+    });
+  }
+
   function resetTurnstileToken() {
     setTurnstileToken(null);
 
@@ -709,11 +718,7 @@ export function ConversationClient({
   }
 
   async function saveConversationLocally() {
-    const fileContents = formatConversationForExport(messages, {
-      copy,
-      entryLabel: exportEntryLabel,
-      languageLabel: currentLanguageLabel,
-    });
+    const fileContents = getConversationExportText();
 
     if (downloadConversation(fileContents)) {
       setSaveStatusMessage(null);
@@ -725,21 +730,27 @@ export function ConversationClient({
     );
   }
 
-  function emailConversationToSelf() {
+  async function emailConversationToSelf() {
     if (typeof window === "undefined") {
       return;
     }
 
-    const subject = encodeURIComponent(copy.conversationExportTitle);
-    const body = encodeURIComponent(
-      formatConversationForExport(messages, {
-        copy,
-        entryLabel: exportEntryLabel,
-        languageLabel: currentLanguageLabel,
-      }),
-    );
+    const fileContents = getConversationExportText();
+    const href = buildMailtoHref({
+      subject: copy.conversationExportTitle,
+      body: fileContents,
+    });
 
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    if (!isMailtoHrefWithinLimit(href)) {
+      setSaveStatusMessage(
+        await copyTextToClipboard(fileContents) ? copy.saveCopied : copy.saveCopyFailed,
+      );
+      return;
+    }
+
+    setSaveStatusMessage(null);
+    setShowSaveModal(false);
+    window.location.href = href;
   }
 
   async function handleSavePress() {
@@ -763,8 +774,7 @@ export function ConversationClient({
   function handleEmailToSelf() {
     markSaveWarningSeen();
     setSaveStatusMessage(null);
-    setShowSaveModal(false);
-    emailConversationToSelf();
+    void emailConversationToSelf();
   }
 
   async function handleShareConversation() {
@@ -776,11 +786,7 @@ export function ConversationClient({
     try {
       await navigator.share({
         title: copy.conversationExportTitle,
-        text: formatConversationForExport(messages, {
-          copy,
-          entryLabel: exportEntryLabel,
-          languageLabel: currentLanguageLabel,
-        }),
+        text: getConversationExportText(),
       });
       setSaveStatusMessage(null);
     } catch {
@@ -789,11 +795,7 @@ export function ConversationClient({
   }
 
   async function handleCopyConversation() {
-    const exportText = formatConversationForExport(messages, {
-      copy,
-      entryLabel: exportEntryLabel,
-      languageLabel: currentLanguageLabel,
-    });
+    const exportText = getConversationExportText();
 
     setSaveStatusMessage(
       await copyTextToClipboard(exportText) ? copy.saveCopied : copy.saveCopyFailed,
