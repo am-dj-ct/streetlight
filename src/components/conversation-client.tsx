@@ -334,6 +334,7 @@ export function ConversationClient({
     entryId,
     languageCode: currentLanguageCode,
   });
+  const hasOpenSheet = showLanguageSheet || showSaveModal || showVoiceSettings;
 
   useEffect(() => {
     if (!showLanguageSheet && !showSaveModal && !showVoiceSettings) {
@@ -1049,7 +1050,11 @@ export function ConversationClient({
         />
       ) : null}
 
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3">
+      <div
+        aria-hidden={hasOpenSheet ? true : undefined}
+        inert={hasOpenSheet ? true : undefined}
+        className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3"
+      >
         <header className="flex items-center justify-between pb-3">
           <Link
             href={buildHomeHref(currentLanguageCode)}
@@ -1479,13 +1484,19 @@ export function ConversationClient({
         </div>
       ) : null}
 
-      <CrisisFooter
-        area="conversation"
-        entryId={entryId}
-        languageCode={currentLanguageCode}
-        regionScope={regionScope}
-        sourcePath={conversationHref}
-      />
+      <div
+        aria-hidden={hasOpenSheet ? true : undefined}
+        inert={hasOpenSheet ? true : undefined}
+        className="shrink-0"
+      >
+        <CrisisFooter
+          area="conversation"
+          entryId={entryId}
+          languageCode={currentLanguageCode}
+          regionScope={regionScope}
+          sourcePath={conversationHref}
+        />
+      </div>
     </main>
   );
 }
