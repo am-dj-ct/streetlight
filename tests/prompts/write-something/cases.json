@@ -9,5 +9,17 @@
     "language": "es",
     "text": "Escribe un mensaje corto a mi trabajadora social diciendo que el autobus viene tarde y que llegare 10 minutos tarde.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "repair-request",
+    "text": "Write a short message to my landlord asking them to fix a leaking ceiling and saying I already reported it last week."
+  },
+  {
+    "name": "benefits-extension",
+    "text": "Write a message to my benefits worker asking for a little more time to send proof of income because I am waiting on pay stubs."
+  },
+  {
+    "name": "immigration-documents",
+    "text": "Write a short message to an immigration clinic asking what documents I should bring for a work permit renewal appointment."
   }
 ]

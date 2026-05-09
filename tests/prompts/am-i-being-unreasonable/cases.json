@@ -3,5 +3,25 @@
     "name": "repair-demand",
     "text": "My landlord has ignored broken heat for two weeks and I want to tell them I am not paying until it is fixed. Am I being unreasonable?",
     "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "roommate-boundary",
+    "text": "My roommate keeps eating the food I bought with my own money. I want to ask them to stop without making a big fight. Am I being unreasonable?",
+    "expectedClassifier": "none"
+  },
+  {
+    "name": "security-deposit",
+    "text": "My old landlord says they are keeping my whole security deposit for cleaning, but they did not send any receipts. Am I being unreasonable for pushing back?",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "benefits-proof-request",
+    "text": "My benefits worker asked for pay stubs again even though I already sent them last month. Am I being unreasonable for asking what proof they still need?",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "appointment-reschedule",
+    "text": "A clinic moved my appointment twice and I want to ask for a sooner time because I am running out of medication. Am I being unreasonable?",
+    "expectedClassifier": "none"
   }
 ]

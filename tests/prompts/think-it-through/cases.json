@@ -3,5 +3,24 @@
     "name": "too-many-problems",
     "text": "I have an appointment coming up, my phone is almost dead, and I still have not opened a letter from housing. Help me sort out what matters first.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "appeal-benefits",
+    "text": "I am deciding whether to appeal a Basic Food benefits cutoff letter or reapply. The letter says my eligibility is ending because proof of income is missing. Help me think through what information matters."
+  },
+  {
+    "name": "payment-plan",
+    "text": "I owe $780 on an old utility bill and they offered a payment plan of $65 a month. Help me think through the money pieces I should verify.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "court-letter",
+    "text": "I have an eviction summons with an answer date and a court hearing, and I keep avoiding it. Help me think through the legal steps and deadlines I need to identify before I respond.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "friend-conflict",
+    "text": "I am upset at a friend who keeps cancelling plans. Help me think through whether to say something or let it go.",
+    "expectedClassifier": "none"
   }
 ]

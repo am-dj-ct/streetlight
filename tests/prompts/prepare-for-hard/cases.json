@@ -1,7 +1,26 @@
 [
   {
     "name": "landlord-call",
-    "text": "Help me prepare for a hard conversation with my landlord about a broken heater and mold. I asked twice in writing already and need to know what to say tomorrow.",
+    "text": "Help me prepare for a hard conversation with my landlord before an eviction court mediation. The summons says I need to respond, and I want to ask about a payment plan without missing legal steps.",
     "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "benefits-interview",
+    "text": "Help me prepare for a hard Basic Food eligibility interview. They want to ask about my income, household, and proof I need to send to keep benefits active.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "immigration-consult",
+    "text": "Help me prepare for a hard conversation with an immigration legal clinic about a work permit renewal and what documents I need to bring.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "pharmacist-interaction",
+    "text": "Help me prepare for a hard call with a pharmacist about possible interactions between diphenhydramine, sertraline, and alcohol, including warning signs I should ask about."
+  },
+  {
+    "name": "case-manager-boundary",
+    "text": "Help me prepare for a hard conversation with my case manager where I need to say I felt rushed and need slower explanations.",
+    "expectedClassifier": "none"
   }
 ]

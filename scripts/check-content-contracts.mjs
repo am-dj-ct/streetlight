@@ -8,6 +8,8 @@ import {
 } from "./lib/prompt-fixtures.mjs";
 
 const cwd = process.cwd();
+const promptFixtureMinimum = 5;
+const promptFixtureMaximum = 10;
 
 function fail(message) {
   throw new Error(message);
@@ -238,6 +240,15 @@ for (const entryId of conversationEntryIds) {
   const fixtures = await readJsonFile(fixturePath);
 
   validateRegressionCases(fixtures, `tests/prompts/${entryId}/cases.json`);
+
+  if (
+    fixtures.length < promptFixtureMinimum ||
+    fixtures.length > promptFixtureMaximum
+  ) {
+    fail(
+      `tests/prompts/${entryId}/cases.json must contain ${promptFixtureMinimum}-${promptFixtureMaximum} regression cases; found ${fixtures.length}.`,
+    );
+  }
 }
 
 const smokeCases = await readJsonFile(path.join(cwd, "tests/prompts/smoke-cases.json"));

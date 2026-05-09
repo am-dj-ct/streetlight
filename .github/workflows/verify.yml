@@ -1,0 +1,75 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      ACCESS_TOOL_BASE_URL: http://localhost:3000
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Static checks
+        run: |
+          npm run lint
+          npm run check:env
+          npm run check:forbidden-integrations
+          npm run check:no-tracked-secrets
+          npm run check:content
+          npm run check:locales:summary
+          npm run check:translation-worklist
+          npm run validate:data
+
+      - name: Build
+        run: npm run build
+
+      - name: Mock app smoke and regression
+        run: |
+          npm run dev:mock > /tmp/access-tool-next.log 2>&1 &
+          app_pid="$!"
+
+          cleanup() {
+            kill "$app_pid" 2>/dev/null || true
+            tail -100 /tmp/access-tool-next.log 2>/dev/null || true
+          }
+
+          trap cleanup EXIT
+
+          for attempt in {1..60}; do
+            if curl -fsS "$ACCESS_TOOL_BASE_URL/healthz" > /tmp/access-tool-health.json; then
+              cat /tmp/access-tool-health.json
+              npm run check:ops
+              npm run smoke
+              npm run regression:mock
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat /tmp/access-tool-next.log
+          exit 1

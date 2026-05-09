@@ -68,11 +68,21 @@ function classifyMockResponse({
 
 function buildMockResponse({
   entryId,
+  language,
   latestUserText,
 }: {
   entryId: ConversationEntryId;
+  language: ChatRequestBody["language"];
   latestUserText: string;
 }) {
+  if (language === "es") {
+    return asParagraphs([
+      "Este es el modo de prueba, asi que esta respuesta solo sirve para revisar la app localmente.",
+      "Una buena respuesta real usaria lenguaje claro, diria que parte importa mas, y nombraria el siguiente paso pequeno.",
+      `Para tu texto, empezaria identificando la frase mas importante de: \"${latestUserText || "lo que pegaste"}\".`,
+    ]);
+  }
+
   switch (entryId) {
     case "understand-letter-or-form":
       return asParagraphs([
@@ -155,6 +165,7 @@ export function buildMockChatTurn(body: ChatRequestBody) {
     }),
     responseText: buildMockResponse({
       entryId: body.entryId,
+      language: body.language,
       latestUserText,
     }),
     suggestions: buildMockSuggestions(body.entryId),

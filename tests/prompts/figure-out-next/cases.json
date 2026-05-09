@@ -3,5 +3,25 @@
     "name": "benefits-proof",
     "text": "My Basic Food benefits letter says I need to send proof of income by next Tuesday to keep my benefits. What should I do first?",
     "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "eviction-summons",
+    "text": "I got papers that say summons and complaint for eviction. I am scared and do not know what to do next. Help me figure out the first steps.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "missed-antibiotic-dose",
+    "text": "I missed one dose of antibiotics and the label says take one capsule twice a day until gone. Help me figure out what to ask the pharmacist.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "rent-debt-amounts",
+    "text": "My notice says I owe $1,420 rent, $90 late fees, and $35 notice fee. Help me figure out which dollar amounts I need to verify before I respond.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "lost-wallet",
+    "text": "I lost my wallet and have an appointment tomorrow that needs ID. Help me figure out what to do first without assuming I can fix everything today.",
+    "expectedClassifier": "none"
   }
 ]

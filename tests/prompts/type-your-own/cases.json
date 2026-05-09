@@ -3,5 +3,24 @@
     "name": "open-ended-help",
     "text": "I need help understanding what to do first when everything feels urgent.",
     "expectedClassifier": "none"
+  },
+  {
+    "name": "food-stamp-proof",
+    "text": "My food stamps case says I need proof of income and rent by Monday. Can you help me understand what to gather?",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "work-permit",
+    "text": "I need help understanding a USCIS request for evidence for my work permit renewal. It asks for immigration documents by a deadline, and I need to know what to verify."
+  },
+  {
+    "name": "medicine-combo",
+    "text": "Can you help me make a safe list of questions for a pharmacist about taking cold medicine with antidepressants?",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "calm-priorities",
+    "text": "I have three errands, no bus fare until tomorrow, and I am too overwhelmed to start. Help me sort the next hour.",
+    "expectedClassifier": "none"
   }
 ]

@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-09
-**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, and weak-category coverage landed)
+**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, weak-category coverage, and regression enforcement landed)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -675,11 +675,11 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 
 - Directory `tests/prompts/` with subdirectories per button.
 - Each subdirectory contains 5–10 canonical synthetic prompts covering typical and edge cases.
-- Each test runs the actual button system prompt + synthetic user prompt against the live API (test mode or separate test API key).
+- Each test runs the actual button system prompt + synthetic user prompt against the chat streaming route. PR/push CI runs the full suite in mock-local mode to verify wiring, streaming, fixture shape, page health, and classifier event plumbing with zero model spend. Live model regression is run deliberately before model, prompt, or deploy changes where behavior matters, using the configured Haiku testing path when cost is a concern.
 - Assertions: response length within bounds, response in correct language when input language is specified, response doesn't refuse the request, classifier fires correct category for cases where one is expected.
 - `specific_deadlines` is reserved for concrete due dates or timing rules, not general urgency language.
 - `specific_dollar_amounts` is reserved for concrete dollar amounts, balances, fees, payment plans, bill breakdowns, benefit amounts, income thresholds, or calculations that the user may need to verify.
-- Runs on every PR that touches `lib/system-prompts/`, `lib/classifier-prompt.ts`, or model config.
+- The no-spend mock suite runs on every PR and every push to `main`. Live regression remains a manual pre-deploy/model-change gate so routine PR checks do not create unbounded Anthropic spend or require exposing live model secrets to all PR contexts.
 - Fails the build on regression.
 
 #### 2. Partner Bug-Report Template
@@ -1053,6 +1053,12 @@ One-line summary of every decision in this document, dated for traceability.
 - Follow-up suggestions now use a separate small Haiku JSON-only pass and render as tappable buttons below model responses.
 - Metadata schema now includes suggestion pass token counts, response time, and status, still with no content fields.
 - Classifier prompt now explicitly covers `medical_dosing`, `drug_interactions`, and `immigration`, with regression fixtures for each.
+
+**2026-05-09 — regression suite enforcement:**
+
+- Every conversation entry now has 5–10 synthetic regression prompts, enforced by `npm run check:content`.
+- GitHub Actions runs static checks, build, smoke, and the full prompt suite in mock-local mode on every PR and push to `main`.
+- Live prompt regression remains `npm run regression:prompts`; it is the deliberate Haiku/Sonnet/Opus behavior check before model or prompt changes, not a routine no-secret PR job.
 
 ---
 

@@ -12,5 +12,15 @@
     "name": "medicine-dose-instructions",
     "text": "My antibiotic bottle says take 2 tablets every 12 hours with food. Explain the dosing instructions in plain language and what I should verify.",
     "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "snap-interview",
+    "text": "Explain like I am new what a Basic Food interview is, why it matters for eligibility, and what documents I should have ready.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "uscis-receipt-notice",
+    "text": "Explain like I am new what a USCIS receipt notice means and what parts of the immigration notice I should double-check.",
+    "expectedClassifier": "immigration"
   }
 ]

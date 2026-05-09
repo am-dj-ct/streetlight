@@ -46,9 +46,24 @@ export function validateSmokeCases(value, label) {
 export function validateRegressionCases(value, label) {
   assertCaseArray(value, label);
 
+  const seenNames = new Set();
+
   for (const [index, testCase] of value.entries()) {
     const caseLabel = `${label}[${index}]`;
     assertBaseCase(testCase, caseLabel);
+
+    if (seenNames.has(testCase.name)) {
+      throw new Error(`${caseLabel} duplicates case name "${testCase.name}".`);
+    }
+
+    seenNames.add(testCase.name);
+
+    if (
+      testCase.language !== undefined &&
+      !isSupportedLanguageCode(testCase.language)
+    ) {
+      throw new Error(`${caseLabel} has an invalid language.`);
+    }
 
     if (
       testCase.expectedClassifier !== undefined &&

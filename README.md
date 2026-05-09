@@ -90,10 +90,10 @@ this. Code stays public on GitHub regardless.
   flow against `ACCESS_TOOL_BASE_URL` or `http://localhost:3000`
 - `npm run smoke:quick` — cheaper local smoke pass with a smaller synthetic
   sample
-- `npm run regression:prompts` — runs the starter synthetic prompt set in
-  `tests/prompts/`
+- `npm run regression:prompts` — runs the synthetic prompt suite in
+  `tests/prompts/` against the configured live model path
 - `npm run regression:mock` — runs the full prompt set in mock-local plumbing
-  mode without live model calls
+  mode without live model calls; this is what PR verification uses
 - `npm run regression:quick` — cheaper prompt plumbing check; in mock mode it
   verifies streaming/classifier wiring without pretending to validate live
   model behavior
@@ -107,7 +107,10 @@ this. Code stays public on GitHub regardless.
 easy way back to real model calls. Full prompt regression still expects live
 model replies, so `npm run regression:prompts` will stop with a clear message
 while mock mode is active. Use `npm run regression:mock` for a full no-spend
-plumbing pass.
+plumbing pass. The GitHub Actions `Verify` workflow runs the full mock suite on
+PRs and pushes to `main`; run `npm run regression:prompts` with the Haiku
+testing model path before model, prompt, or deploy changes where live behavior
+matters.
 
 ## Utility routes
 

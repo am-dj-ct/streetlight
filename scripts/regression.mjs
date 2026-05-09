@@ -16,9 +16,13 @@ const fixturesRoot = path.join(cwd, "tests/prompts");
 const promptCaseLimit = readOptionalPositiveIntegerEnv("PROMPT_CASE_LIMIT");
 const promptCaseFilter = (process.env.PROMPT_CASE_FILTER ?? "").trim().toLowerCase();
 const allowMockRegression = readBooleanEnv("ALLOW_MOCK_REGRESSION");
+const minimumResponseChars = 80;
+const maximumResponseChars = 8000;
 
 const refusalPattern =
   /\b(i can't help with that|i cannot help with that|i can't assist with that|i cannot assist with that)\b/i;
+const spanishSignalPattern =
+  /\b(asi|ayuda|carta|claro|de|el|ella|en|este|esta|importa|lenguaje|mas|para|paso|prueba|que|respuesta|siguiente|tu|una|usar|usaria)\b/i;
 
 function fail(message) {
   throw new Error(message);
@@ -73,6 +77,7 @@ async function readSse(response) {
   let buffer = "";
   let text = "";
   let classifierCategory = null;
+  let sawDone = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -93,6 +98,7 @@ async function readSse(response) {
       const payload = dataLine.slice(6);
 
       if (payload === "[DONE]") {
+        sawDone = true;
         continue;
       }
 
@@ -122,8 +128,17 @@ async function readSse(response) {
 
   return {
     classifierCategory,
+    sawDone,
     text: text.trim(),
   };
+}
+
+function assertExpectedLanguage(testCase, text) {
+  if (testCase.language === "es" && !spanishSignalPattern.test(text)) {
+    fail(
+      `Case ${testCase.entryId}/${testCase.name} was marked language=es but the response did not look Spanish.`,
+    );
+  }
 }
 
 async function runCase(testCase) {
@@ -153,8 +168,23 @@ async function runCase(testCase) {
     fail(`Case ${testCase.entryId}/${testCase.name} returned no text.`);
   }
 
+  if (
+    result.text.length < minimumResponseChars ||
+    result.text.length > maximumResponseChars
+  ) {
+    fail(
+      `Case ${testCase.entryId}/${testCase.name} returned ${result.text.length} chars; expected ${minimumResponseChars}-${maximumResponseChars}.`,
+    );
+  }
+
+  assertExpectedLanguage(testCase, result.text);
+
   if (refusalPattern.test(result.text)) {
     fail(`Case ${testCase.entryId}/${testCase.name} looked like a refusal.`);
+  }
+
+  if (!result.sawDone) {
+    fail(`Case ${testCase.entryId}/${testCase.name} never emitted [DONE].`);
   }
 
   if (!result.classifierCategory) {

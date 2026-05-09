@@ -8,5 +8,25 @@
     "name": "benadryl-anxiety-medicine-alcohol",
     "text": "I am embarrassed to ask, but is it risky to take Benadryl with my anxiety medicine if I also had alcohol? Explain what interaction warning I should verify.",
     "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "shelter-shower",
+    "text": "This is embarrassing, but how do people usually ask about showers and laundry at a shelter if they have never been there before?",
+    "expectedClassifier": "none"
+  },
+  {
+    "name": "uscis-notice-question",
+    "text": "I feel embarrassed asking this, but my USCIS notice says my immigration appointment was rescheduled and I need to bring updated evidence. What is the notice asking me to verify?",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "pain-medicine-dose",
+    "text": "I feel dumb asking, but an ibuprofen bottle says take 1 tablet every 6 hours and do not exceed 4 tablets in 24 hours. Explain the dose limit I should verify.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "bedbug-report",
+    "text": "I am embarrassed to ask, but if I think I brought bedbugs into a shelter room, what is the normal way to tell staff without panicking?",
+    "expectedClassifier": "none"
   }
 ]

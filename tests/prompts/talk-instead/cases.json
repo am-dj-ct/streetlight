@@ -3,5 +3,24 @@
     "name": "speakable-steps",
     "text": "Talk me through the first steps I should take after getting a Basic Food benefits warning letter that says I need to send proof of income to keep benefits.",
     "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "repair-call",
+    "text": "Talk me through what to say out loud before I call my landlord about an eviction notice that says pay or vacate, including how to ask about legal deadlines and next steps."
+  },
+  {
+    "name": "medicine-label",
+    "text": "Talk me through how to read this label out loud: take one tablet by mouth twice daily, do not take with alcohol, call doctor if dizzy.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "immigration-appointment",
+    "text": "Talk me through what to say when I call an immigration clinic about a USCIS request for evidence on my work permit renewal, including what documents and deadline I should ask them to check.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "appointment-anxiety",
+    "text": "Talk me through getting ready for a regular appointment when I am anxious and keep forgetting what I wanted to ask.",
+    "expectedClassifier": "none"
   }
 ]

@@ -19,5 +19,10 @@
     "name": "uscis-asylum-interview-notice",
     "text": "My USCIS notice says my asylum interview was rescheduled and I need to bring identity documents and any new evidence. Explain what this immigration letter is asking for.",
     "expectedClassifier": "immigration"
+  },
+  {
+    "name": "medication-label-dose",
+    "text": "My medicine label says take 1 tablet every morning and 2 tablets at bedtime. Explain the dosing instructions in plain language and what I should verify.",
+    "expectedClassifier": "medical_dosing"
   }
 ]
