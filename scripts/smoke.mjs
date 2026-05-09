@@ -528,6 +528,19 @@ async function checkIncompleteConversationReportProblemSource() {
   if (snapshot.sourceRoute !== "not supplied") {
     fail("Incomplete conversation source path rendered on /report-problem.");
   }
+
+  const invalidConversationSource = encodeURIComponent(
+    "/conversation/not-a-real-entry?lang=en",
+  );
+  const invalidSnapshot = await getReportProblemSnapshot({
+    baseUrl,
+    fail,
+    path: `/report-problem?lang=en&source=${invalidConversationSource}`,
+  });
+
+  if (invalidSnapshot.sourceRoute !== "not supplied") {
+    fail("Invalid conversation source path rendered on /report-problem.");
+  }
 }
 
 async function checkBlankChatMessage() {

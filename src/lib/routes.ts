@@ -1,4 +1,8 @@
-import type { ConversationEntryId, WeakCategory } from "./chat-types";
+import {
+  isConversationEntryId,
+  type ConversationEntryId,
+  type WeakCategory,
+} from "./chat-types";
 import type { SupportedLanguageCode } from "./languages";
 import type { ReportArea } from "./report-areas";
 
@@ -20,7 +24,6 @@ type ReportProblemHrefOptions = {
 const allowedSourcePathnames = [
   "/",
   "/about",
-  "/conversation",
   "/find-human",
   "/privacy",
   "/report-problem",
@@ -43,11 +46,15 @@ export function sanitizeInternalSourcePath(
 
   try {
     const normalized = new URL(sourcePath, "http://access-tool.local");
-    const isAllowedPathname = allowedSourcePathnames.some((pathname) =>
-      pathname === "/conversation"
-        ? normalized.pathname.startsWith("/conversation/")
-        : normalized.pathname === pathname,
+    const conversationPathMatch = normalized.pathname.match(
+      /^\/conversation\/([^/]+)$/,
     );
+    const isAllowedConversationPath =
+      conversationPathMatch !== null &&
+      isConversationEntryId(conversationPathMatch[1]);
+    const isAllowedPathname =
+      isAllowedConversationPath ||
+      allowedSourcePathnames.some((pathname) => normalized.pathname === pathname);
 
     if (!isAllowedPathname) {
       return null;
