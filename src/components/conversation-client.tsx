@@ -277,11 +277,14 @@ export function ConversationClient({
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const languageSheetDoneRef = useRef<HTMLButtonElement | null>(null);
+  const languageSheetReturnFocusRef = useRef<HTMLElement | null>(null);
   const saveCancelRef = useRef<HTMLButtonElement | null>(null);
+  const saveDialogReturnFocusRef = useRef<HTMLElement | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voiceSettingsDoneRef = useRef<HTMLButtonElement | null>(null);
+  const voiceSettingsReturnFocusRef = useRef<HTMLElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const dictationBaseDraftRef = useRef("");
   const [messages, setMessages] = useState<ClientChatMessage[]>([
@@ -350,20 +353,38 @@ export function ConversationClient({
 
   useEffect(() => {
     if (showLanguageSheet) {
+      languageSheetReturnFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       languageSheetDoneRef.current?.focus();
+      return;
     }
+
+    languageSheetReturnFocusRef.current?.focus();
+    languageSheetReturnFocusRef.current = null;
   }, [showLanguageSheet]);
 
   useEffect(() => {
     if (showSaveModal) {
+      saveDialogReturnFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       saveCancelRef.current?.focus();
+      return;
     }
+
+    saveDialogReturnFocusRef.current?.focus();
+    saveDialogReturnFocusRef.current = null;
   }, [showSaveModal]);
 
   useEffect(() => {
     if (showVoiceSettings) {
+      voiceSettingsReturnFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       voiceSettingsDoneRef.current?.focus();
+      return;
     }
+
+    voiceSettingsReturnFocusRef.current?.focus();
+    voiceSettingsReturnFocusRef.current = null;
   }, [showVoiceSettings]);
 
   useEffect(() => {
