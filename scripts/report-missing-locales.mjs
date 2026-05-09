@@ -91,6 +91,38 @@ function getMissingKeys(baseValue, compareValue, prefix = "") {
   });
 }
 
+function getExtraKeys(baseValue, compareValue, prefix = "") {
+  if (!compareValue || typeof compareValue !== "object" || Array.isArray(compareValue)) {
+    return [];
+  }
+
+  return Object.entries(compareValue).flatMap(([key, value]) => {
+    const nextKey = prefix ? `${prefix}.${key}` : key;
+    const baseEntry = baseValue?.[key];
+
+    if (prefix === "meta" && key === "inherits") {
+      return [];
+    }
+
+    if (baseEntry === undefined) {
+      return [nextKey];
+    }
+
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      baseEntry &&
+      typeof baseEntry === "object" &&
+      !Array.isArray(baseEntry)
+    ) {
+      return getExtraKeys(baseEntry, value, nextKey);
+    }
+
+    return [];
+  });
+}
+
 async function reportDirectory(relativeDir, baseFileName) {
   const directoryPath = path.join(cwd, relativeDir);
   const files = (await readdir(directoryPath)).filter((name) => name.endsWith(".json"));
@@ -122,6 +154,11 @@ async function reportDirectory(relativeDir, baseFileName) {
     assertLocaleMetadata(document, languageCode, path.join(relativeDir, fileName));
 
     const missing = getMissingKeys(baseDocument, document);
+    const extra = getExtraKeys(baseDocument, document);
+
+    if (extra.length > 0) {
+      fail(`${path.join(relativeDir, fileName)} contains extra keys: ${extra.join(", ")}.`);
+    }
 
     if (fileName === baseFileName) {
       console.log(`${fileName}: baseline (${flattenObject(baseDocument).length} keys)`);
