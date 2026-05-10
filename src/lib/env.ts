@@ -74,6 +74,10 @@ export function getTurnstileSiteKey(): null | string {
   return readOptionalEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY");
 }
 
+export function hasTurnstileSiteKey(): boolean {
+  return Boolean(readOptionalEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY"));
+}
+
 export function getHashedIpSalt(): string {
   return readEnv("HASHED_IP_SALT");
 }

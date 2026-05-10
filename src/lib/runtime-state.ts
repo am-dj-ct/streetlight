@@ -3,7 +3,11 @@ import {
   getDeployEnvironment,
   getTtsDailyCharacterLimit,
   hasAzureSpeechConfig,
+  hasHashedIpSalt,
+  hasKvConfig,
   hasLiveModelConfig,
+  hasTurnstileSecret,
+  hasTurnstileSiteKey,
   isDevMockChatEnabled,
   isProductionTtsMockMisconfigured,
   isProductionMockMisconfigured,
@@ -27,6 +31,11 @@ export function getChatMode(): ChatMode {
 
 export function getRuntimeState(): RuntimeState {
   const deployEnv = getDeployEnvironment();
+  const hasAbuseControlsConfig =
+    hasTurnstileSecret() &&
+    hasTurnstileSiteKey() &&
+    hasKvConfig() &&
+    hasHashedIpSalt();
 
   return {
     chatMode: getChatMode(),
@@ -36,6 +45,7 @@ export function getRuntimeState(): RuntimeState {
       !isProductionTtsMockMisconfigured() &&
       (deployEnv !== "production" ||
         (hasLiveModelConfig() &&
+          hasAbuseControlsConfig &&
           isTtsEnabled() &&
           hasAzureSpeechConfig() &&
           getTtsDailyCharacterLimit() !== null)),

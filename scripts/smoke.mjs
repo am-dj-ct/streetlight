@@ -190,6 +190,33 @@ function assertBrowserSecurityHeaders(response, label) {
       );
     }
   }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const isHtmlResponse = contentType.includes("text/html");
+
+  if (!isHtmlResponse) {
+    return;
+  }
+
+  const csp = response.headers.get("content-security-policy");
+
+  if (!csp) {
+    fail(`${label} must set Content-Security-Policy.`);
+  }
+
+  const requiredCspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    "frame-src https://challenges.cloudflare.com",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+  ];
+
+  for (const directive of requiredCspDirectives) {
+    if (!csp.includes(directive)) {
+      fail(`${label} must include CSP directive: ${directive}`);
+    }
+  }
 }
 
 function assertNoStore(response, label) {

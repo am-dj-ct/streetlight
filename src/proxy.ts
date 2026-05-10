@@ -29,6 +29,23 @@ function appendVaryHeader(headers: Headers, value: string) {
 }
 
 function setBrowserSecurityHeaders(headers: Headers) {
+  headers.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://challenges.cloudflare.com",
+      "media-src 'self' data: blob:",
+      "frame-src https://challenges.cloudflare.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
   headers.set("Permissions-Policy", "camera=(), geolocation=(), payment=(), usb=()");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Content-Type-Options", "nosniff");
@@ -173,6 +190,12 @@ export function proxy(request: NextRequest) {
     });
 
     setBrowserSecurityHeaders(response.headers);
+    if (request.nextUrl.protocol === "https:") {
+      response.headers.set(
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload",
+      );
+    }
     appendVaryHeader(response.headers, "Accept-Language");
 
     return response;
@@ -193,6 +216,12 @@ export function proxy(request: NextRequest) {
 
   response.headers.set("Content-Language", resolvedLanguageCode);
   setBrowserSecurityHeaders(response.headers);
+  if (request.nextUrl.protocol === "https:") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
   appendVaryHeader(response.headers, "Accept-Language");
 
   return response;
