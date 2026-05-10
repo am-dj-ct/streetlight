@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Asturnaanta",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-05-10",
       "sections": [
         {
           "heading": "Waxa aan kaydinno: waxba oo ku saabsan sheekadaada.",
@@ -23,10 +23,17 @@
           ]
         },
         {
+          "heading": "Waxa qalabkaagu xusuusan karo.",
+          "paragraphs": [
+            "Browser-kaagu wuxuu xusuusan karaa dejinno yar, sida codka la doortay, xawaaraha akhriska, iyo haddii aad hore u aragtay digniinta kaydinta. Kuwani waxay ku sii jiraan browser-kaaga. Uma isticmaalno inaan kugu daba-galno."
+          ]
+        },
+        {
           "heading": "Sida aan ku ogaano in adiga aysan ahayn.",
           "paragraphs": [
             "Magacaaga ma weydiino. Email-kaaga ma weydiino. Lambarka taleefankaaga ma weydiino. Nidaam akoon ma lihin. Ma jirto hab aan ku ogaan karno cidda aad tahay.",
-            "Waxaan aragnaa cinwaanka internetka ee qalabkaagu isticmaalayo. Waxaan u beddelnaa kood la qasay si aan u joojinno qof qalabka spam ku samaynaya. Dib uguma celin karno cinwaankaaga."
+            "Waxaan aragnaa cinwaanka internetka ee qalabkaagu isticmaalayo. Waxaan u beddelnaa kood la qasay si aan u joojinno qof qalabka spam ku samaynaya. Dib uguma celin karno cinwaankaaga.",
+            "Ka hor inta farriin la dirin, goobtu waxay Cloudflare Turnstile ka codsan kartaa inay hubiso in codsigu u eg yahay qof dhab ah oo isticmaalaya qalabka, ee uusan ahayn spam. Cloudflare waxay heshaa token hubin ah iyo cinwaanka internetka ee hubintaas. Cloudflare ma hesho farriintaada."
           ]
         },
         {
@@ -40,7 +47,7 @@
         {
           "heading": "Haddii aad sheeko ku kaydiso qalabkan.",
           "paragraphs": [
-            "Waad kaydin kartaa sheeko haddii aad rabto. Haddii aad kaydiso, qalabkan ayay ku sii jiraysaa, server-radayada kuma jirto. Haddii qof kale isticmaalo qalabkan, wuu arki karaa. Haddii aad isticmaalayso qalab la wadaago ama la soo amaahday, ama kombiyuutar maktabadeed, halkan ha ku kaydin. Halkii, email ayaad naftaada ugu diri kartaa."
+            "Waad kaydin kartaa sheeko haddii aad rabto. Haddii aad kaydiso, qalabkan ayay ku sii jiraysaa, server-radayada kuma jirto. Haddii qof kale isticmaalo qalabkan, wuu arki karaa. Haddii aad isticmaalayso qalab la wadaago ama la soo amaahday, ama kombiyuutar maktabadeed, halkan ha ku kaydin. Haddii qalabkaagu leeyahay Share, isticmaal, ama qoraalka ku koobi garee farriin gaar ah, app qoraallo ah, ama meel kale oo aad ku kalsoon tahay."
           ]
         },
         {

@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Privacidad",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-05-10",
       "sections": [
         {
           "heading": "Lo que guardamos: nada sobre tu conversación.",
@@ -23,10 +23,17 @@
           ]
         },
         {
+          "heading": "Lo que tu dispositivo puede recordar.",
+          "paragraphs": [
+            "Tu navegador puede recordar pequeñas opciones, como la voz, la velocidad de lectura y si ya viste el aviso de guardar. Eso se queda en tu navegador. No lo usamos para rastrearte."
+          ]
+        },
+        {
           "heading": "Cómo sabemos que no eres tú.",
           "paragraphs": [
             "No pedimos tu nombre. No pedimos tu email. No pedimos tu número de teléfono. No tenemos sistema de cuentas. No hay forma de que sepamos quién eres.",
-            "Sí vemos la dirección de internet que está usando tu dispositivo. La convertimos en un código revuelto para poder evitar que alguien llene la herramienta de spam. No podemos convertirlo de vuelta en tu dirección."
+            "Sí vemos la dirección de internet que está usando tu dispositivo. La convertimos en un código revuelto para poder evitar que alguien llene la herramienta de spam. No podemos convertirlo de vuelta en tu dirección.",
+            "Antes de enviar un mensaje, el sitio puede pedirle a Cloudflare Turnstile que revise si la solicitud parece venir de una persona real usando la herramienta y no de spam. Cloudflare recibe un token de revisión y la dirección de internet para esa revisión. Cloudflare no recibe tu mensaje."
           ]
         },
         {
@@ -40,7 +47,7 @@
         {
           "heading": "Si guardas una conversación en este dispositivo.",
           "paragraphs": [
-            "Puedes guardar una conversación si quieres. Si lo haces, queda en este dispositivo, no en nuestros servidores. Si otra persona usa este dispositivo, podría verla. Si estás usando un dispositivo compartido o prestado, o una computadora de biblioteca, no guardes aquí. Puedes enviártela por email en su lugar."
+            "Puedes guardar una conversación si quieres. Si lo haces, queda en este dispositivo, no en nuestros servidores. Si otra persona usa este dispositivo, podría verla. Si estás usando un dispositivo compartido o prestado, o una computadora de biblioteca, no guardes aquí. Si tu dispositivo ofrece Compartir, úsalo, o copia el texto en un mensaje privado, una app de notas u otro lugar en el que confíes."
           ]
         },
         {

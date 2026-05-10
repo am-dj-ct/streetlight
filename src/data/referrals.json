@@ -53,7 +53,7 @@
     "sourceName": "Washington Healthplanfinder Contact Us",
     "lastVerified": "2026-05-08",
     "website": "https://www.wahealthplanfinder.org/us/en/tools-and-resources/connect-with-us/contact-us.html",
-    "categories": ["benefits_eligibility", "medical_dosing"],
+    "categories": ["benefits_eligibility"],
     "regions": ["king"]
   },
   {
@@ -89,6 +89,84 @@
     "regions": ["king"]
   },
   {
+    "id": "seattle-office-labor-standards",
+    "name": "Seattle Office of Labor Standards",
+    "description": "Worker-rights help for Seattle jobs, including minimum wage, paid sick time, wage theft, secure scheduling, retaliation, and app-based worker questions.",
+    "phone": "206-256-5297",
+    "sourceName": "Seattle Office of Labor Standards",
+    "lastVerified": "2026-05-10",
+    "website": "https://www.seattle.gov/laborstandards/",
+    "categories": ["employment_rights", "specific_deadlines", "specific_dollar_amounts"],
+    "regions": ["king"]
+  },
+  {
+    "id": "wa-lni-employment-standards",
+    "name": "WA Labor & Industries Employment Standards",
+    "description": "State worker-rights help for wage complaints, workplace rights, final pay, breaks, overtime, and retaliation questions.",
+    "phone": "866-219-7321",
+    "sourceName": "Washington State Department of Labor & Industries Contact",
+    "lastVerified": "2026-05-10",
+    "website": "https://www.lni.wa.gov/workers-rights/",
+    "categories": ["employment_rights", "specific_deadlines", "specific_dollar_amounts"],
+    "regions": ["king"]
+  },
+  {
+    "id": "king-county-chap",
+    "name": "Community Health Access Program (CHAP)",
+    "description": "Free confidential King County phone help connecting people to health insurance, health care services, and other health resources.",
+    "phone": "800-756-5437",
+    "sourceName": "King County Community Health Access Program",
+    "lastVerified": "2026-05-10",
+    "website": "https://kingcounty.gov/coverage",
+    "categories": ["medical_decisionmaking", "benefits_eligibility"],
+    "regions": ["king"]
+  },
+  {
+    "id": "wa-dol-id-help-unhoused",
+    "name": "WA Department of Licensing ID Help",
+    "description": "Official state help for no-cost or reduced-fee Washington ID cards and what to do if documents are missing.",
+    "phone": "360-902-3900",
+    "sourceName": "Washington State Department of Licensing ID Help",
+    "lastVerified": "2026-05-10",
+    "website": "https://dol.wa.gov/id-cards/id-help-unhoused",
+    "categories": ["identity_documentation", "specific_dollar_amounts"],
+    "regions": ["king"]
+  },
+  {
+    "id": "king-county-vital-statistics",
+    "name": "King County Vital Statistics",
+    "description": "Help ordering birth certificates and other vital records for King County or Washington state births.",
+    "phone": "206-837-0719",
+    "sourceName": "King County Birth Certificates",
+    "lastVerified": "2026-05-10",
+    "website": "https://kingcounty.gov/birth",
+    "categories": ["identity_documentation", "specific_dollar_amounts"],
+    "regions": ["king"]
+  },
+  {
+    "id": "wa-oic-consumer-advocacy",
+    "name": "WA Insurance Commissioner Consumer Advocacy",
+    "description": "Free help with health insurance questions, denied claims, confusing coverage letters, and insurance billing complaints.",
+    "phone": "800-562-6900",
+    "sourceName": "Washington Office of the Insurance Commissioner Consumer Advocacy",
+    "lastVerified": "2026-05-10",
+    "website": "https://www.insurance.wa.gov/contact-us",
+    "categories": ["specific_dollar_amounts", "benefits_eligibility", "medical_decisionmaking"],
+    "regions": ["king"]
+  },
+  {
+    "id": "wa-ag-consumer-resource-center",
+    "name": "WA Attorney General Consumer Resource Center",
+    "description": "Consumer help for debt collection, refunds, scams, billing disputes, identity theft, and other consumer complaints in Washington.",
+    "phone": "800-551-4636",
+    "secondaryPhone": "206-464-6684",
+    "sourceName": "Washington Attorney General Consumer Issues",
+    "lastVerified": "2026-05-10",
+    "website": "https://www.atg.wa.gov/consumer-issues",
+    "categories": ["specific_dollar_amounts", "identity_documentation"],
+    "regions": ["king"]
+  },
+  {
     "id": "kcsarc",
     "name": "King County Sexual Assault Resource Center",
     "description": "24/7 confidential support, information, and advocacy for sexual assault survivors and people helping them.",
@@ -121,6 +199,29 @@
     "website": "https://www.poisonhelp.org/",
     "categories": ["medical_dosing", "drug_interactions", "medical_decisionmaking"],
     "regions": ["fallback"]
+  },
+  {
+    "id": "us-dol-wage-hour",
+    "name": "U.S. Department of Labor Wage and Hour Division",
+    "description": "Federal worker-rights help for minimum wage, overtime, child labor, family and medical leave, and wage complaints.",
+    "phone": "866-487-9243",
+    "sourceName": "U.S. Department of Labor Wage and Hour Division",
+    "lastVerified": "2026-05-10",
+    "website": "https://www.dol.gov/agencies/whd/contact",
+    "categories": ["employment_rights", "specific_deadlines", "specific_dollar_amounts"],
+    "regions": ["king", "fallback"]
+  },
+  {
+    "id": "eeoc",
+    "name": "U.S. Equal Employment Opportunity Commission",
+    "description": "Federal help for workplace discrimination, harassment, retaliation, disability accommodation, pregnancy discrimination, and related charge-filing questions.",
+    "phone": "800-669-4000",
+    "secondaryPhone": "800-669-6820",
+    "sourceName": "U.S. Equal Employment Opportunity Commission Contact",
+    "lastVerified": "2026-05-10",
+    "website": "https://www.eeoc.gov/contact-eeoc",
+    "categories": ["employment_rights", "specific_deadlines"],
+    "regions": ["king", "fallback"]
   },
   {
     "id": "healthcare-marketplace",

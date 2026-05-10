@@ -184,25 +184,29 @@ deploy instantly to every user on next visit.
 - Optional save: client-side only. Generates a plain-text file or
   formatted screenshot the user can save to their device.
 - First save shows a one-time plain-language confirmation modal naming
-  the actual risk and offering email-to-self as an alternative:
+  the actual risk and offering share, copy, or email as alternatives:
 
   > **Save this conversation?**
   >
-  > This will save a copy on this phone. If someone else uses this
-  > phone, they could see it.
+  > This will save a copy on this device. If someone else uses this
+  > device, they could see it.
   >
-  > If this is your phone and only you use it: probably fine.
-  > If this is a shared phone, library computer, or borrowed phone:
-  > don't save here. You can email it to yourself or screenshot and
-  > send to someone you trust.
+  > If this is your device and only you use it: probably fine.
+  > If this is a shared or borrowed device, or a library computer:
+  > don't save here. If your device offers Share, use that, or copy
+  > the text into a private message, notes app, or another place you
+  > trust.
   >
-  > [Save here] [Send it to myself instead] [Cancel]
+  > [Save here] [Share from this device] [Copy text instead] [Cancel]
 
-- After first save, button reads "Save · stays on this phone" with a
+- After first save, button reads "Save · stays on this device" with a
   "?" to re-open the explanation.
-- Email-to-self uses a pre-filled `mailto:` link, no server involvement.
+- Share/copy/email options happen on the device, with no server involvement.
+- The browser may remember small local UI preferences like voice choice,
+  speech speed, and whether the save warning was already shown. These are
+  not identifiers, tracking tags, or analytics.
 - Optional shared-device toggle (for library/kiosk deployments) hides
-  local save entirely; email-only.
+  local save entirely; share/copy/email alternatives only.
 
 ### Geo-awareness
 

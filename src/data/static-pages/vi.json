@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Quyền riêng tư",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-05-10",
       "sections": [
         {
           "heading": "Điều chúng tôi lưu: không có gì về cuộc trò chuyện của bạn.",
@@ -23,10 +23,17 @@
           ]
         },
         {
+          "heading": "Thiết bị của bạn có thể ghi nhớ gì.",
+          "paragraphs": [
+            "Trình duyệt của bạn có thể nhớ một vài cài đặt nhỏ, như giọng đọc, tốc độ đọc, và việc bạn đã thấy cảnh báo lưu hay chưa. Những thứ đó ở lại trong trình duyệt của bạn. Chúng tôi không dùng chúng để theo dõi bạn."
+          ]
+        },
+        {
           "heading": "Làm sao chúng tôi biết đó không phải là bạn.",
           "paragraphs": [
             "Chúng tôi không hỏi tên bạn. Chúng tôi không hỏi email của bạn. Chúng tôi không hỏi số điện thoại của bạn. Chúng tôi không có hệ thống tài khoản. Không có cách nào để chúng tôi biết bạn là ai.",
-            "Chúng tôi có thấy địa chỉ internet mà thiết bị của bạn đang dùng. Chúng tôi biến địa chỉ đó thành một mã đã xáo trộn để có thể ngăn người khác spam công cụ. Chúng tôi không thể giải mã nó trở lại thành địa chỉ của bạn."
+            "Chúng tôi có thấy địa chỉ internet mà thiết bị của bạn đang dùng. Chúng tôi biến địa chỉ đó thành một mã đã xáo trộn để có thể ngăn người khác spam công cụ. Chúng tôi không thể giải mã nó trở lại thành địa chỉ của bạn.",
+            "Trước khi một tin nhắn được gửi, trang web có thể yêu cầu Cloudflare Turnstile kiểm tra xem yêu cầu có giống một người thật đang dùng công cụ hay không, chứ không phải spam. Cloudflare nhận một mã kiểm tra và địa chỉ internet cho lần kiểm tra đó. Cloudflare không nhận tin nhắn của bạn."
           ]
         },
         {
@@ -40,7 +47,7 @@
         {
           "heading": "Nếu bạn lưu một cuộc trò chuyện trên thiết bị này.",
           "paragraphs": [
-            "Bạn có thể lưu một cuộc trò chuyện nếu muốn. Nếu bạn lưu, nó ở lại trên thiết bị này, không ở trên máy chủ của chúng tôi. Nếu người khác dùng thiết bị này, họ có thể thấy nó. Nếu bạn đang dùng thiết bị dùng chung hoặc mượn, hoặc máy tính ở thư viện, đừng lưu ở đây. Bạn có thể gửi email cho chính mình."
+            "Bạn có thể lưu một cuộc trò chuyện nếu muốn. Nếu bạn lưu, nó ở lại trên thiết bị này, không ở trên máy chủ của chúng tôi. Nếu người khác dùng thiết bị này, họ có thể thấy nó. Nếu bạn đang dùng thiết bị dùng chung hoặc mượn, hoặc máy tính ở thư viện, đừng lưu ở đây. Nếu thiết bị của bạn có Chia sẻ, hãy dùng nó, hoặc sao chép văn bản vào tin nhắn riêng, ứng dụng ghi chú, hoặc một nơi khác mà bạn tin tưởng."
           ]
         },
         {

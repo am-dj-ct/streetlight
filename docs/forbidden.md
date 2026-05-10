@@ -50,9 +50,10 @@ and produce a dated ADR in `docs/decisions/` justifying the change.
 - **No automated harm-detection systems.** No anomaly detection on content,
   no sentiment classifiers, no automated red-flagging beyond the
   weak-category classifier explicitly defined in the spec.
-- **No cookies, no localStorage tracking, no fingerprinting.** Only
-  persistent browser-side storage is what the user explicitly creates via
-  the save flow.
+- **No cookies, no localStorage tracking, no fingerprinting.** Browser-side
+  storage is limited to user-created saves and small local UI preferences
+  (voice choice, speech speed, and whether the save warning was already
+  shown). These are not identifiers, tracking tags, or analytics.
 - **No referral tracking, no UTM parameters, no campaign attribution.**
 
 ## Persistence

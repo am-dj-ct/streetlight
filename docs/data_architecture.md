@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-05-09
-**Last meaningful change:** 2026-05-09 (model tiering, generated follow-ups, no-cookie language routing, weak-category taxonomy expansion, regression enforcement, and Azure read-aloud landed)
+**Last reviewed:** 2026-05-10
+**Last meaningful change:** 2026-05-10 (plain-language Turnstile disclosure and local UI preference storage language updated)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -206,9 +206,9 @@ The architecture is designed to defend against eight specific threats. For each:
 
 **Mitigation:**
 - No persistent server-side history. No accounts. No "log into your account" path.
-- No automatic save. Save is opt-in with a one-time honest modal explicitly naming the shared-phone risk.
-- Save modal language: "If this is a shared phone, library computer, or borrowed phone: don't save here." Users are pre-warned.
-- Email-to-self alternative routes saved conversations through the user's existing email trust relationship.
+- No automatic save. Save is opt-in with a one-time honest modal explicitly naming the shared-device risk.
+- Save modal language: "If this is a shared or borrowed device, or a library computer: don't save here." Users are pre-warned.
+- Share, copy, and email alternatives route saved conversations through the user's device or existing trust relationships.
 - Fresh-start default. No login state. The conversation footprint is minimal after a session ends.
 
 **Residual risk accepted:**
@@ -293,7 +293,7 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 - Open source from day one.
 - Static UI strings as JSON per language; conversation translation handled by model.
 - Geo-awareness via Vercel headers, no permission prompt.
-- Save is opt-in, client-side only, with shared-phone honesty modal.
+- Save is opt-in, client-side only, with shared-device honesty modal.
 
 ### Extended (spec said something compatible, this doc made it more specific)
 
@@ -429,10 +429,10 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Side Path — Save Conversation
 
-- **Runs:** Browser-side only. Generates plain-text file the user downloads, screenshot, or `mailto:` link with conversation in the body.
+- **Runs:** Browser-side only. Generates a plain-text file the user downloads, optional Web Share payload where supported, screenshot, copy-to-clipboard text, or a `mailto:` link with conversation in the body.
 - **Has access to:** Full conversation in browser memory.
 - **Logs by default:** None.
-- **Override:** Nothing leaves the browser. First-time save modal handles the shared-phone honesty disclosure. `mailto:` opens the user's mail app — email routes through their own provider (their existing trust relationship, not ours).
+- **Override:** Nothing leaves the browser unless the user explicitly chooses a device share or email action. First-time save modal handles the shared-device honesty disclosure. Web Share uses the device's share sheet where available. `mailto:` opens the user's mail app — email routes through their own provider (their existing trust relationship, not ours).
 
 ### Summary of All Touchpoints That See Message Content
 
@@ -950,11 +950,17 @@ For read-aloud, we may save the daily total number of characters sent for audio 
 
 We save these to make sure the tool works and to know if something is broken.
 
+## What your device may remember.
+
+Your browser may remember small settings, like voice choice, speech speed, and whether you've already seen the save warning. Those stay in your browser. We don't use them to track you.
+
 ## How we know it's not you.
 
 We don't ask for your name. We don't ask for your email. We don't ask for your phone number. We don't have an account system. There's no way for us to know who you are.
 
-We do see the internet address your phone is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address.
+We do see the internet address your device is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address.
+
+Before a message is sent, the site may ask Cloudflare Turnstile to check that the request looks like a real person using the tool and not spam. Cloudflare gets a check token and the internet address for that check. Cloudflare does not get your message.
 
 ## Where your messages go.
 
@@ -966,7 +972,7 @@ If you tap Play aloud, the answer text is sent to Microsoft Azure AI Speech to m
 
 ## If you save a conversation on this device.
 
-You can save a conversation if you want. If you do, it stays on this device, not on our servers. If someone else uses this device, they could see it. If you're using a shared or borrowed device, or a library computer, don't save here. You can email it to yourself instead.
+You can save a conversation if you want. If you do, it stays on this device, not on our servers. If someone else uses this device, they could see it. If you're using a shared or borrowed device, or a library computer, don't save here. If your device offers Share, use that, or copy the text into a private message, notes app, or another place you trust.
 
 ## What we don't do.
 
@@ -1005,7 +1011,7 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 - **No third-party error reporting.** Errors caught locally with metadata-only logs. Surfaced through Vercel-native runtime logs.
 - **No CRM, partner database, or partner organization tracking.** Partners are not data entities.
 - **No user feedback storage.** Bug reports surface to operator's email, are read, acted on, not stored. Incident write-ups are the artifact.
-- **No cookies, no localStorage tracking, no fingerprinting.** Only persistent storage browser-side is what the user explicitly creates via save flow.
+- **No cookies, no localStorage tracking, no fingerprinting.** Browser-side storage is limited to user-created saves and small local UI preferences (voice choice, speech speed, and whether the save warning was already shown). These are not identifiers, tracking tags, or analytics.
 - **No referral tracking, no UTM parameters, no campaign attribution.** Distribution is via trusted humans.
 - **No recommendation engine, personalization, or per-user model tuning.** Same model, same prompts, same classifier for everyone. No user history because there is no user history.
 - **No paid tier, no subscription, no upgrade flow.** Public utility.

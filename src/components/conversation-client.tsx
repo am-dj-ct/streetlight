@@ -292,6 +292,30 @@ function setMessageSuggestions(
   });
 }
 
+function filterGeneratedSuggestions(
+  suggestions: string[],
+  existingActionLabel: string,
+) {
+  const normalizedExistingAction = existingActionLabel.trim().toLocaleLowerCase();
+  const seen = new Set<string>();
+
+  return suggestions.filter((suggestion) => {
+    const trimmedSuggestion = suggestion.trim();
+    const normalizedSuggestion = trimmedSuggestion.toLocaleLowerCase();
+
+    if (
+      !trimmedSuggestion ||
+      normalizedSuggestion === normalizedExistingAction ||
+      seen.has(normalizedSuggestion)
+    ) {
+      return false;
+    }
+
+    seen.add(normalizedSuggestion);
+    return true;
+  }).slice(0, 3);
+}
+
 function getFocusableDialogElements(dialog: HTMLElement) {
   return Array.from(
     dialog.querySelectorAll<HTMLElement>(dialogFocusableSelector),
@@ -860,7 +884,7 @@ export function ConversationClient({
 
     setSaveStatusMessage(null);
     setShowSaveModal(false);
-    window.location.href = href;
+    window.location.assign(href);
   }
 
   async function handleSavePress() {
@@ -1302,8 +1326,12 @@ export function ConversationClient({
             }
 
             if (event.type === "suggestions") {
+              const suggestions = filterGeneratedSuggestions(
+                event.suggestions,
+                copy.findHumanForThis,
+              );
               setMessages((currentMessages) =>
-                setMessageSuggestions(currentMessages, pendingAssistantId, event.suggestions),
+                setMessageSuggestions(currentMessages, pendingAssistantId, suggestions),
               );
             }
           }
@@ -1371,7 +1399,7 @@ export function ConversationClient({
           ref={threadRef}
           aria-busy={isStreaming}
           aria-live="polite"
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 lg:max-h-[calc(100dvh-22rem)] lg:flex-none"
         >
           <div className="flex flex-col gap-5">
             {!hasTranslatedCopy && currentLanguageCode !== "en" ? (
@@ -1661,7 +1689,7 @@ export function ConversationClient({
                 ref={voiceSettingsDoneRef}
                 type="button"
                 onClick={() => setShowVoiceSettings(false)}
-                className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                className="min-h-10 shrink-0 whitespace-nowrap rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
               >
                 {copy.voiceDone}
               </button>
@@ -1753,7 +1781,7 @@ export function ConversationClient({
                 ref={languageSheetDoneRef}
                 type="button"
                 onClick={() => setShowLanguageSheet(false)}
-                className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                className="min-h-10 shrink-0 whitespace-nowrap rounded-full border border-[#cfd7cf] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
               >
                 {copy.languageSheetDone}
               </button>

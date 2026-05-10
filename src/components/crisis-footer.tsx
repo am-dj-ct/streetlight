@@ -107,7 +107,7 @@ export function CrisisFooter({
             <div className="sm:hidden">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <strong className="font-semibold">Immediate Help:</strong>
+                  <strong className="font-semibold">{copy.footerImmediateHelp}</strong>
                   <PhoneAction
                     copy={copy}
                     label="911"
@@ -117,7 +117,9 @@ export function CrisisFooter({
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <strong className="font-semibold">Mental health crisis help:</strong>
+                  <strong className="font-semibold">
+                    {copy.footerMentalHealthCrisisHelp}
+                  </strong>
                   <PhoneAction
                     copy={copy}
                     label="988"
@@ -138,7 +140,7 @@ export function CrisisFooter({
 
               <details className="mt-2">
                 <summary className="cursor-pointer rounded-[14px] border border-[#cbd6cf] bg-white px-3 py-2 text-[13px] font-medium text-[#25342b]">
-                  More Crisis Resources and App Info
+                  {copy.footerMoreCrisisResources}
                 </summary>
                 <div className="pt-2">{fullFooterContent}</div>
               </details>

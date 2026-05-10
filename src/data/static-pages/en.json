@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Privacy",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-05-10",
       "sections": [
         {
           "heading": "What we save: nothing about your conversation.",
@@ -23,10 +23,17 @@
           ]
         },
         {
+          "heading": "What your device may remember.",
+          "paragraphs": [
+            "Your browser may remember small settings, like voice choice, speech speed, and whether you've already seen the save warning. Those stay in your browser. We don't use them to track you."
+          ]
+        },
+        {
           "heading": "How we know it's not you.",
           "paragraphs": [
             "We don't ask for your name. We don't ask for your email. We don't ask for your phone number. We don't have an account system. There's no way for us to know who you are.",
-            "We do see the internet address your device is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address."
+            "We do see the internet address your device is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address.",
+            "Before a message is sent, the site may ask Cloudflare Turnstile to check that the request looks like a real person using the tool and not spam. Cloudflare gets a check token and the internet address for that check. Cloudflare does not get your message."
           ]
         },
         {
@@ -40,7 +47,7 @@
         {
           "heading": "If you save a conversation on this device.",
           "paragraphs": [
-            "You can save a conversation if you want. If you do, it stays on this device, not on our servers. If someone else uses this device, they could see it. If you're using a shared or borrowed device, or a library computer, don't save here. If you're able to, use Share from this device, or copy the text into a private message, notes app, or another place you trust."
+            "You can save a conversation if you want. If you do, it stays on this device, not on our servers. If someone else uses this device, they could see it. If you're using a shared or borrowed device, or a library computer, don't save here. If your device offers Share, use that, or copy the text into a private message, notes app, or another place you trust."
           ]
         },
         {
