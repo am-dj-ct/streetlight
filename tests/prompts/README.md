@@ -24,3 +24,13 @@ For lower-cost local iteration:
 - `PROMPT_CASE_FILTER=spanish npm run regression:prompts`
 - `SMOKE_CASE_LIMIT=2 npm run smoke`
 - `SMOKE_CASE_FILTER=benefits npm run smoke`
+
+Deterministic stress-test splits:
+
+- `tests/prompts/stable-core.txt`: high-confidence deterministic cases used as a strict gate.
+- `tests/prompts/variance-watchlist.txt`: known variable overlap cases for monitoring drift without noisy gate failures.
+
+Commands:
+
+- `npm run regression:stable-core` (fails on any stable-core mismatch)
+- `npm run regression:watchlist` (prints scorecard; does not fail the process)
