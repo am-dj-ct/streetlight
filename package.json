@@ -29,6 +29,8 @@
     "regression:prompts": "node scripts/regression.mjs",
     "regression:stable-core": "node scripts/regression-bucket.mjs stable-core",
     "regression:watchlist": "node scripts/regression-bucket.mjs variance-watchlist",
+    "security:harden:quick": "node scripts/security-hardening-autopilot.mjs quick",
+    "security:harden:full": "node scripts/security-hardening-autopilot.mjs full",
     "regression:mock": "ALLOW_MOCK_REGRESSION=true node scripts/regression.mjs",
     "regression:quick": "ALLOW_MOCK_REGRESSION=true PROMPT_CASE_LIMIT=3 node scripts/regression.mjs",
     "incident:new": "node scripts/new-incident.mjs",

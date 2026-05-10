@@ -38,6 +38,11 @@ console.log(`Health chatMode: ${health.chatMode}`);
 console.log(`Health deployEnv: ${health.deployEnv}`);
 console.log(`Health commitSha: ${health.commitSha ?? "local-dev"}`);
 console.log(`Health deployConfigOk: ${health.deployConfigOk === true ? "true" : "false"}`);
+if (health.abuseControls) {
+  console.log(
+    `Health abuseControls: turnstileSecret=${health.abuseControls.turnstileSecretConfigured === true ? "true" : "false"}, turnstileSiteKey=${health.abuseControls.turnstileSiteKeyConfigured === true ? "true" : "false"}, kv=${health.abuseControls.kvConfigured === true ? "true" : "false"}, hashedIpSalt=${health.abuseControls.hashedIpSaltConfigured === true ? "true" : "false"}`,
+  );
+}
 console.log("");
 console.log("Language snapshot");
 console.log(`- /?lang=es html lang: ${spanishHomeHtmlLang ?? "(missing)"}`);

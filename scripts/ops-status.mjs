@@ -162,6 +162,13 @@ console.log(`Chat mode: ${health.chatMode}`);
 console.log(`Deploy env: ${health.deployEnv}`);
 console.log(`Commit SHA: ${health.commitSha ?? "local-dev"}`);
 console.log(`Deploy config ok: ${summarizeBoolean(Boolean(health.deployConfigOk))}`);
+if (health.abuseControls) {
+  console.log("Abuse controls");
+  console.log(`- turnstile secret: ${summarizeBoolean(Boolean(health.abuseControls.turnstileSecretConfigured))}`);
+  console.log(`- turnstile site key: ${summarizeBoolean(Boolean(health.abuseControls.turnstileSiteKeyConfigured))}`);
+  console.log(`- kv configured: ${summarizeBoolean(Boolean(health.abuseControls.kvConfigured))}`);
+  console.log(`- hashed ip salt: ${summarizeBoolean(Boolean(health.abuseControls.hashedIpSaltConfigured))}`);
+}
 console.log("");
 console.log("Local env snapshot");
 console.log(`- DEV_MOCK_CHAT: ${envSnapshot.devMockChat}`);
