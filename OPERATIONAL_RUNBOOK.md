@@ -197,6 +197,45 @@ Use this if:
 
 ---
 
+## If `/healthz` shows `deployConfigOk: false`
+
+Treat this as a release blocker. Chat may be partially or fully unavailable by
+design.
+
+### Fast recovery checklist
+
+1. Open the live health endpoint:
+   - `https://access-tool-eight.vercel.app/healthz`
+2. Check `abuseControls` in the JSON:
+   - `turnstileSecretConfigured`
+   - `turnstileSiteKeyConfigured`
+   - `kvConfigured`
+   - `hashedIpSaltConfigured`
+3. In Vercel `Settings` → `Environment Variables`, confirm these exist for
+   Production:
+   - `TURNSTILE_SECRET_KEY`
+   - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN`
+   - `HASHED_IP_SALT`
+4. If any are missing or wrong, update them and redeploy production.
+5. Recheck `/healthz` until:
+   - `deployConfigOk: true`
+   - all four `abuseControls` flags are `true`
+6. Send one live chat message to verify runtime behavior.
+
+### If still false after env fixes
+
+1. Open latest deployment logs and confirm the correct project and environment
+   were redeployed.
+2. Run local diagnostics from repo root:
+   - `npm run ops:status`
+   - `npm run security:harden:quick`
+3. If unresolved after 15 minutes, enable soft pause and escalate to the
+   bus-factor contact.
+
+---
+
 ## If you suspect credential compromise
 
 Do this in order:
