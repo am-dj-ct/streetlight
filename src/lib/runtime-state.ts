@@ -17,6 +17,12 @@ import {
 export type ChatMode = "live-model" | "mock-local";
 
 export type RuntimeState = {
+  abuseControls: {
+    hashedIpSaltConfigured: boolean;
+    kvConfigured: boolean;
+    turnstileSecretConfigured: boolean;
+    turnstileSiteKeyConfigured: boolean;
+  };
   chatMode: ChatMode;
   commitSha: string;
   deployConfigOk: boolean;
@@ -31,13 +37,16 @@ export function getChatMode(): ChatMode {
 
 export function getRuntimeState(): RuntimeState {
   const deployEnv = getDeployEnvironment();
-  const hasAbuseControlsConfig =
-    hasTurnstileSecret() &&
-    hasTurnstileSiteKey() &&
-    hasKvConfig() &&
-    hasHashedIpSalt();
+  const abuseControls = {
+    hashedIpSaltConfigured: hasHashedIpSalt(),
+    kvConfigured: hasKvConfig(),
+    turnstileSecretConfigured: hasTurnstileSecret(),
+    turnstileSiteKeyConfigured: hasTurnstileSiteKey(),
+  };
+  const hasAbuseControlsConfig = Object.values(abuseControls).every(Boolean);
 
   return {
+    abuseControls,
     chatMode: getChatMode(),
     commitSha: getDeployCommitSha() ?? "local-dev",
     deployConfigOk:

@@ -2,9 +2,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { classifierPrompt, parseWeakCategory } from "../../../lib/classifier-prompt";
 import {
+  getDeployEnvironment,
   getAnthropicApiKey,
   getClassifierModel,
   getMainModel,
+  hasHashedIpSalt,
+  hasKvConfig,
+  hasTurnstileSecret,
+  hasTurnstileSiteKey,
   isDevMockChatEnabled,
   isProductionMockMisconfigured,
   isSoftPauseEnabled,
@@ -147,6 +152,13 @@ export async function POST(request: Request) {
   let model = process.env.MAIN_MODEL ?? "missing";
   let classifierModel = process.env.CLASSIFIER_MODEL ?? "missing";
   let mainModelTier: MainModelTier = "primary";
+  const deployEnv = getDeployEnvironment();
+  const isProductionDeploy = deployEnv === "production";
+  const hasAbuseControlsConfig =
+    hasTurnstileSecret() &&
+    hasTurnstileSiteKey() &&
+    hasKvConfig() &&
+    hasHashedIpSalt();
   const hashedIp = getHashedIp(request);
   let loggedTurnMetadata = false;
 
@@ -173,6 +185,7 @@ export async function POST(request: Request) {
     };
     mainResponseTimeMs?: null | number;
     mainStatus:
+      | "blocked_abuse_controls"
       | "blocked_daily_spend"
       | "blocked_rate_limit"
       | "blocked_soft_pause"
@@ -292,6 +305,21 @@ export async function POST(request: Request) {
       });
     }
 
+    if (isProductionDeploy && !hasAbuseControlsConfig) {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_abuse_controls",
+      });
+
+      return jsonNoStore(
+        {
+          error: "This deployment is misconfigured.",
+          assistantNotice:
+            "This deployment is misconfigured right now and is not safe to use. Please try again later.",
+        },
+        { status: 503 },
+      );
+    }
+
     if (isSoftPauseEnabled()) {
       logTurnMetadataOnce({
         mainStatus: "blocked_soft_pause",
@@ -312,6 +340,21 @@ export async function POST(request: Request) {
       token: body.turnstileToken,
     });
 
+    if (isProductionDeploy && turnstile.reason === "disabled") {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_abuse_controls",
+      });
+
+      return jsonNoStore(
+        {
+          error: "This deployment is misconfigured.",
+          assistantNotice:
+            "This deployment is misconfigured right now and is not safe to use. Please try again later.",
+        },
+        { status: 503 },
+      );
+    }
+
     if (!turnstile.allowed) {
       logTurnMetadataOnce({
         mainStatus: "blocked_turnstile",
@@ -324,6 +367,21 @@ export async function POST(request: Request) {
     }
 
     const rateLimit = await checkPerIpRateLimit(request);
+
+    if (isProductionDeploy && rateLimit.reason === "disabled") {
+      logTurnMetadataOnce({
+        mainStatus: "blocked_abuse_controls",
+      });
+
+      return jsonNoStore(
+        {
+          error: "This deployment is misconfigured.",
+          assistantNotice:
+            "This deployment is misconfigured right now and is not safe to use. Please try again later.",
+        },
+        { status: 503 },
+      );
+    }
 
     if (!rateLimit.allowed) {
       logTurnMetadataOnce({

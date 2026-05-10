@@ -10,6 +10,7 @@ type UsageShape = {
 export type MainStatus =
   | "not_started"
   | "blocked_soft_pause"
+  | "blocked_abuse_controls"
   | "blocked_turnstile"
   | "blocked_rate_limit"
   | "blocked_daily_spend"
