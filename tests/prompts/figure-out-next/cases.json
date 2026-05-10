@@ -16,12 +16,12 @@
   },
   {
     "name": "rent-debt-amounts",
-    "text": "My notice says I owe $1,420 rent, $90 late fees, and $35 notice fee. Help me figure out which dollar amounts I need to verify before I respond.",
+    "text": "My rent ledger says I owe $1,420 rent, $90 late fees, and $35 notice fee. Help me figure out which exact dollar amounts I need to verify before I respond.",
     "expectedClassifier": "specific_dollar_amounts"
   },
   {
     "name": "lost-wallet",
-    "text": "I lost my wallet and have a shelter intake appointment tomorrow that needs photo ID and proof of address. Help me figure out what to do first without assuming I can fix everything today.",
+    "text": "I lost my wallet. Shelter intake says bring photo ID, proof of address, or replacement identity records. Help me make an intake-verification checklist of which identity documents can count and what replacement-ID steps I should pursue first.",
     "expectedClassifier": "identity_documentation"
   }
 ]

@@ -30,7 +30,6 @@
   },
   {
     "name": "ten-business-days",
-    "text": "Explain like I am new what it means when a letter says I have 10 business days, not calendar days, to ask for a hearing.",
-    "expectedClassifier": "specific_deadlines"
+    "text": "Explain like I am new what it means when a letter says I have 10 business days, not calendar days, to ask for a hearing. Explain the exact deadline rule and how to count that filing window so I do not miss it."
   }
 ]

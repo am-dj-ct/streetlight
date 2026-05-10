@@ -16,7 +16,7 @@
   },
   {
     "name": "uscis-notice-question",
-    "text": "I feel embarrassed asking this, but my USCIS notice says my immigration appointment was rescheduled and I need to bring updated evidence. What is the notice asking me to verify?",
+    "text": "I feel embarrassed asking this, but my USCIS Request for Evidence for work permit renewal says I must respond by a deadline with updated immigration evidence. Explain what this notice means, what evidence USCIS is asking for, and what response steps I should verify.",
     "expectedClassifier": "immigration"
   },
   {

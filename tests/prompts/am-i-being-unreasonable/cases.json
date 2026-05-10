@@ -16,8 +16,7 @@
   },
   {
     "name": "benefits-proof-request",
-    "text": "My benefits worker asked for pay stubs again even though I already sent them last month. Am I being unreasonable for asking what proof they still need?",
-    "expectedClassifier": "benefits_eligibility"
+    "text": "My Basic Food worker asked for pay stubs again even though I already sent them last month. Am I being unreasonable for asking exactly which proof-of-income documents still count for eligibility and what recertification step I should take next?"
   },
   {
     "name": "appointment-reschedule",

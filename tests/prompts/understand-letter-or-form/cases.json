@@ -29,5 +29,10 @@
     "name": "shelter-id-requirements",
     "text": "My shelter intake form says I need photo ID and proof of address, and if I do not have them I should bring any other identity paperwork I have. Explain what this form is asking me to verify.",
     "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "hearing-response-window",
+    "text": "My notice says I must file a written response within 14 days of service to request a hearing. Explain this deadline rule and what timing details I should verify.",
+    "expectedClassifier": "specific_deadlines"
   }
 ]

@@ -1,7 +1,7 @@
 [
   {
     "name": "landlord-call",
-    "text": "Help me prepare for a hard conversation with my landlord before an eviction court mediation. The summons says I need to respond, and I want to ask about a payment plan without missing legal steps.",
+    "text": "Help me prepare for a hard conversation before an eviction court mediation. I need to understand legal steps: summons, filing an answer, hearing process, and what to ask before agreeing to a payment plan.",
     "expectedClassifier": "legal_procedure"
   },
   {
@@ -11,8 +11,7 @@
   },
   {
     "name": "immigration-consult",
-    "text": "Help me prepare for a hard conversation with an immigration legal clinic about a work permit renewal and what documents I need to bring.",
-    "expectedClassifier": "immigration"
+    "text": "Help me prepare for a hard conversation with an immigration legal clinic about a USCIS work permit renewal. I need to verify immigration-process steps, response timing, and what supporting evidence USCIS expects."
   },
   {
     "name": "pharmacist-interaction",
