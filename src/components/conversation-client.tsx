@@ -46,7 +46,8 @@ type TurnstileApi = {
     container: HTMLElement,
     options: {
       sitekey: string;
-      size: "invisible";
+      size: "normal" | "flexible" | "compact";
+      appearance?: "always" | "execute" | "interaction-only";
       theme: "light";
       callback: (token: string) => void;
       "error-callback": () => void;
@@ -744,7 +745,8 @@ export function ConversationClient({
 
     turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
       sitekey: turnstileSiteKey,
-      size: "invisible",
+      size: "normal",
+      appearance: "interaction-only",
       theme: "light",
       callback: (token) => {
         setTurnstileToken(token);
@@ -1566,8 +1568,7 @@ export function ConversationClient({
             {turnstileSiteKey ? (
               <div
                 ref={turnstileContainerRef}
-                aria-hidden="true"
-                className="min-h-0 overflow-hidden opacity-0"
+                className="flex justify-center"
               />
             ) : null}
           </div>
