@@ -70,6 +70,10 @@ export function getTurnstileSecretKey(): string {
   return readEnv("TURNSTILE_SECRET_KEY");
 }
 
+export function isTurnstileEnabled(): boolean {
+  return readOptionalBooleanEnv("TURNSTILE_ENABLED");
+}
+
 export function getTurnstileSiteKey(): null | string {
   return readOptionalEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY");
 }

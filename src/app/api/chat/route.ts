@@ -13,6 +13,7 @@ import {
   isDevMockChatEnabled,
   isProductionMockMisconfigured,
   isSoftPauseEnabled,
+  isTurnstileEnabled,
 } from "../../../lib/env";
 import {
   followUpSuggestionsPrompt,
@@ -154,9 +155,10 @@ export async function POST(request: Request) {
   let mainModelTier: MainModelTier = "primary";
   const deployEnv = getDeployEnvironment();
   const isProductionDeploy = deployEnv === "production";
+  const turnstileProtectionEnabled = isTurnstileEnabled();
   const hasAbuseControlsConfig =
-    hasTurnstileSecret() &&
-    hasTurnstileSiteKey() &&
+    (!turnstileProtectionEnabled ||
+      (hasTurnstileSecret() && hasTurnstileSiteKey())) &&
     hasKvConfig() &&
     hasHashedIpSalt();
   const hashedIp = getHashedIp(request);
@@ -335,35 +337,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const turnstile = await validateTurnstileToken({
-      request,
-      token: body.turnstileToken,
-    });
-
-    if (isProductionDeploy && turnstile.reason === "disabled") {
-      logTurnMetadataOnce({
-        mainStatus: "blocked_abuse_controls",
+    if (turnstileProtectionEnabled) {
+      const turnstile = await validateTurnstileToken({
+        request,
+        token: body.turnstileToken,
       });
 
-      return jsonNoStore(
-        {
-          error: "This deployment is misconfigured.",
-          assistantNotice:
-            "This deployment is misconfigured right now and is not safe to use. Please try again later.",
-        },
-        { status: 503 },
-      );
-    }
+      if (isProductionDeploy && turnstile.reason === "disabled") {
+        logTurnMetadataOnce({
+          mainStatus: "blocked_abuse_controls",
+        });
 
-    if (!turnstile.allowed) {
-      logTurnMetadataOnce({
-        mainStatus: "blocked_turnstile",
-      });
+        return jsonNoStore(
+          {
+            error: "This deployment is misconfigured.",
+            assistantNotice:
+              "This deployment is misconfigured right now and is not safe to use. Please try again later.",
+          },
+          { status: 503 },
+        );
+      }
 
-      return jsonNoStore(
-        { error: "Please try again." },
-        { status: 403 },
-      );
+      if (!turnstile.allowed) {
+        logTurnMetadataOnce({
+          mainStatus: "blocked_turnstile",
+        });
+
+        return jsonNoStore(
+          { error: "Please try again." },
+          { status: 403 },
+        );
+      }
     }
 
     const rateLimit = await checkPerIpRateLimit(request);

@@ -386,7 +386,10 @@ export function ConversationClient({
   initialSuggestions,
   regionScope,
 }: ConversationClientProps) {
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+  const turnstileEnabled = process.env.NEXT_PUBLIC_TURNSTILE_ENABLED === "true";
+  const turnstileSiteKey = turnstileEnabled
+    ? process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ""
+    : "";
   const copy = getUiCopy(currentLanguageCode);
   const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguageCode);
   const threadRef = useRef<HTMLElement | null>(null);

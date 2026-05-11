@@ -11,6 +11,7 @@ import {
   isDevMockChatEnabled,
   isProductionTtsMockMisconfigured,
   isProductionMockMisconfigured,
+  isTurnstileEnabled,
   isTtsEnabled,
 } from "./env";
 
@@ -20,6 +21,7 @@ export type RuntimeState = {
   abuseControls: {
     hashedIpSaltConfigured: boolean;
     kvConfigured: boolean;
+    turnstileEnabled: boolean;
     turnstileSecretConfigured: boolean;
     turnstileSiteKeyConfigured: boolean;
   };
@@ -40,10 +42,18 @@ export function getRuntimeState(): RuntimeState {
   const abuseControls = {
     hashedIpSaltConfigured: hasHashedIpSalt(),
     kvConfigured: hasKvConfig(),
+    turnstileEnabled: isTurnstileEnabled(),
     turnstileSecretConfigured: hasTurnstileSecret(),
     turnstileSiteKeyConfigured: hasTurnstileSiteKey(),
   };
-  const hasAbuseControlsConfig = Object.values(abuseControls).every(Boolean);
+  const hasTurnstileConfig =
+    !abuseControls.turnstileEnabled ||
+    (abuseControls.turnstileSecretConfigured &&
+      abuseControls.turnstileSiteKeyConfigured);
+  const hasAbuseControlsConfig =
+    abuseControls.hashedIpSaltConfigured &&
+    abuseControls.kvConfigured &&
+    hasTurnstileConfig;
 
   return {
     abuseControls,
