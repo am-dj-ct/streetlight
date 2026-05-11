@@ -40,6 +40,11 @@ when the build is ready.
   framing, limits, and bug-report links for soft launch.
 - [Partner materials index](docs/partners/README.md) — quick map of the
   soft-launch docs set.
+- [Security policy](SECURITY.md) — how to report vulnerabilities safely.
+- [Contributing guide](CONTRIBUTING.md) — how to open issues and send pull
+  requests.
+- [Code of conduct](CODE_OF_CONDUCT.md) — participation and moderation
+  standards.
 
 ## Project structure
 
@@ -121,8 +126,7 @@ matters.
 
 ## License
 
-No open-source license has been selected yet. Choose MIT or Apache-2.0 before
-public launch.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
 ## Contact
 
