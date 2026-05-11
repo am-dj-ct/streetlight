@@ -160,6 +160,7 @@
     "stopReading": "Stop reading",
     "thinking": "Thinking...",
     "sendAssistiveLabel": "Send message",
+    "suggestedReplies": "Suggested replies",
     "weakCategoryPending": "Checking whether this needs a note to verify with a person...",
     "weakCategoryLead": "AI sometimes gets this wrong.",
     "weakCategoryTail": "Worth verifying with a person who does",

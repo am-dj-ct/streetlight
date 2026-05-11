@@ -394,6 +394,7 @@ export function ConversationClient({
   const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguageCode);
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const assistantMessageRefs = useRef(new Map<string, HTMLElement>());
   const languageSheetDoneRef = useRef<HTMLButtonElement | null>(null);
   const languageSheetRef = useRef<HTMLDivElement | null>(null);
   const languageSheetReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -448,6 +449,19 @@ export function ConversationClient({
     languageCode: currentLanguageCode,
   });
   const hasOpenSheet = showLanguageSheet || showSaveModal || showVoiceSettings;
+
+  function scrollThreadElementToTop(element: HTMLElement) {
+    const thread = threadRef.current;
+
+    if (!thread) {
+      return;
+    }
+
+    const threadRect = thread.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+
+    thread.scrollTop += elementRect.top - threadRect.top;
+  }
 
   useEffect(() => {
     if (!showLanguageSheet && !showSaveModal && !showVoiceSettings) {
@@ -568,6 +582,27 @@ export function ConversationClient({
   }, [showVoiceSettings]);
 
   useEffect(() => {
+    composerRef.current?.blur();
+
+    const thread = threadRef.current;
+
+    if (!thread) {
+      return;
+    }
+
+    thread.scrollTop = 0;
+
+    const resetInitialViewport = window.setTimeout(() => {
+      composerRef.current?.blur();
+      thread.scrollTop = 0;
+    }, 150);
+
+    return () => {
+      window.clearTimeout(resetInitialViewport);
+    };
+  }, [entryId]);
+
+  useEffect(() => {
     const thread = threadRef.current;
 
     if (!thread) {
@@ -575,6 +610,26 @@ export function ConversationClient({
     }
 
     if (messages.length === 1 && showSuggestions && !isStreaming && !errorMessage) {
+      return;
+    }
+
+    const latestAssistantMessage = [...messages]
+      .reverse()
+      .find((message) => message.role === "assistant" && message.text.length > 0);
+
+    if (!isStreaming && latestAssistantMessage) {
+      const latestAssistantElement = assistantMessageRefs.current.get(
+        latestAssistantMessage.id,
+      );
+
+      if (latestAssistantElement) {
+        scrollThreadElementToTop(latestAssistantElement);
+
+        window.requestAnimationFrame(() => {
+          scrollThreadElementToTop(latestAssistantElement);
+        });
+      }
+
       return;
     }
 
@@ -794,6 +849,8 @@ export function ConversationClient({
   const isCompactComposer = isComposerFocused || isKeyboardViewportCompressed;
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
+  const shouldReserveAnswerScrollRoom =
+    !isStreaming && messages.some((message) => message.role === "user");
 
   function getConversationExportText() {
     return formatConversationForExport(messages, {
@@ -1173,6 +1230,8 @@ export function ConversationClient({
       return;
     }
 
+    composerRef.current?.blur();
+
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -1438,6 +1497,17 @@ export function ConversationClient({
                 >
                   <div className="min-w-0 max-w-[88%] sm:max-w-[78%] lg:max-w-[72%]">
                     <article
+                      ref={(element) => {
+                        if (!isAssistant) {
+                          return;
+                        }
+
+                        if (element) {
+                          assistantMessageRefs.current.set(message.id, element);
+                        } else {
+                          assistantMessageRefs.current.delete(message.id);
+                        }
+                      }}
                       className={`break-words px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
                         isAssistant
                           ? "rounded-[18px] rounded-bl-[6px] bg-white text-[#1f2923]"
@@ -1526,19 +1596,39 @@ export function ConversationClient({
                           </Link>
                         </div>
                         {message.suggestions?.length ? (
-                          <div className="flex flex-wrap gap-2">
-                            {message.suggestions.map((suggestion) => (
-                              <button
-                                key={suggestion}
-                                type="button"
-                                onClick={() => sendMessage(suggestion)}
-                                disabled={isStreaming}
-                                className="min-h-11 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139] disabled:opacity-60"
-                              >
-                                {suggestion}
-                              </button>
-                            ))}
-                          </div>
+                          <>
+                            <details className="sm:hidden">
+                              <summary className="cursor-pointer rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 py-3 text-[15px] font-medium leading-5 text-[#334139]">
+                                {copy.suggestedReplies}
+                              </summary>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {message.suggestions.map((suggestion) => (
+                                  <button
+                                    key={suggestion}
+                                    type="button"
+                                    onClick={() => sendMessage(suggestion)}
+                                    disabled={isStreaming}
+                                    className="min-h-11 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139] disabled:opacity-60"
+                                  >
+                                    {suggestion}
+                                  </button>
+                                ))}
+                              </div>
+                            </details>
+                            <div className="hidden flex-wrap gap-2 sm:flex">
+                              {message.suggestions.map((suggestion) => (
+                                <button
+                                  key={suggestion}
+                                  type="button"
+                                  onClick={() => sendMessage(suggestion)}
+                                  disabled={isStreaming}
+                                  className="min-h-11 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139] disabled:opacity-60"
+                                >
+                                  {suggestion}
+                                </button>
+                              ))}
+                            </div>
+                          </>
                         ) : null}
                       </div>
                     ) : null}
@@ -1573,6 +1663,10 @@ export function ConversationClient({
                 ref={turnstileContainerRef}
                 className="flex justify-center"
               />
+            ) : null}
+
+            {shouldReserveAnswerScrollRoom ? (
+              <div aria-hidden="true" className="h-[45dvh] shrink-0 sm:hidden" />
             ) : null}
           </div>
         </section>
@@ -1624,7 +1718,6 @@ export function ConversationClient({
                 ref={composerRef}
                 id="conversation-input"
                 autoComplete="off"
-                autoFocus
                 rows={1}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
