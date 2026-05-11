@@ -1,7 +1,26 @@
 import type { NextConfig } from "next";
 
+const deployAssetVersion = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12);
+const deployAssetPrefix =
+  process.env.NODE_ENV === "production" && deployAssetVersion
+    ? `/_streetlight-assets/${deployAssetVersion}`
+    : undefined;
+
 const nextConfig: NextConfig = {
+  assetPrefix: deployAssetPrefix,
   devIndicators: false,
+  async rewrites() {
+    if (!deployAssetPrefix) {
+      return [];
+    }
+
+    return [
+      {
+        source: `${deployAssetPrefix}/_next/:path*`,
+        destination: "/_next/:path*",
+      },
+    ];
+  },
   async headers() {
     return [
       {
