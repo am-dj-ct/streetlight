@@ -1,4 +1,4 @@
-# Access Tool — V1 Specification
+# Streetlight — V1 Specification
 
 A free, public, mobile-web tool that puts a frontier LLM in the hands of
 people experiencing homelessness, housing insecurity, or extreme poverty

@@ -2,7 +2,7 @@
 
 ## Question
 
-Should the Access Tool land the post-response weak-category classifier now,
+Should Streetlight land the post-response weak-category classifier now,
 before Turnstile, KV-backed rate limiting, and the full metadata-log schema
 are in place?
 

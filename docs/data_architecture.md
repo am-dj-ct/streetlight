@@ -27,7 +27,7 @@ When any of these trigger, the change requires a dated entry in `docs/decisions/
 
 ## Purpose and Scope
 
-This document is the architectural foundation for the Access Tool — a free, public, mobile-web tool that puts a frontier LLM in the hands of people experiencing homelessness, housing insecurity, or extreme poverty in Seattle / King County.
+This document is the architectural foundation for Streetlight — a free, public, mobile-web tool that puts a frontier LLM in the hands of people experiencing homelessness, housing insecurity, or extreme poverty in Seattle / King County.
 
 It exists to:
 

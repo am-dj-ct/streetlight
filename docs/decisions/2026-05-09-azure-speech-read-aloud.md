@@ -2,7 +2,7 @@
 
 ## Question
 
-Should Access Tool keep using only browser/device text-to-speech, or add a
+Should Streetlight keep using only browser/device text-to-speech, or add a
 provider-backed read-aloud path for more natural voices?
 
 ## Decision

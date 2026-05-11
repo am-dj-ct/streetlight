@@ -2,7 +2,7 @@
 
 ## Question
 
-How should the Access Tool capture enough operational signal to debug and
+How should Streetlight capture enough operational signal to debug and
 review usage patterns without storing conversation content or letting the
 logging surface drift over time?
 

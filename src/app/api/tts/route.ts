@@ -163,7 +163,7 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/ssml+xml",
         "Ocp-Apim-Subscription-Key": getAzureSpeechKey(),
-        "User-Agent": "Access-Tool",
+        "User-Agent": "Streetlight",
         "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
       },
       method: "POST",

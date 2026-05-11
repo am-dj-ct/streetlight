@@ -160,7 +160,7 @@ if (!invalidSev3DateOutput.includes("valid YYYY-MM-DD calendar date")) {
 const resourceStatusOutput = runNodeScript("scripts/print-resource-status.mjs", []);
 
 if (
-  !resourceStatusOutput.includes("Access Tool resource status") ||
+  !resourceStatusOutput.includes("Streetlight resource status") ||
   !resourceStatusOutput.includes("Referral resources") ||
   !resourceStatusOutput.includes("Crisis resources")
 ) {
@@ -170,7 +170,7 @@ if (
 const diagnosticsOutput = runNodeScript("scripts/print-local-diagnostics.mjs", []);
 
 if (
-  !diagnosticsOutput.includes("Access Tool local diagnostics") ||
+  !diagnosticsOutput.includes("Streetlight local diagnostics") ||
   !diagnosticsOutput.includes("Report page snapshot") ||
   !diagnosticsOutput.includes("Referrals page snapshot")
 ) {
@@ -180,7 +180,7 @@ if (
 const opsStatusOutput = runNodeScript("scripts/ops-status.mjs", []);
 
 if (
-  !opsStatusOutput.includes("Access Tool ops status") ||
+  !opsStatusOutput.includes("Streetlight ops status") ||
   !opsStatusOutput.includes("Content contracts: Content contracts ok") ||
   !opsStatusOutput.includes("Safety checks: env shapes, forbidden integrations, and tracked secrets ok")
 ) {

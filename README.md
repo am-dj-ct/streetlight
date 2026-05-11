@@ -1,7 +1,7 @@
-# Access Tool
+# Streetlight
 
-A free, public, mobile-web LLM tool for people experiencing homelessness,
-housing insecurity, or extreme poverty in Seattle / King County.
+Free, no-account AI support for people navigating housing instability,
+paperwork, benefits, and hard decisions in Seattle / King County.
 
 Anonymous by default. No accounts, no PII retention, no ads, no upsell, no
 data harvesting, no premium tier. Open source from day one.

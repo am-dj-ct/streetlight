@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in Access Tool.
+Thanks for your interest in Streetlight.
 
 This project is currently maintained by one person. Contributions are welcome,
 but review and merge bandwidth is intentionally limited during launch.

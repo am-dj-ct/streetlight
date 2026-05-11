@@ -4,18 +4,18 @@ Use one of these when introducing the tool to a partner.
 
 ## Default
 
-> Access Tool is a free mobile-web AI helper for people under housing,
+> Streetlight is a free mobile-web AI helper for people under housing,
 > benefits, or paperwork stress, with built-in links to real human help.
 
 ## More cautious
 
-> Access Tool is a free mobile-web AI helper that can explain letters, help
+> Streetlight is a free mobile-web AI helper that can explain letters, help
 > draft responses, and point people to real human help, but it is not a
 > lawyer, clinician, or case manager.
 
 ## Very short
 
-> Access Tool helps people read, write, and figure out next steps during hard
+> Streetlight helps people read, write, and figure out next steps during hard
 > moments.
 
 ## Notes

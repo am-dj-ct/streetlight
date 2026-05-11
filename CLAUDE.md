@@ -7,7 +7,7 @@ Read this before doing anything. It is short on purpose.
 
 ## What this project is
 
-The Access Tool: a free, public, mobile-web LLM tool for people experiencing
+Streetlight: a free, public, mobile-web LLM tool for people experiencing
 homelessness, housing insecurity, or extreme poverty in Seattle / King County.
 Anonymous, no accounts, no PII retention, soft-launched through trusted
 frontline workers.

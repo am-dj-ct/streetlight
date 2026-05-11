@@ -54,7 +54,7 @@ function setBrowserSecurityHeaders(headers: Headers) {
 
 function renderHardPausePage(languageCode: string) {
   const problemReportHref = buildMailtoHref({
-    subject: "Access Tool problem report",
+    subject: "Streetlight problem report",
   });
 
   return `<!doctype html>
@@ -62,7 +62,7 @@ function renderHardPausePage(languageCode: string) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Access Tool Paused</title>
+    <title>Streetlight Paused</title>
     <style>
       :root {
         color-scheme: light;
@@ -141,7 +141,7 @@ function renderHardPausePage(languageCode: string) {
   <body>
     <main>
       <article>
-        <p class="eyebrow">Access Tool is temporarily unavailable.</p>
+        <p class="eyebrow">Streetlight is temporarily unavailable.</p>
         <h1>The tool is paused.</h1>
         <p>
           The tool is paused while the person who runs it checks on something.

@@ -2,7 +2,7 @@
 
 ## Question
 
-Should the Access Tool land its pause controls and daily spend cap now,
+Should Streetlight land its pause controls and daily spend cap now,
 before Cloudflare Turnstile validation is in place?
 
 ## Options considered

@@ -1,6 +1,6 @@
-# Access Tool Operational Runbook
+# Streetlight Operational Runbook
 
-This is the dashboard-first runbook for operating the Access Tool in a bad
+This is the dashboard-first runbook for operating Streetlight in a bad
 moment. It is written for a stressed human, on a phone if necessary.
 
 Before launch:

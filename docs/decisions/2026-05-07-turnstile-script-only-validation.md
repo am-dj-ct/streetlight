@@ -2,7 +2,7 @@
 
 ## Question
 
-How should the Access Tool add Cloudflare Turnstile without putting message
+How should Streetlight add Cloudflare Turnstile without putting message
 content behind a Cloudflare proxy or adding enough complexity to slow down the
 operator?
 

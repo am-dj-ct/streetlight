@@ -31,7 +31,7 @@ const languageCookieStatus = languageSnapshot.languageCookie ? "unexpected" : "n
 const spanishPrivacyHtmlLang = languageSnapshot.privacyLang;
 const acceptLanguagePrivacyHtmlLang = languageSnapshot.acceptLanguageLang;
 
-console.log("Access Tool local diagnostics");
+console.log("Streetlight local diagnostics");
 console.log("");
 console.log(`Base URL: ${baseUrl}`);
 console.log(`Health chatMode: ${health.chatMode}`);

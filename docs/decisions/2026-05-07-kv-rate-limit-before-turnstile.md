@@ -2,7 +2,7 @@
 
 ## Question
 
-Should the Access Tool land the per-IP rate limit now, before Turnstile,
+Should Streetlight land the per-IP rate limit now, before Turnstile,
 daily spend tracking, and kill-switch state are in place?
 
 ## Options considered

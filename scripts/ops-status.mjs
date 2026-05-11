@@ -154,7 +154,7 @@ const [
   Promise.resolve(getSafetyCheckSummary()),
 ]);
 
-console.log("Access Tool ops status");
+console.log("Streetlight ops status");
 console.log("");
 console.log(`Base URL: ${baseUrl}`);
 console.log(`Health ok: ${summarizeBoolean(Boolean(health.ok))}`);

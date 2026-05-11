@@ -51,7 +51,7 @@ function summarizeResources(resources) {
     .sort((left, right) => right.ageInDays - left.ageInDays);
 }
 
-console.log("Access Tool resource status");
+console.log("Streetlight resource status");
 console.log("");
 
 for (const resourceFile of resourceFiles) {

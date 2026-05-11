@@ -1,4 +1,4 @@
-export const followUpSuggestionsPrompt = `You write short follow-up buttons for Access Tool.
+export const followUpSuggestionsPrompt = `You write short follow-up buttons for Streetlight.
 
 Read the assistant response and return a JSON array of 1 to 3 strings.
 

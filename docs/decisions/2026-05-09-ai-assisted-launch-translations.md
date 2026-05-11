@@ -2,7 +2,7 @@
 
 ## Question
 
-Can Access Tool ship its seven-language locale files using AI-assisted
+Can Streetlight ship its seven-language locale files using AI-assisted
 translation instead of requiring professional or community translation as a P0
 launch gate?
 

@@ -46,7 +46,7 @@ const cheapestMainModel = envEntries.get("CHEAPEST_MAIN_MODEL") ?? "(unset)";
 const classifierModel = envEntries.get("CLASSIFIER_MODEL") ?? "(unset)";
 const devMockChat = envEntries.get("DEV_MOCK_CHAT") === "true";
 
-console.log("Access Tool cost mode");
+console.log("Streetlight cost mode");
 console.log("");
 console.log(`MAIN_MODEL=${mainModel}`);
 console.log(`FALLBACK_MAIN_MODEL=${fallbackMainModel}`);

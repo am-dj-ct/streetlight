@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Access Tool is currently pre-1.0. Security fixes are applied on `main` and
+Streetlight is currently pre-1.0. Security fixes are applied on `main` and
 deployed to the production alias.
 
 ## Reporting a Vulnerability
