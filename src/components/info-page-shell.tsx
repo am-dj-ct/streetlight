@@ -6,6 +6,7 @@ import type { RegionScope } from "../lib/geo";
 import type { LanguageOption, SupportedLanguageCode } from "../lib/languages";
 import type { ReportArea } from "../lib/report-areas";
 import { buildHomeHref, type InternalAppPath } from "../lib/routes";
+import { appTitle } from "../lib/site-metadata";
 
 type InfoPageShellProps = {
   area?: ReportArea;
@@ -35,7 +36,7 @@ export function InfoPageShell({
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-6">
         <header className="pb-4 lg:pb-6">
-          <div className="flex items-center justify-between">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
             <Link
               href={buildHomeHref(currentLanguage.code)}
               aria-label={copy.homeLabel}
@@ -43,6 +44,10 @@ export function InfoPageShell({
             >
               <span aria-hidden="true">{"<"}</span>
             </Link>
+            <p className="truncate text-center text-[16px] font-semibold text-[#171a18]">
+              {appTitle}
+            </p>
+            <span aria-hidden="true" className="min-h-10 min-w-10" />
           </div>
           <div className="pt-3">
             <LanguageStripLinks

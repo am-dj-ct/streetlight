@@ -7,7 +7,7 @@ import { LocalDevBadge } from "../components/local-dev-badge";
 import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getPageRequestContext } from "../lib/request-context";
 import { buildConversationHref, buildHomeHref } from "../lib/routes";
-import { defaultDescription } from "../lib/site-metadata";
+import { appTitle, defaultDescription } from "../lib/site-metadata";
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -48,12 +48,20 @@ export default async function Home({ searchParams }: HomePageProps) {
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-7">
-        <div className="pb-4">
-          <LanguageStripLinks
-            currentLanguageCode={currentLanguage.code}
-            getHref={buildHomeHref}
-          />
-        </div>
+        <header className="pb-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <p className="text-[20px] font-semibold leading-10 text-[#171a18] sm:text-[22px]">
+              {appTitle}
+            </p>
+            <div className="sm:flex-1">
+              <LanguageStripLinks
+                align="end"
+                currentLanguageCode={currentLanguage.code}
+                getHref={buildHomeHref}
+              />
+            </div>
+          </div>
+        </header>
 
         <section className="flex-1 pb-4 lg:pb-8">
           <LocalDevBadge className="pb-3" languageCode={currentLanguage.code} />

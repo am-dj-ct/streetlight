@@ -15,6 +15,7 @@ import {
   buildHomeHref,
   buildPrivacyHref,
 } from "../lib/routes";
+import { appTitle } from "../lib/site-metadata";
 import { buildMailtoHref, isMailtoHrefWithinLimit } from "../lib/support";
 import { stripMarkdownForSpeech } from "../lib/speech-text";
 import { getAzureVoiceOption, getAzureVoiceOptions } from "../lib/azure-tts";
@@ -1373,7 +1374,7 @@ export function ConversationClient({
         inert={hasOpenSheet ? true : undefined}
         className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-5"
       >
-        <header className="flex items-center justify-between pb-3">
+        <header className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pb-3">
           <Link
             href={buildHomeHref(currentLanguageCode)}
             aria-label={copy.backLabel}
@@ -1381,6 +1382,10 @@ export function ConversationClient({
           >
             <span aria-hidden="true">{"<"}</span>
           </Link>
+
+          <p className="truncate text-center text-[16px] font-semibold text-[#171a18]">
+            {appTitle}
+          </p>
 
           <button
             type="button"
