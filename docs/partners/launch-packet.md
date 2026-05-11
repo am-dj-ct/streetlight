@@ -15,7 +15,7 @@ tool.
 
 You can copy this and edit the URL line.
 
-> Streetlight URL: `https://access-tool-eight.vercel.app`
+> Streetlight URL: `https://streetlight.help`
 >
 > Streetlight is a free mobile-web AI helper for people under housing,
 > benefits, or paperwork stress, with built-in links to real human help.

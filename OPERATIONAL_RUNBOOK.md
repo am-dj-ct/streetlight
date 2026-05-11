@@ -15,7 +15,7 @@ Before launch:
 
 ## Fill this in before launch
 
-- Live URL: `https://access-tool-eight.vercel.app`
+- Live URL: `https://streetlight.help`
 - Bus-factor person: `Jesse Dunn`
 - Best phone or text: `206-388-8748`
 - Backup email: `jesse.c.dunn@outlook.com` (`jesse@balancedlivingtherapy.com` also reaches Jesse)
@@ -205,7 +205,7 @@ design.
 ### Fast recovery checklist
 
 1. Open the live health endpoint:
-   - `https://access-tool-eight.vercel.app/healthz`
+   - `https://streetlight.help/healthz`
 2. Check `abuseControls` in the JSON:
    - `turnstileSecretConfigured`
    - `turnstileSiteKeyConfigured`
