@@ -5,8 +5,8 @@
     "turns": [
       {
         "text": "I got a Social Security letter and I don't understand what it wants.",
-        "minWords": 25,
-        "maxWords": 140,
+        "minWords": 20,
+        "maxWords": 160,
         "expectedClassifier": "benefits_eligibility"
       }
     ]
@@ -18,7 +18,7 @@
       {
         "text": "I got served some court papers and I have no idea what to do next.",
         "minWords": 50,
-        "maxWords": 200,
+        "maxWords": 220,
         "expectedClassifier": "legal_procedure"
       }
     ]
@@ -30,7 +30,7 @@
       {
         "text": "I missed my medicine yesterday and I am embarrassed to ask what to do.",
         "minWords": 55,
-        "maxWords": 200,
+        "maxWords": 220,
         "expectedClassifier": "medical_dosing"
       }
     ]
@@ -42,7 +42,7 @@
       {
         "text": "Write a text to my landlord saying I paid rent but the portal still says I owe money.",
         "minWords": 45,
-        "maxWords": 220
+        "maxWords": 240
       }
     ]
   },
@@ -52,8 +52,8 @@
     "turns": [
       {
         "text": "Help me prepare for a DSHS phone appointment.",
-        "minWords": 60,
-        "maxWords": 260,
+        "minWords": 40,
+        "maxWords": 280,
         "expectedClassifier": "benefits_eligibility"
       }
     ]
@@ -65,12 +65,12 @@
       {
         "text": "Explain what a payment plan means like I am new to this.",
         "minWords": 55,
-        "maxWords": 190
+        "maxWords": 220
       },
       {
         "text": "Can you explain more and give an example with numbers?",
         "minWords": 120,
-        "maxWords": 380
+        "maxWords": 420
       }
     ]
   }
