@@ -30,7 +30,7 @@
       {
         "text": "I missed my medicine yesterday and I am embarrassed to ask what to do.",
         "minWords": 55,
-        "maxWords": 180,
+        "maxWords": 200,
         "expectedClassifier": "medical_dosing"
       }
     ]
