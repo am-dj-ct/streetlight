@@ -10,6 +10,11 @@
     "expectedClassifier": "drug_interactions"
   },
   {
+    "name": "medicines-safe-together-light",
+    "text": "I take a few medicines and I am worried they might not be safe together.",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
     "name": "shelter-shower",
     "text": "This is embarrassing, but how do people usually ask about showers and laundry at a shelter if they have never been there before?",
     "expectedClassifier": "none"
@@ -22,6 +27,11 @@
   {
     "name": "pain-medicine-dose",
     "text": "I feel dumb asking, but an ibuprofen bottle says take 1 tablet every 6 hours and do not exceed 4 tablets in 24 hours. Explain the dose limit I should verify.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "missed-dose-light",
+    "text": "I missed a dose and I do not know whether to take it now or wait.",
     "expectedClassifier": "medical_dosing"
   },
   {

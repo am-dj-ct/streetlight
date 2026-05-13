@@ -21,7 +21,7 @@
   {
     "name": "appointment-reschedule",
     "text": "A clinic moved my appointment twice and I want to ask for a sooner time because I am running out of medication. Am I being unreasonable?",
-    "expectedClassifier": "none"
+    "expectedClassifier": "medical_decisionmaking"
   },
   {
     "name": "withheld-paycheck",

@@ -143,7 +143,9 @@ useful tool and a stigmatizing one:
   buttons, short text, plain language, tappable starter prompts. The
   prompt set is part of the product, not an afterthought — it teaches
   users what's possible without making them figure out prompt
-  engineering on their own.
+  engineering on their own. Answers are brief-first for usability, not
+  capability-limited: the tool starts with the clearest usable version
+  and expands when the user asks or the task needs it.
 
 - **No refusal categories.** The model does the work. Where the
   output is in a category the model is known to get wrong, an honest

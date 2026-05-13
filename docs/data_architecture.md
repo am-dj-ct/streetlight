@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-05-10
-**Last meaningful change:** 2026-05-10 (plain-language Turnstile disclosure and local UI preference storage language updated)
+**Last reviewed:** 2026-05-13
+**Last meaningful change:** 2026-05-13 (brief-first main response style added; classifier receives latest user message plus assistant response for vague weak-category calibration)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -387,8 +387,8 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Hop 6 — Vercel Receives Response, Fires Classifier and Follow-Up Suggestions
 
-- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt (label-only, returns one of: legal_procedure, medical_dosing, medical_decisionmaking, benefits_eligibility, immigration, drug_interactions, employment_rights, identity_documentation, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn.
-- **Has access to:** Main model output (which may carry PII forward from the user's prompt), classifier prompt.
+- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt plus the latest user message and assistant response (label-only, returns one of: legal_procedure, medical_dosing, medical_decisionmaking, benefits_eligibility, immigration, drug_interactions, employment_rights, identity_documentation, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn.
+- **Has access to:** Latest user message, main model output (which may carry PII forward from the user's prompt), classifier prompt.
 - **Logs by default:** Same Vercel runtime log behavior as Hop 3. Same Anthropic 7-day retention as Hop 5.
 - **Override:** Same logging discipline as Hop 3. No `console.log` of classifier input or output. We log only the classification result label.
 - **What leaves this hop:**
@@ -679,6 +679,7 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 - Each subdirectory contains 5–10 canonical synthetic prompts covering typical and edge cases.
 - Each test runs the actual button system prompt + synthetic user prompt against the chat streaming route. PR/push CI runs the full suite in mock-local mode to verify wiring, streaming, fixture shape, page health, and classifier event plumbing with zero model spend. Live model regression is run deliberately before model, prompt, or deploy changes where behavior matters, using the configured Haiku testing path when cost is a concern.
 - Assertions: response length within bounds, response in correct language when input language is specified, response doesn't refuse the request, classifier fires correct category for cases where one is expected.
+- Separate response-style fixtures check the brief-first contract against live model behavior: answers should be shorter by default, still complete enough to use, still emit classifier and suggestion events, and expand when the user asks for more detail.
 - `specific_deadlines` is reserved for concrete due dates or timing rules, not general urgency language.
 - `specific_dollar_amounts` is reserved for concrete dollar amounts, balances, fees, payment plans, bill breakdowns, benefit amounts, income thresholds, or calculations that the user may need to verify.
 - `medical_decisionmaking` is reserved for concrete health decisions that are not primarily dose instructions or interaction guidance.
@@ -1086,6 +1087,18 @@ One-line summary of every decision in this document, dated for traceability.
 - Every conversation entry now has 5–10 synthetic regression prompts, enforced by `npm run check:content`.
 - GitHub Actions runs static checks, build, smoke, and the full prompt suite in mock-local mode on every PR and push to `main`.
 - Live prompt regression remains `npm run regression:prompts`; it is the deliberate Haiku/Sonnet/Opus behavior check before model or prompt changes, not a routine no-secret PR job.
+
+**2026-05-13 — classifier context calibration for vague prompts:**
+
+- Classifier input now includes the latest user message plus the assistant response, rather than the assistant response alone.
+- Classifier prompt now treats light practical guidance in a named weak domain as enough to surface the weak-category note.
+- Tiered prompt protocol and live UI results were documented to track bare-topic, vague-domain, light-risk, concrete, and overlap cases without adding keyword detection.
+
+**2026-05-13 — brief-first response style:**
+
+- Main conversation prompt now starts with a brief-first answer style for mobile usability, read-aloud, and low reading stamina.
+- Brief-first is explicitly not a refusal or capability limit: drafts, scripts, checklists, pasted documents, high-stakes caveats, and user-requested detail still get the complete useful answer.
+- Added live response-style fixtures that measure word ranges, classifier events, suggestion events, and expansion after a "tell me more" follow-up.
 
 **2026-05-09 — Azure Speech read-aloud:**
 

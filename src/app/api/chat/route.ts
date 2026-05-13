@@ -56,6 +56,22 @@ function jsonNoStore(
   return response;
 }
 
+function buildClassifierInput({
+  assistantResponse,
+  latestUserMessage,
+}: {
+  assistantResponse: string;
+  latestUserMessage: string;
+}) {
+  return [
+    "Latest user message:",
+    latestUserMessage,
+    "",
+    "Assistant response:",
+    assistantResponse,
+  ].join("\n");
+}
+
 async function readLimitedRequestBody(request: Request) {
   if (!request.body) {
     return "";
@@ -149,6 +165,7 @@ export async function POST(request: Request) {
     return jsonNoStore({ error: "Invalid request shape." }, { status: 400 });
   }
 
+  const latestUserMessageText = latestMessage.content;
   const requestStartedAt = Date.now();
   let model = process.env.MAIN_MODEL ?? "missing";
   let classifierModel = process.env.CLASSIFIER_MODEL ?? "missing";
@@ -512,7 +529,10 @@ export async function POST(request: Request) {
                 messages: [
                   {
                     role: "user",
-                    content: responseText,
+                    content: buildClassifierInput({
+                      assistantResponse: responseText,
+                      latestUserMessage: latestUserMessageText,
+                    }),
                   },
                 ],
               });

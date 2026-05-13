@@ -9,6 +9,11 @@
     "expectedClassifier": "specific_dollar_amounts"
   },
   {
+    "name": "bill-charges-vague",
+    "text": "Can you help me understand the charges on this bill?",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
     "name": "medicine-dose-instructions",
     "text": "My antibiotic bottle says take 2 tablets every 12 hours with food. Explain the dosing instructions in plain language and what I should verify.",
     "expectedClassifier": "medical_dosing"
@@ -31,5 +36,15 @@
   {
     "name": "ten-business-days",
     "text": "Explain like I am new what it means when a letter says I have 10 business days, not calendar days, to ask for a hearing. Explain the exact deadline rule and how to count that filing window so I do not miss it."
+  },
+  {
+    "name": "deadline-counting-light",
+    "text": "A notice mentions a deadline and I do not understand how to count it.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "balance-fees-payment-light",
+    "text": "My bill has a balance, fees, and a payment amount, and I do not understand what is what.",
+    "expectedClassifier": "specific_dollar_amounts"
   }
 ]

@@ -11,6 +11,16 @@
     "expectedClassifier": "benefits_eligibility"
   },
   {
+    "name": "vague-social-security-letter",
+    "text": "Can you help me understand my Social Security letter?",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "ssi-proof-request-light",
+    "text": "My SSI letter says they need proof from me and I do not know what to send.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
     "name": "rent-ledger-payment-plan",
     "text": "My rent ledger says balance due $2,386.50, late fee $75, and payment plan $200 every Friday. Explain the exact money amounts I need to verify.",
     "expectedClassifier": "specific_dollar_amounts"
@@ -34,5 +44,10 @@
     "name": "hearing-response-window",
     "text": "My notice says I must file a written response within 14 days of service to request a hearing. Explain this deadline rule and what timing details I should verify.",
     "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "vague-uscis-notice",
+    "text": "Can you help me understand my USCIS notice?",
+    "expectedClassifier": "immigration"
   }
 ]

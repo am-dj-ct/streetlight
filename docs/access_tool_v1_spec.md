@@ -156,6 +156,11 @@ deploy instantly to every user on next visit.
 - Master system prompt orients the model: free public tool, user might
   be in any situation including significant material hardship, default
   to maximally useful, treat them as a capable adult.
+- Master system prompt is brief-first by design: start with the most
+  usable version in plain language, keep critical caveats and next
+  steps, and expand when the user asks or when the task requires a
+  complete draft, checklist, document explanation, script, or
+  high-stakes detail.
 
 ### Classifier Pass
 
@@ -310,6 +315,10 @@ V2 work begins after V1 evidence justifies institutional support
   categories with an honest "this is the kind of thing LLMs get wrong"
   note and a routed find-a-human option. Harm-reduction-style honesty
   replaces refusal in the dosing/interaction case.
+- **Brief-first is not refusal.** Shorter default answers are an
+  accessibility choice for mobile, read-aloud, and low reading stamina.
+  The tool still does the task; it just leads with the usable version
+  before adding more detail.
 - **Default model: Claude Sonnet 4.6.** Haiku 4.5 for the classifier
   pass. Architecture supports trivial model swap (config-level, not
   hardcoded). Reserves the right to change models, including to

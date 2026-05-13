@@ -72,6 +72,8 @@ this. Code stays public on GitHub regardless.
   secret-shaped values before push
 - `npm run check:ops` — dry-run validation for the incident and ops helper
   scripts
+- `npm run check:response-style` — runs live brief-first response-shape cases
+  against the configured `/api/chat` path
 - `npm run check:translation-worklist` — verifies that the generated
   translation worklist is current
 - `npm run cost:status` — shows the local model pair and whether cheap local
@@ -115,7 +117,8 @@ while mock mode is active. Use `npm run regression:mock` for a full no-spend
 plumbing pass. The GitHub Actions `Verify` workflow runs the full mock suite on
 PRs and pushes to `main`; run `npm run regression:prompts` with the Haiku
 testing model path before model, prompt, or deploy changes where live behavior
-matters.
+matters. Run `npm run check:response-style` after prompt changes that affect
+answer length or structure.
 
 ## Utility routes
 

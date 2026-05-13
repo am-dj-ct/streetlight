@@ -29,8 +29,18 @@ Deterministic stress-test splits:
 
 - `tests/prompts/stable-core.txt`: high-confidence deterministic cases used as a strict gate.
 - `tests/prompts/variance-watchlist.txt`: known variable overlap cases for monitoring drift without noisy gate failures.
+- `tests/prompts/response-style-cases.json`: live model cases that check the
+  brief-first contract without turning brevity into under-answering.
+
+Tiered weak-category coverage:
+
+- `docs/weak_category_tiered_prompt_protocol.md`: how to test bare-topic,
+  vague-domain, light-risk, concrete, and overlap prompts before promoting
+  cases into stable-core or watchlist files.
 
 Commands:
 
 - `npm run regression:stable-core` (fails on any stable-core mismatch)
 - `npm run regression:watchlist` (prints scorecard; does not fail the process)
+- `npm run check:response-style` (live model check for answer length,
+  follow-up suggestions, classifier events, and "expand when asked" behavior)

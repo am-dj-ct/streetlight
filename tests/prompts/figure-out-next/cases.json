@@ -10,6 +10,11 @@
     "expectedClassifier": "legal_procedure"
   },
   {
+    "name": "summons-complaint-light",
+    "text": "I got papers that say summons and complaint and I do not know what I am supposed to do.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
     "name": "missed-antibiotic-dose",
     "text": "I missed one dose of antibiotics and the label says take one capsule twice a day until gone. Help me figure out what to ask the pharmacist.",
     "expectedClassifier": "medical_dosing"
@@ -22,6 +27,11 @@
   {
     "name": "lost-wallet",
     "text": "I lost my wallet. Shelter intake says bring photo ID, proof of address, or replacement identity records. Help me make an intake-verification checklist of which identity documents can count and what replacement-ID steps I should pursue first.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "papers-count-as-id",
+    "text": "I need help figuring out what papers count as ID.",
     "expectedClassifier": "identity_documentation"
   }
 ]

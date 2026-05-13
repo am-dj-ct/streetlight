@@ -1,0 +1,77 @@
+[
+  {
+    "name": "brief-understand-benefits-letter",
+    "entryId": "understand-letter-or-form",
+    "turns": [
+      {
+        "text": "I got a Social Security letter and I don't understand what it wants.",
+        "minWords": 25,
+        "maxWords": 140,
+        "expectedClassifier": "benefits_eligibility"
+      }
+    ]
+  },
+  {
+    "name": "brief-court-next-step",
+    "entryId": "figure-out-next",
+    "turns": [
+      {
+        "text": "I got served some court papers and I have no idea what to do next.",
+        "minWords": 50,
+        "maxWords": 200,
+        "expectedClassifier": "legal_procedure"
+      }
+    ]
+  },
+  {
+    "name": "brief-medication-missed-dose",
+    "entryId": "embarrassed-to-ask",
+    "turns": [
+      {
+        "text": "I missed my medicine yesterday and I am embarrassed to ask what to do.",
+        "minWords": 55,
+        "maxWords": 180,
+        "expectedClassifier": "medical_dosing"
+      }
+    ]
+  },
+  {
+    "name": "complete-short-draft",
+    "entryId": "write-something",
+    "turns": [
+      {
+        "text": "Write a text to my landlord saying I paid rent but the portal still says I owe money.",
+        "minWords": 45,
+        "maxWords": 220
+      }
+    ]
+  },
+  {
+    "name": "complete-appointment-prep",
+    "entryId": "prepare-for-hard",
+    "turns": [
+      {
+        "text": "Help me prepare for a DSHS phone appointment.",
+        "minWords": 60,
+        "maxWords": 260,
+        "expectedClassifier": "benefits_eligibility"
+      }
+    ]
+  },
+  {
+    "name": "expands-when-asked",
+    "entryId": "explain-like-new",
+    "turns": [
+      {
+        "text": "Explain what a payment plan means like I am new to this.",
+        "minWords": 55,
+        "maxWords": 190
+      },
+      {
+        "text": "Can you explain more and give an example with numbers?",
+        "minWords": 120,
+        "maxWords": 380
+      }
+    ]
+  }
+]
