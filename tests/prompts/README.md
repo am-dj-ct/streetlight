@@ -31,6 +31,9 @@ Deterministic stress-test splits:
 - `tests/prompts/variance-watchlist.txt`: known variable overlap cases for monitoring drift without noisy gate failures.
 - `tests/prompts/response-style-cases.json`: live model cases that check the
   brief-first contract without turning brevity into under-answering.
+- `tests/prompts/weak-category-recall-cases.json`: broad, vague, adjacent,
+  light-risk, overlap, and control prompts used to check high-recall weak-category
+  warning behavior through the real `/api/chat` endpoint.
 
 Tiered weak-category coverage:
 
@@ -44,3 +47,5 @@ Commands:
 - `npm run regression:watchlist` (prints scorecard; does not fail the process)
 - `npm run check:response-style` (live model check for answer length,
   follow-up suggestions, classifier events, and "expand when asked" behavior)
+- `npm run check:weak-category-recall` (live model check for broad weak-category
+  recall; terminal output prints synthetic case names and labels, not prompt text)

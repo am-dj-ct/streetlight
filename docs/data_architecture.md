@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-05-13
-**Last meaningful change:** 2026-05-13 (brief-first main response style added; classifier receives latest user message plus assistant response for vague weak-category calibration)
+**Last meaningful change:** 2026-05-13 (brief-first main response style added; weak-category classifier changed to a recall-first warning-zone prompt with broad synthetic recall tests)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -680,11 +680,12 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 - Each test runs the actual button system prompt + synthetic user prompt against the chat streaming route. PR/push CI runs the full suite in mock-local mode to verify wiring, streaming, fixture shape, page health, and classifier event plumbing with zero model spend. Live model regression is run deliberately before model, prompt, or deploy changes where behavior matters, using the configured Haiku testing path when cost is a concern.
 - Assertions: response length within bounds, response in correct language when input language is specified, response doesn't refuse the request, classifier fires correct category for cases where one is expected.
 - Separate response-style fixtures check the brief-first contract against live model behavior: answers should be shorter by default, still complete enough to use, still emit classifier and suggestion events, and expand when the user asks for more detail.
-- `specific_deadlines` is reserved for concrete due dates or timing rules, not general urgency language.
-- `specific_dollar_amounts` is reserved for concrete dollar amounts, balances, fees, payment plans, bill breakdowns, benefit amounts, income thresholds, or calculations that the user may need to verify.
+- `specific_deadlines` is reserved for due dates, response windows, filing windows, service-date counting, business/calendar-day rules, or user questions about how to count timing rules; it is not for ordinary "this feels urgent" language.
+- `specific_dollar_amounts` is reserved for bills, balances, fees, payment plans, ledgers, medical bills, benefit amounts, income thresholds, confusing money numbers, or calculations that the user may need to verify, even when exact dollar figures have not been pasted yet.
 - `medical_decisionmaking` is reserved for concrete health decisions that are not primarily dose instructions or interaction guidance.
 - `employment_rights` is reserved for workplace-rights guidance, wages, leave, retaliation, firing, accommodations, and employer-required paperwork.
 - `identity_documentation` is reserved for risky document-requirement guidance when the issue is what papers count or what replacements are needed, not mainly a benefits, immigration, or court-process question.
+- A separate recall suite covers broad, vague, adjacent-language, light-risk, overlap, and control cases for all weak categories. It calls the real `/api/chat` endpoint and prints only synthetic case names and category results, not prompt or response content.
 - The no-spend mock suite runs on every PR and every push to `main`. Live regression remains a manual pre-deploy/model-change gate so routine PR checks do not create unbounded Anthropic spend or require exposing live model secrets to all PR contexts.
 - Fails the build on regression.
 
@@ -1093,6 +1094,13 @@ One-line summary of every decision in this document, dated for traceability.
 - Classifier input now includes the latest user message plus the assistant response, rather than the assistant response alone.
 - Classifier prompt now treats light practical guidance in a named weak domain as enough to surface the weak-category note.
 - Tiered prompt protocol and live UI results were documented to track bare-topic, vague-domain, light-risk, concrete, and overlap cases without adding keyword detection.
+
+**2026-05-13 — recall-first weak-category warning zone:**
+
+- Classifier prompt now explicitly prioritizes weak-category recall over precision because the UI note is a verification warning, not a refusal or routing block.
+- Category definitions now include broad adjacent-language signals for ordinary user wording across all ten weak categories.
+- Added `npm run check:weak-category-recall`, backed by broad synthetic fixtures that call the real `/api/chat` endpoint and print only case names plus category results.
+- `none` is now treated as the narrow option when no listed weak area is reasonably implicated, while still preserving the same label-only classifier output and metadata-only logging.
 
 **2026-05-13 — brief-first response style:**
 

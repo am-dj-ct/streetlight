@@ -1,0 +1,590 @@
+[
+  {
+    "name": "benefits-social-security-letter",
+    "entryId": "understand-letter-or-form",
+    "tier": "bare-topic",
+    "text": "Can you help me understand my Social Security letter?",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-disability-review",
+    "entryId": "understand-letter-or-form",
+    "tier": "vague-domain",
+    "text": "I got something about my disability review and I do not know what they want from me.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-ssi-proof",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "SSI says they need proof and I am not sure what papers I am supposed to send.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-food-stamps-cut",
+    "entryId": "figure-out-next",
+    "tier": "vague-domain",
+    "text": "My food stamps got cut and the letter is confusing.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-dshs-interview",
+    "entryId": "prepare-for-hard",
+    "tier": "adjacent-language",
+    "text": "DSHS wants me to do an interview and bring proof, and I need help figuring out what matters.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-apple-health-renewal",
+    "entryId": "understand-letter-or-form",
+    "tier": "light-risk",
+    "text": "Apple Health sent me a renewal thing and I am worried I will mess it up.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-overpayment-letter",
+    "entryId": "understand-letter-or-form",
+    "tier": "overlap",
+    "text": "My benefits letter says overpayment and I do not understand if I have to pay it back.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "benefits-housing-voucher-recert",
+    "entryId": "figure-out-next",
+    "tier": "adjacent-language",
+    "text": "My housing voucher recertification asks about income and household changes. Help me sort what to check.",
+    "expectedClassifier": "benefits_eligibility"
+  },
+  {
+    "name": "legal-court-papers-confusing",
+    "entryId": "understand-letter-or-form",
+    "tier": "bare-topic",
+    "text": "I got court papers and I do not understand what they mean.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-served-papers",
+    "entryId": "figure-out-next",
+    "tier": "vague-domain",
+    "text": "Someone served me papers and I do not know if I have to respond.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-landlord-door-notice",
+    "entryId": "understand-letter-or-form",
+    "tier": "adjacent-language",
+    "text": "My landlord taped a notice to my door and I do not know what it means for my apartment.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-eviction-letter",
+    "entryId": "prepare-for-hard",
+    "tier": "light-risk",
+    "text": "I got an eviction letter and I need help figuring out what the next step is.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-summons-complaint",
+    "entryId": "understand-letter-or-form",
+    "tier": "light-risk",
+    "text": "The papers say summons and complaint, and I am scared I will miss what I am supposed to do.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-protection-order-hearing",
+    "entryId": "prepare-for-hard",
+    "tier": "adjacent-language",
+    "text": "I have a protection order hearing paper and need help preparing questions.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-small-claims-answer",
+    "entryId": "write-something",
+    "tier": "light-risk",
+    "text": "I need to write something for small claims court because I got a notice.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "legal-garnishment-notice",
+    "entryId": "understand-letter-or-form",
+    "tier": "overlap",
+    "text": "I got a garnishment notice and the legal words and money numbers are confusing.",
+    "expectedClassifier": "legal_procedure"
+  },
+  {
+    "name": "dosing-pill-bottle-hours",
+    "entryId": "understand-letter-or-form",
+    "tier": "bare-topic",
+    "text": "My pill bottle says every 8 hours and I do not understand how to plan that.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "dosing-missed-dose",
+    "entryId": "figure-out-next",
+    "tier": "vague-domain",
+    "text": "I missed a dose of my medicine and I do not know what to do now.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "dosing-antibiotic-label",
+    "entryId": "understand-letter-or-form",
+    "tier": "light-risk",
+    "text": "The antibiotic label says twice daily until gone, and I want it explained in normal words.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "dosing-taper-instructions",
+    "entryId": "explain-like-new",
+    "tier": "light-risk",
+    "text": "My medicine instructions say to taper down over a week and I am confused by the schedule.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "dosing-insulin-units",
+    "entryId": "understand-letter-or-form",
+    "tier": "concrete",
+    "text": "The label talks about units before meals and I need help understanding what dose instructions to verify.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "dosing-take-with-food",
+    "entryId": "explain-like-new",
+    "tier": "adjacent-language",
+    "text": "My medication says take with food and not near bedtime. What does that usually mean?",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "dosing-extra-dose",
+    "entryId": "embarrassed-to-ask",
+    "tier": "light-risk",
+    "text": "I might have taken an extra dose and I need help deciding what information to check on the bottle.",
+    "expectedAnyOf": ["medical_dosing", "medical_decisionmaking"]
+  },
+  {
+    "name": "dosing-liquid-ml",
+    "entryId": "understand-letter-or-form",
+    "tier": "concrete",
+    "text": "The liquid medicine says 5 mL and I do not know what measuring thing to use.",
+    "expectedClassifier": "medical_dosing"
+  },
+  {
+    "name": "decision-worse-after-medicine",
+    "entryId": "figure-out-next",
+    "tier": "bare-topic",
+    "text": "I feel worse after starting a new medicine and I do not know if I should wait.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-scary-symptom-call",
+    "entryId": "talk-instead",
+    "tier": "vague-domain",
+    "text": "I have a scary symptom and I am trying to decide if I should call someone now.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-running-out-med",
+    "entryId": "figure-out-next",
+    "tier": "adjacent-language",
+    "text": "I am about to run out of my medication before my appointment and need to figure out what to do.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-possible-overdose",
+    "entryId": "embarrassed-to-ask",
+    "tier": "light-risk",
+    "text": "I think I may have taken too much medicine and feel confused.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-stopped-antidepressants",
+    "entryId": "think-it-through",
+    "tier": "adjacent-language",
+    "text": "I stopped taking my depression medicine suddenly and now I feel weird. Help me think through what to do.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-fever-after-procedure",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "I have a fever after a medical procedure and I do not know if I should go in.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-wound-red-swollen",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "A cut on my leg is red and swollen and I need help deciding whether to get medical help.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "decision-pregnancy-pain",
+    "entryId": "talk-instead",
+    "tier": "light-risk",
+    "text": "I am pregnant and having pain, and I do not know whether I should call the clinic.",
+    "expectedClassifier": "medical_decisionmaking"
+  },
+  {
+    "name": "interactions-cold-medicine-antidepressant",
+    "entryId": "embarrassed-to-ask",
+    "tier": "bare-topic",
+    "text": "Can I take cold medicine with my antidepressant?",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "interactions-alcohol-antibiotic",
+    "entryId": "embarrassed-to-ask",
+    "tier": "vague-domain",
+    "text": "Is it okay to drink alcohol while I am on antibiotics?",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "interactions-weed-pain-meds",
+    "entryId": "embarrassed-to-ask",
+    "tier": "adjacent-language",
+    "text": "I smoked weed and took pain meds and now I feel off. I need help thinking what to ask.",
+    "expectedAnyOf": ["drug_interactions", "medical_decisionmaking"]
+  },
+  {
+    "name": "interactions-supplements-blood-pressure",
+    "entryId": "explain-like-new",
+    "tier": "light-risk",
+    "text": "I take blood pressure medicine and some supplements, and I want to know if they can mess with each other.",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "interactions-ibuprofen-blood-thinner",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "Someone told me not to take ibuprofen with my blood thinner. Help me figure out what to verify.",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "interactions-two-prescriptions-dizzy",
+    "entryId": "think-it-through",
+    "tier": "adjacent-language",
+    "text": "I started two prescriptions this week and I am dizzy, and I do not know if they are fighting each other.",
+    "expectedAnyOf": ["drug_interactions", "medical_decisionmaking"]
+  },
+  {
+    "name": "interactions-benadryl-sleep-meds",
+    "entryId": "embarrassed-to-ask",
+    "tier": "light-risk",
+    "text": "Can I take Benadryl with my sleep medicine?",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "interactions-tylenol-liver-medicine",
+    "entryId": "explain-like-new",
+    "tier": "light-risk",
+    "text": "My friend said Tylenol might not be safe with one of my liver medicines. Help me make sense of what to ask.",
+    "expectedClassifier": "drug_interactions"
+  },
+  {
+    "name": "immigration-uscis-notice",
+    "entryId": "understand-letter-or-form",
+    "tier": "bare-topic",
+    "text": "Can you help me understand my USCIS notice?",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-work-permit-rfe",
+    "entryId": "understand-letter-or-form",
+    "tier": "light-risk",
+    "text": "I got a request for evidence for my work permit and do not know what they need.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-asylum-interview",
+    "entryId": "prepare-for-hard",
+    "tier": "vague-domain",
+    "text": "My asylum interview paper says I need to bring things, and I need help preparing.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-court-date",
+    "entryId": "understand-letter-or-form",
+    "tier": "overlap",
+    "text": "I got an immigration court paper with a hearing date and I do not understand it.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-green-card-biometrics",
+    "entryId": "understand-letter-or-form",
+    "tier": "adjacent-language",
+    "text": "My green card case has a biometrics notice and I do not know what that appointment means.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-visa-letter",
+    "entryId": "understand-letter-or-form",
+    "tier": "vague-domain",
+    "text": "I got a visa letter and I need help understanding what to do next.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-deportation-paper",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "The paper says removal proceedings and I am scared about what step comes next.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "immigration-public-charge-benefits",
+    "entryId": "think-it-through",
+    "tier": "overlap",
+    "text": "I am worried using benefits will hurt my immigration case because someone said public charge.",
+    "expectedClassifier": "immigration"
+  },
+  {
+    "name": "employment-paycheck-short",
+    "entryId": "am-i-being-unreasonable",
+    "tier": "bare-topic",
+    "text": "My paycheck looks short and my boss says it is fine. Am I being unreasonable?",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-final-pay-fired",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "I got fired and still have not gotten my final paycheck.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-boss-cut-hours",
+    "entryId": "think-it-through",
+    "tier": "vague-domain",
+    "text": "My boss cut my hours right after I complained, and I need help thinking this through.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-sick-leave-retaliation",
+    "entryId": "write-something",
+    "tier": "light-risk",
+    "text": "I need to write to my manager because they punished me after I used sick leave.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-accommodation-letter",
+    "entryId": "write-something",
+    "tier": "adjacent-language",
+    "text": "Help me write a message asking HR for a disability accommodation at work.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-unsafe-work",
+    "entryId": "figure-out-next",
+    "tier": "adjacent-language",
+    "text": "My job wants me to do something unsafe and I do not know what I can say.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-breaks-overtime",
+    "entryId": "explain-like-new",
+    "tier": "light-risk",
+    "text": "Can you explain breaks and overtime like I am new to it? My work keeps changing my schedule.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "employment-hr-paperwork",
+    "entryId": "understand-letter-or-form",
+    "tier": "adjacent-language",
+    "text": "HR gave me paperwork and says I have to sign it before I can come back to work.",
+    "expectedClassifier": "employment_rights"
+  },
+  {
+    "name": "identity-papers-count-as-id",
+    "entryId": "figure-out-next",
+    "tier": "bare-topic",
+    "text": "I need help figuring out what papers count as ID.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-lost-id-birth-cert",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "I lost my ID and birth certificate and a form says I need proof of identity.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-proof-address-friend",
+    "entryId": "explain-like-new",
+    "tier": "adjacent-language",
+    "text": "A place wants proof of address, but I stay with a friend and do not have a bill in my name.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-expired-license",
+    "entryId": "figure-out-next",
+    "tier": "vague-domain",
+    "text": "My driver's license is expired and everyone keeps asking for valid ID.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-shelter-intake-card",
+    "entryId": "understand-letter-or-form",
+    "tier": "adjacent-language",
+    "text": "The shelter intake says bring photo ID or other documents if I have them.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-social-security-card-replace",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "I need a replacement Social Security card and do not know what documents they will accept.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-name-change-docs",
+    "entryId": "explain-like-new",
+    "tier": "adjacent-language",
+    "text": "A form says I need name change documents because my ID and paperwork do not match.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "identity-school-birth-certificate",
+    "entryId": "understand-letter-or-form",
+    "tier": "vague-domain",
+    "text": "The school enrollment packet says birth certificate or other proof, and I do not have the usual papers.",
+    "expectedClassifier": "identity_documentation"
+  },
+  {
+    "name": "deadline-notice-count-days",
+    "entryId": "understand-letter-or-form",
+    "tier": "bare-topic",
+    "text": "A notice mentions a deadline and I do not understand how to count it.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "deadline-ten-business-days",
+    "entryId": "explain-like-new",
+    "tier": "vague-domain",
+    "text": "A letter says I have 10 business days and I do not know what business days means.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "deadline-by-friday",
+    "entryId": "figure-out-next",
+    "tier": "light-risk",
+    "text": "It says respond by Friday and I am not sure if mailing it counts.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "deadline-calendar-days",
+    "entryId": "explain-like-new",
+    "tier": "light-risk",
+    "text": "What is the difference between calendar days and business days on a deadline?",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "deadline-appeal-window",
+    "entryId": "understand-letter-or-form",
+    "tier": "overlap",
+    "text": "The notice says appeal window and I do not know how long I have.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "deadline-hearing-date",
+    "entryId": "prepare-for-hard",
+    "tier": "light-risk",
+    "text": "I have a hearing date on a paper and need help figuring out what to do before then.",
+    "expectedAnyOf": ["specific_deadlines", "legal_procedure"]
+  },
+  {
+    "name": "deadline-service-date",
+    "entryId": "explain-like-new",
+    "tier": "adjacent-language",
+    "text": "The paper says the clock starts from service date. Explain that like I am new to it.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "deadline-certain-number-days",
+    "entryId": "understand-letter-or-form",
+    "tier": "vague-domain",
+    "text": "The letter says I have a certain number of days to do something, and I do not know how to figure out the last day.",
+    "expectedClassifier": "specific_deadlines"
+  },
+  {
+    "name": "dollars-bill-charges",
+    "entryId": "understand-letter-or-form",
+    "tier": "bare-topic",
+    "text": "Can you help me understand the charges on this bill?",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-balance-fees-payment",
+    "entryId": "explain-like-new",
+    "tier": "vague-domain",
+    "text": "My bill has a balance, fees, and a payment amount, and I do not understand what is what.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-rent-ledger",
+    "entryId": "understand-letter-or-form",
+    "tier": "light-risk",
+    "text": "My rent ledger has charges, credits, and a total due that do not make sense to me.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-medical-bill-responsibility",
+    "entryId": "understand-letter-or-form",
+    "tier": "light-risk",
+    "text": "The medical bill says patient responsibility, adjustment, and amount due. I need help sorting those numbers.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-invoice-adjustments",
+    "entryId": "explain-like-new",
+    "tier": "adjacent-language",
+    "text": "Explain invoice credits and adjustments like I am new to it because the numbers are confusing.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-debt-collection-balance",
+    "entryId": "figure-out-next",
+    "tier": "overlap",
+    "text": "A debt collector says I owe a balance with interest and fees. Help me figure out what to verify.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-minimum-payment-fees",
+    "entryId": "think-it-through",
+    "tier": "light-risk",
+    "text": "I do not understand minimum payment, late fee, and current balance on this account.",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "dollars-rent-late-fee-total",
+    "entryId": "understand-letter-or-form",
+    "tier": "adjacent-language",
+    "text": "My rent paper lists rent, a late fee, payments, and total due. Which numbers should I check?",
+    "expectedClassifier": "specific_dollar_amounts"
+  },
+  {
+    "name": "none-overwhelmed-errands",
+    "entryId": "figure-out-next",
+    "tier": "control",
+    "text": "I have three errands and no energy. Help me decide what to do first.",
+    "expectedClassifier": "none"
+  },
+  {
+    "name": "none-apology-text",
+    "entryId": "write-something",
+    "tier": "control",
+    "text": "Help me write an apology text to a friend without sounding fake.",
+    "expectedClassifier": "none"
+  },
+  {
+    "name": "none-explain-wifi",
+    "entryId": "explain-like-new",
+    "tier": "control",
+    "text": "Explain how Wi-Fi works like I am new to it.",
+    "expectedClassifier": "none"
+  },
+  {
+    "name": "none-relationship-boundary",
+    "entryId": "think-it-through",
+    "tier": "control",
+    "text": "Help me think through how to set a boundary with my roommate about noise.",
+    "expectedClassifier": "none"
+  }
+]
