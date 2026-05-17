@@ -8,6 +8,7 @@ export type CrisisResource = {
   lastVerified: string;
   phone: string;
   sourceName: string;
+  sourceUrl: string;
   url: string;
   regions: RegionScope[];
 };
@@ -31,6 +32,7 @@ function isCrisisResource(value: unknown): value is CrisisResource {
     isNonEmptyString(candidate.lastVerified) &&
     isNonEmptyString(candidate.phone) &&
     isNonEmptyString(candidate.sourceName) &&
+    isNonEmptyString(candidate.sourceUrl) &&
     isNonEmptyString(candidate.url) &&
     Array.isArray(candidate.regions) &&
     candidate.regions.length > 0 &&

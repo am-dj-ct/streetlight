@@ -11,6 +11,7 @@ URL, or description changes, a human updates the file.
 Every entry must include:
 
 - `sourceName` — where the current contact details were verified
+- `sourceUrl` — the official page used for scrape-assisted review
 - `lastVerified` — the date the entry was last checked, in `YYYY-MM-DD`
 
 These are enforced by `npm run validate:data`.
@@ -22,12 +23,18 @@ Run:
 ```bash
 npm run validate:data
 npm run data:status
+npm run resources:check
 ```
 
 `validate:data` checks schema, URL shape, phone shape, and freshness metadata.
 
 `data:status` gives a quick aging snapshot so you can see which entries are
 oldest and whether anything is stale past the current threshold.
+
+`resources:check` fetches each `sourceUrl`, compares candidate phone numbers and
+links against the maintained JSON, and writes a Markdown report to `tmp/`.
+That report is only a review aid. It does not update the JSON and it is not a
+source of truth.
 
 ## Freshness rule
 
@@ -40,13 +47,15 @@ Launch readiness also checks this.
 
 1. Open the official source page for the entry.
 2. Confirm the phone number, website, and description still match.
-3. Update the JSON entry if anything changed.
-4. Set `lastVerified` to today.
-5. Run:
+3. Optionally run `npm run resources:check` to create a local review report.
+4. Update the JSON entry if anything changed.
+5. Set `lastVerified` to today.
+6. Run:
 
 ```bash
 npm run validate:data
 npm run data:status
+npm run resources:check
 npm run verify:quick
 ```
 
@@ -55,3 +64,4 @@ npm run verify:quick
 - Keep descriptions plain and short.
 - Prefer official pages over directory listings when possible.
 - If an entry is no longer trustworthy, remove it instead of leaving it to rot.
+- Do not auto-commit scraped changes. Scraping can flag drift; a human decides.

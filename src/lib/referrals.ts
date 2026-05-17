@@ -26,6 +26,7 @@ export type ReferralResource = {
   phone?: string;
   secondaryPhone?: string;
   sourceName: string;
+  sourceUrl: string;
   website: string;
   categories: ReferralCategory[];
   regions: ReferralRegion[];
@@ -58,6 +59,7 @@ function isReferralResource(value: unknown): value is ReferralResource {
     (candidate.secondaryPhone === undefined ||
       isNonEmptyString(candidate.secondaryPhone)) &&
     isNonEmptyString(candidate.sourceName) &&
+    isNonEmptyString(candidate.sourceUrl) &&
     isNonEmptyString(candidate.website) &&
     Array.isArray(candidate.categories) &&
     candidate.categories.length > 0 &&

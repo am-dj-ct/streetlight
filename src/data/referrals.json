@@ -7,6 +7,7 @@
     "secondaryPhone": "800-621-4636",
     "sourceName": "Crisis Connections King County 211",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.crisisconnections.org/king-county-2-1-1/",
     "website": "https://www.crisisconnections.org/king-county-2-1-1/",
     "categories": ["all", "legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration", "employment_rights", "identity_documentation"],
     "regions": ["king"]
@@ -19,6 +20,7 @@
     "secondaryPhone": "206-526-2121",
     "sourceName": "Washington Poison Center Helpline",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.wapc.org/helpline/",
     "website": "https://www.wapc.org/helpline/",
     "categories": ["medical_dosing", "drug_interactions", "medical_decisionmaking"],
     "regions": ["king"]
@@ -30,6 +32,7 @@
     "phone": "206-587-4025",
     "sourceName": "Northwest Immigrant Rights Project Get Help",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.nwirp.org/get-help/?lang=english",
     "website": "https://www.nwirp.org/get-help/?lang=english",
     "categories": ["immigration"],
     "regions": ["king"]
@@ -41,6 +44,7 @@
     "phone": "877-501-2233",
     "sourceName": "DSHS Community Services Offices",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.dshs.wa.gov/esa/community-services-offices/how-apply-services",
     "website": "https://www.dshs.wa.gov/esa/community-services-offices/how-apply-services",
     "categories": ["benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "identity_documentation"],
     "regions": ["king"]
@@ -52,6 +56,7 @@
     "phone": "855-923-4633",
     "sourceName": "Washington Healthplanfinder Contact Us",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.wahealthplanfinder.org/us/en/tools-and-resources/connect-with-us/contact-us.html",
     "website": "https://www.wahealthplanfinder.org/us/en/tools-and-resources/connect-with-us/contact-us.html",
     "categories": ["benefits_eligibility"],
     "regions": ["king"]
@@ -62,6 +67,7 @@
     "description": "Plain-language Washington legal information, including eviction, notices, and court steps. Good if you need to read before you call someone.",
     "sourceName": "Washington LawHelp Eviction Topic",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.washingtonlawhelp.org/topics/housing/eviction",
     "website": "https://www.washingtonlawhelp.org/topics/housing/eviction",
     "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -73,6 +79,7 @@
     "phone": "855-657-8387",
     "sourceName": "Office of Civil Legal Aid Find Legal Help",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://ocla.wa.gov/find-legal-help",
     "website": "https://ocla.wa.gov/find-legal-help",
     "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king", "fallback"]
@@ -84,6 +91,7 @@
     "phone": "206-694-6767",
     "sourceName": "Solid Ground Tenant Services",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.solid-ground.org/housing/for-tenants/",
     "website": "https://www.solid-ground.org/housing/for-tenants/",
     "categories": ["legal_procedure", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -95,6 +103,7 @@
     "phone": "206-256-5297",
     "sourceName": "Seattle Office of Labor Standards",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://www.seattle.gov/laborstandards/",
     "website": "https://www.seattle.gov/laborstandards/",
     "categories": ["employment_rights", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -106,6 +115,7 @@
     "phone": "866-219-7321",
     "sourceName": "Washington State Department of Labor & Industries Contact",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://www.lni.wa.gov/workers-rights/",
     "website": "https://www.lni.wa.gov/workers-rights/",
     "categories": ["employment_rights", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -117,6 +127,7 @@
     "phone": "800-756-5437",
     "sourceName": "King County Community Health Access Program",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://kingcounty.gov/coverage",
     "website": "https://kingcounty.gov/coverage",
     "categories": ["medical_decisionmaking", "benefits_eligibility"],
     "regions": ["king"]
@@ -128,6 +139,7 @@
     "phone": "360-902-3900",
     "sourceName": "Washington State Department of Licensing ID Help",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://dol.wa.gov/id-cards/id-help-unhoused",
     "website": "https://dol.wa.gov/id-cards/id-help-unhoused",
     "categories": ["identity_documentation", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -139,6 +151,7 @@
     "phone": "206-837-0719",
     "sourceName": "King County Birth Certificates",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://kingcounty.gov/birth",
     "website": "https://kingcounty.gov/birth",
     "categories": ["identity_documentation", "specific_dollar_amounts"],
     "regions": ["king"]
@@ -150,6 +163,7 @@
     "phone": "800-562-6900",
     "sourceName": "Washington Office of the Insurance Commissioner Consumer Advocacy",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://www.insurance.wa.gov/contact-us",
     "website": "https://www.insurance.wa.gov/contact-us",
     "categories": ["specific_dollar_amounts", "benefits_eligibility", "medical_decisionmaking"],
     "regions": ["king"]
@@ -162,6 +176,7 @@
     "secondaryPhone": "206-464-6684",
     "sourceName": "Washington Attorney General Consumer Issues",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://www.atg.wa.gov/consumer-issues",
     "website": "https://www.atg.wa.gov/consumer-issues",
     "categories": ["specific_dollar_amounts", "identity_documentation"],
     "regions": ["king"]
@@ -174,6 +189,7 @@
     "secondaryPhone": "425-282-0324",
     "sourceName": "KCSARC",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.kcsarc.org/en/",
     "website": "https://www.kcsarc.org/en/",
     "categories": ["crisis"],
     "regions": ["king"]
@@ -185,6 +201,7 @@
     "phone": "888-201-1014",
     "sourceName": "Office of Civil Legal Aid Find Legal Help",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://ocla.wa.gov/find-legal-help",
     "website": "https://ocla.wa.gov/find-legal-help",
     "categories": ["legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration", "employment_rights", "identity_documentation"],
     "regions": ["fallback"]
@@ -196,6 +213,7 @@
     "phone": "800-222-1222",
     "sourceName": "Poison Help",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.poisonhelp.org/",
     "website": "https://www.poisonhelp.org/",
     "categories": ["medical_dosing", "drug_interactions", "medical_decisionmaking"],
     "regions": ["fallback"]
@@ -207,6 +225,7 @@
     "phone": "866-487-9243",
     "sourceName": "U.S. Department of Labor Wage and Hour Division",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://www.dol.gov/agencies/whd/contact",
     "website": "https://www.dol.gov/agencies/whd/contact",
     "categories": ["employment_rights", "specific_deadlines", "specific_dollar_amounts"],
     "regions": ["king", "fallback"]
@@ -219,6 +238,7 @@
     "secondaryPhone": "800-669-6820",
     "sourceName": "U.S. Equal Employment Opportunity Commission Contact",
     "lastVerified": "2026-05-10",
+    "sourceUrl": "https://www.eeoc.gov/contact-eeoc",
     "website": "https://www.eeoc.gov/contact-eeoc",
     "categories": ["employment_rights", "specific_deadlines"],
     "regions": ["king", "fallback"]
@@ -231,6 +251,7 @@
     "secondaryPhone": "855-889-4325",
     "sourceName": "HealthCare.gov Contact Us",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.healthcare.gov/contact-us/",
     "website": "https://www.healthcare.gov/contact-us/",
     "categories": ["benefits_eligibility", "specific_deadlines"],
     "regions": ["fallback"]
@@ -242,6 +263,7 @@
     "phone": "988",
     "sourceName": "988 Lifeline",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://988lifeline.org/",
     "website": "https://988lifeline.org/",
     "categories": ["crisis"],
     "regions": ["fallback"]
@@ -253,6 +275,7 @@
     "phone": "211",
     "sourceName": "211",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.211.org/",
     "website": "https://www.211.org/",
     "categories": ["all", "legal_procedure", "benefits_eligibility", "specific_deadlines", "specific_dollar_amounts", "immigration", "employment_rights", "identity_documentation"],
     "regions": ["fallback"]
@@ -264,6 +287,7 @@
     "phone": "800-799-7233",
     "sourceName": "National Domestic Violence Hotline",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.thehotline.org/",
     "website": "https://www.thehotline.org/",
     "categories": ["crisis"],
     "regions": ["fallback"]

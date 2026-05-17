@@ -151,6 +151,7 @@ function validateReferrals(referrals) {
     assertCleanString(referral.name, `Referral "${referral.id}" name`);
     assertCleanString(referral.description, `Referral "${referral.id}" description`);
     assertCleanString(referral.sourceName, `Referral "${referral.id}" sourceName`);
+    assertHttpsUrl(referral.sourceUrl, `Referral "${referral.id}" sourceUrl`);
 
     assertIsoDate(
       referral.lastVerified,
@@ -267,6 +268,7 @@ function validateCrisisResources(resources) {
     );
 
     assertPhone(resource.phone, `Crisis resource "${resource.id}" phone`);
+    assertHttpsUrl(resource.sourceUrl, `Crisis resource "${resource.id}" sourceUrl`);
     assertHttpsUrl(resource.url, `Crisis resource "${resource.id}" url`);
     assertRegions(resource.regions, `Crisis resource "${resource.id}" regions`);
 

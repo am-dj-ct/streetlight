@@ -5,6 +5,7 @@
     "phone": "866-427-4747",
     "sourceName": "Crisis Connections Contact",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.crisisconnections.org/contact/",
     "url": "https://www.crisisconnections.org/contact/",
     "regions": ["king"]
   },
@@ -14,6 +15,7 @@
     "phone": "866-789-1511",
     "sourceName": "Washington Recovery Help Line",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.warecoveryhelpline.org/about/",
     "url": "https://www.warecoveryhelpline.org/about/",
     "regions": ["king"]
   },
@@ -23,6 +25,7 @@
     "phone": "206-737-0242",
     "sourceName": "New Beginnings One-on-One Support",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://newbegin.org/find-help/one-on-one-support/",
     "url": "https://newbegin.org/find-help/one-on-one-support/",
     "regions": ["king"]
   },
@@ -32,6 +35,7 @@
     "phone": "211",
     "sourceName": "211",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.211.org/",
     "url": "https://www.211.org/",
     "regions": ["fallback"]
   },
@@ -41,6 +45,7 @@
     "phone": "800-799-7233",
     "sourceName": "National Domestic Violence Hotline",
     "lastVerified": "2026-05-08",
+    "sourceUrl": "https://www.thehotline.org/",
     "url": "https://www.thehotline.org/",
     "regions": ["fallback"]
   }
