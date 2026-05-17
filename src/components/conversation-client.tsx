@@ -378,6 +378,122 @@ function writeAzureVoicePreference(
   writeLocalStorage(azureVoiceStorageKey, JSON.stringify(preferences));
 }
 
+type IconProps = {
+  className?: string;
+};
+
+function SendIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M4 12 20 5l-6.5 14-2.7-5.8L4 12Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="m10.8 13.2 3.4-3.4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function SpeakerIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M4 10v4h3l5 4V6l-5 4H4Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 9.5a4 4 0 0 1 0 5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function VoiceIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M7 5v14M17 5v14"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M4.5 9h5M14.5 15h5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M9.5 9a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM18.5 15a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function HumanHelpIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M9.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4.5 19a5 5 0 0 1 10 0"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M16 8.5h4M18 6.5v4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+const toolButtonClassName =
+  "inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d3ddd6] bg-[#fbfcfa] px-3.5 text-[14px] font-medium text-[#405047] transition-colors hover:border-[#b7c7bd] hover:bg-white disabled:opacity-50";
+const humanHelpButtonClassName =
+  "inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ead8b7] bg-[#fff8e8] px-3.5 text-[14px] font-semibold text-[#694d12] transition-colors hover:bg-[#fff2d6]";
+const suggestionButtonClassName =
+  "min-h-11 rounded-[16px] border border-[#a9c3b6] bg-[#eef7f1] px-4 text-left text-[15px] font-medium leading-5 text-[#20382d] shadow-[0_1px_0_rgba(29,42,34,0.08)] transition-colors hover:bg-[#e4f1e8] disabled:opacity-60";
+const utilityButtonClassName =
+  "min-h-10 rounded-full border border-[#d3ddd6] bg-transparent px-4 text-[15px] font-medium text-[#4f6258] transition-colors hover:border-[#b7c7bd] hover:bg-white";
+const utilityIconButtonClassName =
+  "flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#d3ddd6] bg-transparent px-3 text-[15px] font-semibold text-[#4f6258] transition-colors hover:border-[#b7c7bd] hover:bg-white";
+
 export function ConversationClient({
   currentLanguageCode,
   currentLanguageLabel,
@@ -851,6 +967,9 @@ export function ConversationClient({
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
   const shouldReserveAnswerScrollRoom =
     !isStreaming && messages.some((message) => message.role === "user");
+  const composerControlSizeClassName = isCompactComposer
+    ? "min-h-12 min-w-12 sm:min-h-14 sm:min-w-14"
+    : "min-h-14 min-w-14";
 
   function getConversationExportText() {
     return formatConversationForExport(messages, {
@@ -1566,8 +1685,9 @@ export function ConversationClient({
                           <button
                             type="button"
                             onClick={() => void handlePlayAloud(message.id, message.text)}
-                            className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
+                            className={toolButtonClassName}
                           >
+                            <SpeakerIcon className="h-4 w-4 shrink-0" />
                             {isSpeechLoading
                               ? copy.voiceLoading
                               : speakingMessageId === message.id
@@ -1580,8 +1700,9 @@ export function ConversationClient({
                             aria-expanded={showVoiceSettings}
                             aria-haspopup="dialog"
                             onClick={() => setShowVoiceSettings(true)}
-                            className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22] disabled:opacity-50"
+                            className={toolButtonClassName}
                           >
+                            <VoiceIcon className="h-4 w-4 shrink-0" />
                             {copy.voiceTitle}
                           </button>
                           <Link
@@ -1590,15 +1711,16 @@ export function ConversationClient({
                               entryId,
                               languageCode: currentLanguageCode,
                             })}
-                            className="flex min-h-10 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                            className={humanHelpButtonClassName}
                           >
+                            <HumanHelpIcon className="h-4 w-4 shrink-0" />
                             {copy.findHumanForThis}
                           </Link>
                         </div>
                         {message.suggestions?.length ? (
                           <>
                             <details className="sm:hidden">
-                              <summary className="cursor-pointer rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 py-3 text-[15px] font-medium leading-5 text-[#334139]">
+                              <summary className="cursor-pointer rounded-[16px] border border-[#a9c3b6] bg-[#eef7f1] px-4 py-3 text-[15px] font-semibold leading-5 text-[#20382d]">
                                 {copy.suggestedReplies}
                               </summary>
                               <div className="mt-2 flex flex-wrap gap-2">
@@ -1608,7 +1730,7 @@ export function ConversationClient({
                                     type="button"
                                     onClick={() => sendMessage(suggestion)}
                                     disabled={isStreaming}
-                                    className="min-h-11 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139] disabled:opacity-60"
+                                    className={suggestionButtonClassName}
                                   >
                                     {suggestion}
                                   </button>
@@ -1622,7 +1744,7 @@ export function ConversationClient({
                                   type="button"
                                   onClick={() => sendMessage(suggestion)}
                                   disabled={isStreaming}
-                                  className="min-h-11 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139] disabled:opacity-60"
+                                  className={suggestionButtonClassName}
                                 >
                                   {suggestion}
                                 </button>
@@ -1644,7 +1766,7 @@ export function ConversationClient({
                     key={suggestion}
                     type="button"
                     onClick={() => sendMessage(suggestion)}
-                    className="min-h-12 rounded-[16px] border border-[#d4ddd6] bg-[#fdfefe] px-4 text-left text-[15px] leading-5 text-[#334139]"
+                    className={suggestionButtonClassName}
                   >
                     {suggestion}
                   </button>
@@ -1680,7 +1802,7 @@ export function ConversationClient({
             <button
               type="button"
               onClick={handleSavePress}
-              className="min-h-10 rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+              className={utilityButtonClassName}
             >
               {copy.saveButton}
             </button>
@@ -1691,7 +1813,7 @@ export function ConversationClient({
               aria-expanded={showSaveModal}
               aria-haspopup="dialog"
               onClick={() => setShowSaveModal(true)}
-              className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#b7c7bd] bg-white px-3 text-[15px] font-semibold text-[#1d2a22]"
+              className={utilityIconButtonClassName}
             >
               {copy.saveExplainButton}
             </button>
@@ -1749,9 +1871,11 @@ export function ConversationClient({
               aria-label={copy.micAssistiveLabel}
               onClick={handleMicInput}
               disabled={micUnavailable}
-              className={`flex items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white text-[20px] text-[#1d2a22] ${
-                isCompactComposer ? "min-h-12 min-w-12 sm:min-h-14 sm:min-w-14" : "min-h-14 min-w-14"
-              }`}
+              className={`flex items-center justify-center rounded-[18px] border text-[16px] font-medium transition-colors disabled:opacity-50 ${
+                isListening
+                  ? "border-[#9a6a16] bg-[#fff2d6] text-[#684b10]"
+                  : "border-[#d3ddd6] bg-white text-[#405047] hover:border-[#b7c7bd]"
+              } ${composerControlSizeClassName}`}
             >
               {isListening ? copy.micStopLabel : copy.micLabel}
             </button>
@@ -1759,11 +1883,9 @@ export function ConversationClient({
               type="submit"
               aria-label={copy.sendAssistiveLabel}
               disabled={isStreaming || draft.trim().length === 0}
-              className={`flex items-center justify-center rounded-[18px] bg-[#1f5f43] text-[20px] font-semibold text-white disabled:opacity-60 ${
-                isCompactComposer ? "min-h-12 min-w-12 sm:min-h-14 sm:min-w-14" : "min-h-14 min-w-14"
-              }`}
+              className={`flex items-center justify-center rounded-[18px] bg-[#24594d] text-white shadow-[0_2px_8px_rgba(31,95,67,0.2)] transition-colors hover:bg-[#1d4a40] disabled:bg-[#9fb7ad] disabled:opacity-80 ${composerControlSizeClassName}`}
             >
-              ^
+              <SendIcon className="h-5 w-5" />
             </button>
           </form>
         </section>
