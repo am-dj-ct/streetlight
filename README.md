@@ -19,6 +19,8 @@ when the build is ready.
 
 ## Documents
 
+- [Agent instructions](AGENTS.md) — shared coding-agent entry point for
+  Claude Code, Codex, and other agents.
 - [Thesis](docs/access_tool_thesis.md) — why this tool exists and the
   reasoning behind it.
 - [V1 Specification](docs/access_tool_v1_spec.md) — what the tool is,

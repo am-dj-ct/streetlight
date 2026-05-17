@@ -36,9 +36,10 @@ It exists to:
 - Provide the canonical privacy explainer text used in the user-facing privacy page.
 - Serve as the structural reference for the threat model, incident response, and operator commitments.
 
-It is paired with two other documents at the repo root:
+It is paired with the agent entry documents and the product documents:
 
-- `CLAUDE.md` — entry point for future Claude Code sessions, contains a load-bearing cross-reference to this document.
+- `AGENTS.md` — shared entry point for future coding-agent sessions, contains a load-bearing cross-reference to this document.
+- `CLAUDE.md` — Claude Code wrapper that imports `AGENTS.md`.
 - The V1 spec (`access_tool_v1_spec.md`) and the thesis (`access_tool_thesis.md`) — the project's ethos and product definition.
 
 When this document and the spec disagree, the spec defines what the tool is and this document defines how it is built and operated. The Spec Reconciliation section below tags every architectural decision as confirming the spec, extending it, or new.
