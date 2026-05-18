@@ -36,6 +36,7 @@
     "security:harden:full": "node scripts/security-hardening-autopilot.mjs full",
     "regression:mock": "ALLOW_MOCK_REGRESSION=true node scripts/regression.mjs",
     "regression:quick": "ALLOW_MOCK_REGRESSION=true PROMPT_CASE_LIMIT=3 node scripts/regression.mjs",
+    "qr:generate": "tsx scripts/generate-qr.ts",
     "incident:new": "node scripts/new-incident.mjs",
     "incident:sev3": "node scripts/append-sev3-note.mjs",
     "ops:status": "node scripts/ops-status.mjs",
@@ -47,6 +48,7 @@
     "@anthropic-ai/sdk": "^0.95.1",
     "@vercel/kv": "^3.0.0",
     "next": "16.2.6",
+    "qrcode": "^1.5.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
@@ -55,11 +57,13 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.22.2",
     "typescript": "^5"
   },
   "overrides": {
