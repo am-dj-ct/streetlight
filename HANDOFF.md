@@ -19,6 +19,81 @@ updated.
 
 ### Previous session
 
+- Finished the first logistics/planning conversation for Streetlight printed
+  outreach materials.
+- Confirmed the QR-code work from `429d6cb` is a self-contained generator plus
+  static assets for `https://streetlight.help`, intended for print use.
+- Researched current vendor/format constraints for a small King County print
+  run:
+  `500` business cards, a few dozen `8.5 x 11` flyers, and optional cheap paper
+  posters later.
+- Settled the first-run logistics baseline:
+  King County first, budget about `$300-500`, business cards and flyers from
+  the start, posters only later if they are cheap and clearly useful.
+- Settled working print specs:
+  business cards should be standard wallet size, two-sided, matte, about
+  `500`; flyers should be standard `8.5 x 11` on low-cost paper.
+- Clarified that the print materials should speak directly to the person using
+  Streetlight, not to staff, even though case managers and partner sites may
+  hand them out.
+- Clarified that AI should be explicit and part of the draw. The message should
+  not hide or soften that this is AI; it should tell people that free AI help is
+  for them too, without sounding preachy.
+- Chose a working message direction:
+  "Need help figuring something out?" plus a clear invitation to try free AI
+  help, with exact copy still undecided.
+- Chose lived-question examples over category labels as the stronger direction,
+  especially for flyers/posters. Examples should map to the site's entry
+  points, such as understanding a letter, writing something, figuring out what
+  to do first, preparing what to say/bring/ask, or making a plan.
+- Decided multilingual support should be a single universal version per format,
+  with English primary and translated key points on the same piece. Exact
+  languages and copy are still undecided.
+- Decided approval can be internal: the user and Malia can eyeball drafts and
+  greenlight the first print batch. Partner feedback is useful but not a
+  required gate before printing.
+- Decided the next session should focus on design, branding, messaging, ethos,
+  and vision for Streetlight. The session after that should turn those decisions
+  into business-card and flyer designs.
+
+### Flagged to come back to
+
+- Next chat should begin by reading `HANDOFF.md` and
+  `docs/access_tool_thesis.md`.
+- Next chat should interview the user one question at a time to arrive at a
+  Streetlight ethos/branding/vision before making design files.
+- Do not jump straight into business-card/flyer layout in the next chat; the
+  next chat is the brand and messaging foundation.
+- Later, turn the approved direction into actual card and flyer layouts using
+  the existing QR assets in `public/assets/qr/`.
+- Posters remain optional and should only be considered after cards/flyers if
+  they are cheap and add clear value.
+
+### Where things left off
+
+- Local `main` is ahead of `origin/main` by one commit:
+  `bf6f135` (`Review resource sources and schedule weekly checks`).
+- `HANDOFF.md` is being updated again and should be committed as a tracked repo
+  artifact.
+- No print-design files have been created yet.
+
+### Next
+
+- Commit this `HANDOFF.md` update.
+- In the next session, run a one-question-at-a-time interview to define
+  Streetlight's design/branding/messaging foundation.
+- In the following session, use that foundation to create print-ready or
+  vendor-ready business-card and flyer designs.
+
+### Commits
+
+- `bf6f135` - `Review resource sources and schedule weekly checks`
+- This handoff update should be committed next.
+
+## 2026-05-21
+
+### Previous session
+
 - Fast-forwarded local `main` to `429d6cb` from `origin/main`.
 - Manually verified the previously flagged resource entries against their
   official pages.
