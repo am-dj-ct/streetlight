@@ -1,5 +1,7 @@
+import { execFile as execFileCallback } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { readJsonFile } from "./lib/json-file.mjs";
 
 const cwd = process.cwd();
@@ -8,6 +10,8 @@ const defaultOutputPath = path.join(cwd, "tmp", `resource-review-${today}.md`);
 const outputPath = getOutputPath(process.argv) ?? defaultOutputPath;
 const fetchTimeoutMs = 15000;
 const maxDisplayedPhones = 12;
+const curlMetadataMarker = "\n__STREETLIGHT_CURL_METADATA__\n";
+const execFile = promisify(execFileCallback);
 
 const resourceFiles = [
   {
@@ -191,22 +195,72 @@ function extractLinks(html, baseUrl) {
 }
 
 async function fetchSource(sourceUrl) {
-  const response = await fetch(sourceUrl, {
-    headers: {
-      Accept: "text/html,application/xhtml+xml",
-      "User-Agent": "StreetlightResourceReview/0.1 (+https://streetlight.help)",
-    },
-    redirect: "follow",
-    signal: AbortSignal.timeout(fetchTimeoutMs),
-  });
-  const body = await response.text();
+  try {
+    const response = await fetch(sourceUrl, {
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "StreetlightResourceReview/0.1 (+https://streetlight.help)",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(fetchTimeoutMs),
+    });
+    const body = await response.text();
+
+    return {
+      body,
+      finalUrl: response.url,
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+    };
+  } catch (error) {
+    try {
+      return await fetchSourceWithCurl(sourceUrl);
+    } catch (curlError) {
+      const fetchDetail = error instanceof Error ? error.message : String(error);
+      const curlDetail = curlError instanceof Error ? curlError.message : String(curlError);
+
+      throw new Error(`${fetchDetail}; curl fallback failed: ${curlDetail}`);
+    }
+  }
+}
+
+async function fetchSourceWithCurl(sourceUrl) {
+  const { stdout } = await execFile(
+    "curl",
+    [
+      "-L",
+      "-sS",
+      "--max-time",
+      String(Math.ceil(fetchTimeoutMs / 1000)),
+      "-H",
+      "Accept: text/html,application/xhtml+xml",
+      "-A",
+      "StreetlightResourceReview/0.1 (+https://streetlight.help)",
+      "-w",
+      `${curlMetadataMarker}%{url_effective}\t%{http_code}`,
+      sourceUrl,
+    ],
+    { maxBuffer: 10 * 1024 * 1024 },
+  );
+  const markerIndex = stdout.lastIndexOf(curlMetadataMarker);
+
+  if (markerIndex === -1) {
+    throw new Error("curl output was missing response metadata.");
+  }
+
+  const body = stdout.slice(0, markerIndex);
+  const metadata = stdout.slice(markerIndex + curlMetadataMarker.length).trim();
+  const [finalUrl = "", statusCode = "0"] = metadata.split("\t");
+  const status = Number.parseInt(statusCode, 10);
+  const ok = status >= 200 && status < 300;
 
   return {
     body,
-    finalUrl: response.url,
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText,
+    finalUrl,
+    ok,
+    status,
+    statusText: ok ? "OK (curl fallback)" : "curl fallback",
   };
 }
 

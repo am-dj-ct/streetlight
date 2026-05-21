@@ -36,6 +36,11 @@ links against the maintained JSON, and writes a Markdown report to `tmp/`.
 That report is only a review aid. It does not update the JSON and it is not a
 source of truth.
 
+`sourceUrl` does not have to be identical to the user-facing `website` or `url`
+field, but it should be an official page that either matches that destination or
+links to it so the review script can confirm both the contact details and the
+resource destination.
+
 ## Freshness rule
 
 - Entries older than 180 days are treated as stale.
@@ -58,6 +63,10 @@ npm run data:status
 npm run resources:check
 npm run verify:quick
 ```
+
+There is also a scheduled GitHub Actions workflow, `Resource Review`, that runs
+weekly on Mondays at 16:00 UTC and uploads the generated Markdown report as a
+workflow artifact for human review.
 
 ## Notes
 

@@ -1,0 +1,60 @@
+name: Resource Review
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 16 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resource-review-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set report path
+        run: |
+          report_date="$(date -u +%F)"
+          echo "REPORT_DATE=$report_date" >> "$GITHUB_ENV"
+          echo "REPORT_PATH=tmp/resource-review-$report_date.md" >> "$GITHUB_ENV"
+
+      - name: Validate resource data
+        run: |
+          npm run validate:data
+          npm run data:status
+
+      - name: Build resource review report
+        run: |
+          npm run resources:check -- --output "$REPORT_PATH"
+          {
+            echo "# Resource Review Report"
+            echo
+            cat "$REPORT_PATH"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload resource review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-review-${{ env.REPORT_DATE }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
