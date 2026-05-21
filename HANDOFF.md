@@ -19,6 +19,83 @@ updated.
 
 ### Previous session
 
+- Read `HANDOFF.md` and `docs/access_tool_thesis.md` before starting the
+  Streetlight branding interview.
+- Ran a one-question-at-a-time interview focused on ethos, branding, voice,
+  visual direction, and public-facing messaging foundations rather than design
+  production.
+- Landed the core brand stance:
+  Streetlight should feel like help through the dark, not "ChatGPT for poor
+  people," not paternalistic, and not like a stripped-down charity-tech tool.
+- Landed the voice:
+  a calm, competent friend who is matter-of-fact, honest, useful, and does not
+  bullshit the user.
+- Landed the primary messaging direction:
+  `Free AI for anyone` should lead, with supporting language around help with
+  real-life problems and concrete tasks such as understanding a letter or form
+  and figuring out what to do next.
+- Confirmed that AI should be explicit and central in the message, not hidden
+  or softened.
+- Confirmed the trust posture:
+  Streetlight should present itself as a thinking partner, not an oracle, and
+  honesty about uncertainty is a key feature; the example phrasing the user
+  liked was `Here's my best read`.
+- Confirmed the brand should feel universal first, with the access-inequality
+  politics staying underneath rather than being foregrounded on user-facing
+  materials.
+- Landed the visual direction:
+  public-utility-first, noticeable at a distance, readable above all else,
+  slightly unusual, and visually grounded in `dark field with warm light`,
+  `nighttime urban`, and `warm against the dark`.
+- Confirmed the graphic system should avoid photos and people, use a geometric
+  utility-sign-like base, and use a defined outward glow as the main motif.
+- Produced a compact brand/messaging foundation in chat that can be used as the
+  basis for the next design session.
+
+### Flagged to come back to
+
+- Turn the approved brand foundation into actual business-card and flyer
+  concepts in the next session.
+- Keep the headline/value hierarchy centered on:
+  `Free AI for anyone`, then practical task examples, then `No login`, with
+  `Streetlight` acting more like a quiet signature than the main headline.
+- Keep the first believable use case grounded in `Understand a letter or form`,
+  while making the broader promise visible with adjacent examples like
+  `Figure out what to do next`.
+- Preserve the visual guardrails:
+  no corporate gloss, no government brochure energy, no bleakness, no
+  futurism, no photos/people.
+- Existing print constraints from the prior session still apply:
+  first batch likely `500` standard matte two-sided business cards and a few
+  dozen low-cost `8.5 x 11` flyers for King County distribution.
+
+### Where things left off
+
+- No design files or saved branding docs were created in the repo during this
+  session; the outcomes currently live in the chat transcript.
+- The repo working tree was otherwise clean before this `HANDOFF.md` update.
+- Local `main` was ahead of `origin/main` by two commits at session start:
+  `bf6f135` (`Review resource sources and schedule weekly checks`) and
+  `3b4a601` (`Update handoff for outreach planning`).
+
+### Next
+
+- Commit this `HANDOFF.md` update.
+- In the next session, translate the brand foundation into concrete business
+  card and flyer concepts and draft copy.
+- Use the existing QR assets in `public/assets/qr/` when the print layouts are
+  built.
+
+### Commits
+
+- `3b4a601` - `Update handoff for outreach planning`
+- `bf6f135` - `Review resource sources and schedule weekly checks`
+- This handoff update should be committed next.
+
+## 2026-05-21
+
+### Previous session
+
 - Finished the first logistics/planning conversation for Streetlight printed
   outreach materials.
 - Confirmed the QR-code work from `429d6cb` is a self-contained generator plus
