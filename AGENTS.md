@@ -2,7 +2,8 @@
 
 Shared instructions for coding agents working on Streetlight. Claude Code
 imports this file from `CLAUDE.md`; Codex and other agents should read it
-directly.
+directly. Cross-project workflow and safety rules belong in the user's global
+`AGENTS.md`.
 
 Keep this file concise. Put long rationale in `docs/`, not here.
 
@@ -17,12 +18,12 @@ no premium tier, and no surveillance-shaped analytics.
 
 Core docs:
 
-- `docs/access_tool_thesis.md` — why this exists.
-- `docs/access_tool_v1_spec.md` — what V1 should do.
-- `docs/data_architecture.md` — privacy, data flow, threat model, logging,
+- `docs/access_tool_thesis.md`: why this exists.
+- `docs/access_tool_v1_spec.md`: what V1 should do.
+- `docs/data_architecture.md`: privacy, data flow, threat model, logging,
   persistence, abuse controls, ops.
-- `docs/forbidden.md` — the "no" list.
-- `docs/decisions/` — dated ADRs.
+- `docs/forbidden.md`: the "no" list.
+- `docs/decisions/`: dated ADRs.
 
 When the spec and architecture doc disagree, the spec defines what the tool is;
 the architecture doc defines how it is built and operated.
@@ -108,8 +109,8 @@ Use `npm`.
 
 Dev:
 
-- `npm run dev:mock` — no-spend mock chat.
-- `npm run dev:live` — live model path.
+- `npm run dev:mock`: no-spend mock chat.
+- `npm run dev:live`: live model path.
 - `npm run build`
 
 Routine checks:
@@ -127,9 +128,9 @@ Routine checks:
 
 Broad checks:
 
-- `npm run verify:quick` — normal confidence pass.
-- `npm run verify:mock` — no-spend full mock plumbing.
-- `npm run verify` — live full prompt regression; use deliberately.
+- `npm run verify:quick`: normal confidence pass.
+- `npm run verify:mock`: no-spend full mock plumbing.
+- `npm run verify`: live full prompt regression; use deliberately.
 
 Prompt/model/classifier checks:
 
