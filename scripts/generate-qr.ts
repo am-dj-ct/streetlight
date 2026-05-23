@@ -4,7 +4,7 @@ import path from 'path';
 
 const URL = 'https://streetlight.help';
 const OUTPUT_DIR = path.join(process.cwd(), 'public', 'assets', 'qr');
-const ERROR_CORRECTION: 'Q' = 'Q'; // 25% damage recovery
+const ERROR_CORRECTION = 'Q' as const; // 25% damage recovery
 const QUIET_ZONE = 4; // modules of whitespace around the code
 
 const PNG_SIZES = [
@@ -41,7 +41,7 @@ async function main() {
   console.log(`Output directory: ${OUTPUT_DIR}`);
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

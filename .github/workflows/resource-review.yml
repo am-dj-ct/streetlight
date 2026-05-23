@@ -1,0 +1,86 @@
+name: Resource Review
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 17 * * 1"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: resource-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPORT_PATH: tmp/resource-review.md
+      REVIEW_ISSUE_TITLE: Streetlight resource review needs attention
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run scrape-assisted resource review
+        run: npm run resources:check -- --output "$REPORT_PATH"
+
+      - name: Upload review report
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-review-${{ github.run_id }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+
+      - name: Notify on manual review flags
+        run: |
+          needs_review="$(awk -F': ' '/^- Needs manual review:/ { print $2; exit }' "$REPORT_PATH")"
+          fetch_failed="$(awk -F': ' '/^- Fetch failed:/ { print $2; exit }' "$REPORT_PATH")"
+          needs_review="${needs_review:-0}"
+          fetch_failed="${fetch_failed:-0}"
+
+          issue_number="$(gh issue list \
+            --state open \
+            --search "$REVIEW_ISSUE_TITLE in:title" \
+            --json number,title \
+            --jq ".[] | select(.title == \"$REVIEW_ISSUE_TITLE\") | .number" \
+            | head -n 1)"
+
+          if [ "$needs_review" = "0" ] && [ "$fetch_failed" = "0" ]; then
+            if [ -n "$issue_number" ]; then
+              gh issue comment "$issue_number" --body "The latest scheduled resource review found no scrape-assisted flags. Report artifact: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              gh issue close "$issue_number" --comment "Closing because the latest scheduled resource review found no scrape-assisted flags."
+            fi
+            exit 0
+          fi
+
+          {
+            echo "The scheduled scrape-assisted resource review found items that need human review."
+            echo
+            echo "- Needs manual review: $needs_review"
+            echo "- Fetch failed: $fetch_failed"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            sed -n '/^## Needs Manual Review/,$p' "$REPORT_PATH"
+          } > /tmp/resource-review-issue.md
+
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --body-file /tmp/resource-review-issue.md
+          else
+            gh issue create \
+              --title "$REVIEW_ISSUE_TITLE" \
+              --body-file /tmp/resource-review-issue.md
+          fi

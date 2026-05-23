@@ -36,6 +36,15 @@ links against the maintained JSON, and writes a Markdown report to `tmp/`.
 That report is only a review aid. It does not update the JSON and it is not a
 source of truth.
 
+## Scheduled review
+
+GitHub Actions runs a weekly scrape-assisted review on Monday at 17:00 UTC.
+The workflow can also be started manually from the GitHub Actions tab.
+
+The scheduled workflow uploads the Markdown report as an artifact. If any
+resource needs manual review or a fetch fails, it opens or comments on the
+`Streetlight resource review needs attention` GitHub issue.
+
 ## Freshness rule
 
 - Entries older than 180 days are treated as stale.
