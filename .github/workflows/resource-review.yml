@@ -19,38 +19,72 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      BODY_PATH: tmp/resource-review-email.md
       REPORT_PATH: tmp/resource-review.md
       REVIEW_ISSUE_TITLE: Streetlight resource review needs attention
 
     steps:
+      - name: Check two-week cadence
+        id: cadence
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          week="$(date -u +%V)"
+
+          if [ $((10#$week % 2)) -eq 0 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out repository
+        if: steps.cadence.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Use Node.js
+        if: steps.cadence.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: steps.cadence.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run scrape-assisted resource review
+        if: steps.cadence.outputs.should_run == 'true'
         run: npm run resources:check -- --output "$REPORT_PATH"
 
       - name: Upload review report
+        if: steps.cadence.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: resource-review-${{ github.run_id }}
           path: ${{ env.REPORT_PATH }}
           if-no-files-found: error
 
+      - name: Build review checklist
+        if: steps.cadence.outputs.should_run == 'true'
+        run: |
+          node scripts/build-resource-review-issue.mjs \
+            --report "$REPORT_PATH" \
+            --output "$BODY_PATH" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
       - name: Notify on manual review flags
+        if: steps.cadence.outputs.should_run == 'true'
+        id: notify
         run: |
           needs_review="$(awk -F': ' '/^- Needs manual review:/ { print $2; exit }' "$REPORT_PATH")"
           fetch_failed="$(awk -F': ' '/^- Fetch failed:/ { print $2; exit }' "$REPORT_PATH")"
           needs_review="${needs_review:-0}"
           fetch_failed="${fetch_failed:-0}"
+          echo "needs_review=$needs_review" >> "$GITHUB_OUTPUT"
+          echo "fetch_failed=$fetch_failed" >> "$GITHUB_OUTPUT"
 
           issue_number="$(gh issue list \
             --state open \
@@ -67,24 +101,21 @@ jobs:
             exit 0
           fi
 
-          {
-            echo "The scheduled scrape-assisted resource review found items that need human review."
-            echo
-            echo "- Needs manual review: $needs_review"
-            echo "- Fetch failed: $fetch_failed"
-            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo
-            awk '
-              /^## Needs Manual Review/ { include = 1 }
-              /^## Looks Unchanged/ { include = 0 }
-              include { print }
-            ' "$REPORT_PATH"
-          } > /tmp/resource-review-issue.md
-
           if [ -n "$issue_number" ]; then
-            gh issue comment "$issue_number" --body-file /tmp/resource-review-issue.md
+            gh issue comment "$issue_number" --body-file "$BODY_PATH"
           else
             gh issue create \
               --title "$REVIEW_ISSUE_TITLE" \
-              --body-file /tmp/resource-review-issue.md
+              --body-file "$BODY_PATH"
           fi
+
+      - name: Send Resend email
+        if: steps.cadence.outputs.should_run == 'true' && (steps.notify.outputs.needs_review != '0' || steps.notify.outputs.fetch_failed != '0')
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESOURCE_REVIEW_EMAIL_FROM: ${{ secrets.RESOURCE_REVIEW_EMAIL_FROM }}
+          RESOURCE_REVIEW_EMAIL_TO: ${{ secrets.RESOURCE_REVIEW_EMAIL_TO }}
+        run: |
+          node scripts/send-resend-email.mjs \
+            --subject "Streetlight resources need manual review" \
+            --body "$BODY_PATH"

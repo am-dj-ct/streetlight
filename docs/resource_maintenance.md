@@ -36,14 +36,23 @@ links against the maintained JSON, and writes a Markdown report to `tmp/`.
 That report is only a review aid. It does not update the JSON and it is not a
 source of truth.
 
-## Scheduled review
+## Scheduled email review
 
-GitHub Actions runs a weekly scrape-assisted review on Monday at 17:00 UTC.
-The workflow can also be started manually from the GitHub Actions tab.
+GitHub Actions runs a scrape-assisted review every two weeks on Monday at
+17:00 UTC. The workflow can also be started manually from the GitHub Actions
+tab.
 
-The scheduled workflow uploads the Markdown report as an artifact. If any
-resource needs manual review or a fetch fails, it opens or comments on the
-`Streetlight resource review needs attention` GitHub issue.
+The workflow uploads the full Markdown report as an artifact. If any resource
+needs manual review or a fetch fails, it sends a Resend email with a short
+checklist: what to open, what phone or URL Streetlight currently has, and why
+the scraper flagged it. It also opens or comments on the
+`Streetlight resource review needs attention` GitHub issue as a backup record.
+
+Required GitHub repository secrets:
+
+- `RESEND_API_KEY`
+- `RESOURCE_REVIEW_EMAIL_FROM`
+- `RESOURCE_REVIEW_EMAIL_TO`
 
 ## Freshness rule
 
