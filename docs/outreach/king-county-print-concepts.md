@@ -180,6 +180,24 @@ streetlight into a logo.
 
 Final test-batch files live in `public/assets/outreach/moo-test-batch/`.
 
+The current upload PDFs are color-managed CMYK exports. Regenerate them with
+`npm run outreach:moo:print`; the script renders the card PDFs at 600 dpi, the
+US Letter flyer at 300 dpi, converts through the GRACoL 2006 coated CMYK
+profile with Ghostscript, verifies the embedded images as CMYK with
+`pdfimages`, and copies the upload PDFs into the Desktop MOO order folder.
+
+Final messaging:
+
+- Front card / flyer lead: "Need help making sense of something?"
+- Core promise: "Free AI to help you read, write, and think through next
+  steps."
+- Concrete examples stay broad: "Letters. Forms. Bills. Questions you're stuck
+  on."
+- Back card action language: "Scan to use Streetlight" and "Type, paste, or
+  speak."
+- Accessibility/value line: "Multiple languages. Free. No app. No account."
+- Trust line: "For anything important, check with a person you trust."
+
 Primary MOO upload files:
 
 - `moo-business-card-front-upload.pdf`
@@ -194,15 +212,24 @@ Fallback PNGs for visual checking / alternate upload:
 
 Source/support files:
 
-- `streetlight-master-left-panel.png`
+- `public/assets/outreach/streetlight-master-left-panel.png`
 - `moo-business-card-front.svg`
 - `moo-business-card-back.svg`
 - `moo-us-letter-flyer.svg`
 - `public/assets/outreach/moo-test-batch/README.md`
+- `scripts/export-moo-print-files.mjs`
 
 Ordering recommendation:
 
 - Order a limited MOO test batch first.
-- Business cards: Original / Standard, matte, two-sided.
-- Flyers: Premium Flyers, US Letter, matte, single-sided.
+- Business cards: Original / Standard, matte, rounded corners, two-sided.
+- Flyers: Premium Flyers, US Letter, matte, single-sided / blank back.
 - Skip posters until cards/flyers are tested in real case-manager handoff.
+
+MOO preview checks:
+
+- Use the PDFs first, not PNGs.
+- Confirm MOO does not add crop marks.
+- Confirm all meaningful text, QR codes, and streetlight lamps sit inside the
+  safe area, especially on rounded business-card corners.
+- Confirm the QR codes are not cropped and remain high-contrast black on white.

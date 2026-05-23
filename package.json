@@ -37,6 +37,8 @@
     "regression:mock": "ALLOW_MOCK_REGRESSION=true node scripts/regression.mjs",
     "regression:quick": "ALLOW_MOCK_REGRESSION=true PROMPT_CASE_LIMIT=3 node scripts/regression.mjs",
     "qr:generate": "tsx scripts/generate-qr.ts",
+    "outreach:moo:print": "node scripts/export-moo-print-files.mjs",
+    "outreach:moo:cards": "npm run outreach:moo:print",
     "incident:new": "node scripts/new-incident.mjs",
     "incident:sev3": "node scripts/append-sev3-note.mjs",
     "ops:status": "node scripts/ops-status.mjs",
