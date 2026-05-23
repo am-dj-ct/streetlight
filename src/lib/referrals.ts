@@ -25,6 +25,7 @@ export type ReferralResource = {
   lastVerified: string;
   phone?: string;
   secondaryPhone?: string;
+  secondaryPhoneType?: "call" | "text";
   sourceName: string;
   sourceUrl: string;
   website: string;
@@ -58,6 +59,9 @@ function isReferralResource(value: unknown): value is ReferralResource {
     (candidate.phone === undefined || isNonEmptyString(candidate.phone)) &&
     (candidate.secondaryPhone === undefined ||
       isNonEmptyString(candidate.secondaryPhone)) &&
+    (candidate.secondaryPhoneType === undefined ||
+      candidate.secondaryPhoneType === "call" ||
+      candidate.secondaryPhoneType === "text") &&
     isNonEmptyString(candidate.sourceName) &&
     isNonEmptyString(candidate.sourceUrl) &&
     isNonEmptyString(candidate.website) &&

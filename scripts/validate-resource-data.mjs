@@ -178,6 +178,19 @@ function validateReferrals(referrals) {
       }
     }
 
+    if (referral.secondaryPhoneType !== undefined) {
+      if (referral.secondaryPhone === undefined) {
+        fail(`Referral "${referral.id}" secondaryPhoneType requires secondaryPhone.`);
+      }
+
+      if (
+        referral.secondaryPhoneType !== "call" &&
+        referral.secondaryPhoneType !== "text"
+      ) {
+        fail(`Referral "${referral.id}" secondaryPhoneType must be "call" or "text".`);
+      }
+    }
+
     assertHttpsUrl(referral.website, `Referral "${referral.id}" website`);
     assertRegions(referral.regions, `Referral "${referral.id}" regions`);
 

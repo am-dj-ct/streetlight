@@ -10,11 +10,15 @@ type PhoneActionCopy = {
   phoneActionCopied: string;
   phoneActionCopyFailed: string;
   phoneActionOpen: string;
+  phoneTextActionTitle?: string;
+  phoneTextActionDescription?: string;
+  phoneTextActionOpen?: string;
   phoneActionClose: string;
   referralsWebsiteLabel: string;
 };
 
 type PhoneActionProps = {
+  actionType?: "call" | "text";
   ariaLabel?: string;
   buttonClassName: string;
   copy: PhoneActionCopy;
@@ -27,7 +31,12 @@ function formatTelephoneHref(phone: string) {
   return `tel:${phone.replace(/[^0-9]/g, "")}`;
 }
 
+function formatTextHref(phone: string) {
+  return `sms:${phone.replace(/[^0-9]/g, "")}`;
+}
+
 export function PhoneAction({
+  actionType = "call",
   ariaLabel,
   buttonClassName,
   copy,
@@ -40,6 +49,18 @@ export function PhoneAction({
   const descriptionId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<null | "copied" | "failed">(null);
+  const isTextAction = actionType === "text";
+  const actionTitle = isTextAction
+    ? (copy.phoneTextActionTitle ?? "Use this text line")
+    : copy.phoneActionTitle;
+  const actionDescription = isTextAction
+    ? (copy.phoneTextActionDescription ??
+      "Copy the number, or open a texting app on this device.")
+    : copy.phoneActionDescription;
+  const actionOpenLabel = isTextAction
+    ? (copy.phoneTextActionOpen ?? "Open texting app")
+    : copy.phoneActionOpen;
+  const actionHref = isTextAction ? formatTextHref(phone) : formatTelephoneHref(phone);
 
   async function handleCopy() {
     const copied = await copyTextToClipboard(phone);
@@ -75,10 +96,10 @@ export function PhoneAction({
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <h2 id={titleId} className="text-[20px] font-semibold">
-              {copy.phoneActionTitle}
+              {actionTitle}
             </h2>
             <p id={descriptionId} className="pt-2 text-[15px] leading-6 text-[#47564d]">
-              {copy.phoneActionDescription}
+              {actionDescription}
             </p>
             <p className="pt-3 text-[24px] font-semibold leading-8">{phone}</p>
 
@@ -109,10 +130,10 @@ export function PhoneAction({
                 </a>
               ) : null}
               <a
-                href={formatTelephoneHref(phone)}
+                href={actionHref}
                 className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] bg-[#1f6a43] px-4 text-[17px] font-semibold text-white"
               >
-                {copy.phoneActionOpen}
+                {actionOpenLabel}
               </a>
             </div>
             <button
