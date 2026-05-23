@@ -74,7 +74,11 @@ jobs:
             echo "- Fetch failed: $fetch_failed"
             echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo
-            sed -n '/^## Needs Manual Review/,$p' "$REPORT_PATH"
+            awk '
+              /^## Needs Manual Review/ { include = 1 }
+              /^## Looks Unchanged/ { include = 0 }
+              include { print }
+            ' "$REPORT_PATH"
           } > /tmp/resource-review-issue.md
 
           if [ -n "$issue_number" ]; then
