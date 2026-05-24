@@ -10,31 +10,39 @@ import { appTitle } from "../lib/site-metadata";
 
 type InfoPageShellProps = {
   area?: ReportArea;
+  contentClassName?: string;
   currentLanguage: LanguageOption;
   regionScope: RegionScope;
   sourcePath?: InternalAppPath;
   title: string;
   lastUpdated: string;
   getLanguageHref: (languageCode: SupportedLanguageCode) => InternalAppPath;
+  wide?: boolean;
   children: React.ReactNode;
 };
 
 export function InfoPageShell({
   area,
+  contentClassName,
   currentLanguage,
   regionScope,
   sourcePath,
   title,
   lastUpdated,
   getLanguageHref,
+  wide = false,
   children,
 }: InfoPageShellProps) {
   const copy = getUiCopy(currentLanguage.code);
   const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguage.code);
+  const containerClassName = [
+    "mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:px-8 lg:pt-6",
+    wide ? "lg:max-w-5xl" : "lg:max-w-3xl",
+  ].join(" ");
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-6">
+      <div className={containerClassName}>
         <header className="pb-4 lg:pb-6">
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
             <Link
@@ -69,7 +77,9 @@ export function InfoPageShell({
           ) : null}
         </header>
 
-        <section className="flex-1 space-y-6 pb-4 lg:pb-8">{children}</section>
+        <section className={contentClassName ?? "flex-1 space-y-6 pb-4 lg:pb-8"}>
+          {children}
+        </section>
       </div>
 
       <CrisisFooter
