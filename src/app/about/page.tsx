@@ -25,7 +25,13 @@ function StreetlightAboutImage({
   const isMobilePlacement = placement === "mobile";
 
   return (
-    <figure className="overflow-hidden rounded-[18px] border border-[#cfd7cf] bg-[#e8eee8] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
+    <figure
+      className={
+        isMobilePlacement
+          ? "float-right mb-3 ml-4 w-[36vw] min-w-[7rem] max-w-[9.5rem] overflow-hidden rounded-[14px] border border-[#cfd7cf] bg-[#e8eee8] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+          : "overflow-hidden rounded-[18px] border border-[#cfd7cf] bg-[#e8eee8] shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+      }
+    >
       <Image
         src="/assets/outreach/streetlight-master-left-panel.png"
         alt=""
@@ -34,14 +40,10 @@ function StreetlightAboutImage({
         priority
         sizes={
           isMobilePlacement
-            ? "(min-width: 640px) 42rem, calc(100vw - 2rem)"
+            ? "(min-width: 640px) 9.5rem, 36vw"
             : "(min-width: 1280px) 20rem, 18rem"
         }
-        className={
-          isMobilePlacement
-            ? "h-[min(118vw,28rem)] w-full object-cover object-top"
-            : "h-auto w-full"
-        }
+        className="h-auto w-full"
       />
     </figure>
   );
@@ -70,6 +72,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
   const {
     copy,
     currentLanguage,
+    hasTranslatedCopy,
     languageCode,
     regionScope,
   } = getPageRequestContext({
@@ -102,19 +105,34 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
       title={page.title}
       lastUpdated={page.lastUpdated}
       getLanguageHref={(nextLanguageCode) => buildAboutHref(nextLanguageCode)}
+      showTitleBlock={false}
       wide
     >
       <div className="lg:grid lg:grid-cols-[minmax(0,42rem)_18rem] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,42rem)_20rem]">
         <div className="space-y-6">
-          {introSection ? renderSection(introSection) : null}
+          <div>
+            <div className="lg:hidden">
+              <StreetlightAboutImage placement="mobile" />
+            </div>
 
-          <div className="lg:hidden">
-            <StreetlightAboutImage placement="mobile" />
+            <h1 className="text-[28px] font-semibold leading-[1.16] text-[#171a18] sm:text-[34px]">
+              {page.title}
+            </h1>
+            <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
+              {copy.lastUpdatedLabel} {page.lastUpdated}
+            </p>
+            {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
+              <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+                {copy.infoPageTranslationNotice}
+              </p>
+            ) : null}
           </div>
+
+          {introSection ? renderSection(introSection) : null}
 
           {remainingSections.map((section) => renderSection(section))}
 
-          <section className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
+          <section className="clear-both rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 text-[16px] leading-6 text-[#334139] shadow-[0_1px_0_rgba(29,42,34,0.08)]">
             <Link
               href={buildReportProblemHref({
                 area: "about",
@@ -128,7 +146,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
           </section>
         </div>
 
-        <aside className="hidden lg:-mt-24 lg:block">
+        <aside className="hidden lg:block">
           <div className="sticky top-0">
             <StreetlightAboutImage placement="desktop" />
           </div>

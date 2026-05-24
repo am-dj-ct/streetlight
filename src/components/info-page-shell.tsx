@@ -17,6 +17,7 @@ type InfoPageShellProps = {
   title: string;
   lastUpdated: string;
   getLanguageHref: (languageCode: SupportedLanguageCode) => InternalAppPath;
+  showTitleBlock?: boolean;
   wide?: boolean;
   children: React.ReactNode;
 };
@@ -30,6 +31,7 @@ export function InfoPageShell({
   title,
   lastUpdated,
   getLanguageHref,
+  showTitleBlock = true,
   wide = false,
   children,
 }: InfoPageShellProps) {
@@ -64,17 +66,25 @@ export function InfoPageShell({
             />
           </div>
 
-          <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18] sm:text-[34px]">
-            {title}
-          </h1>
-          <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
-            {copy.lastUpdatedLabel} {lastUpdated}
-          </p>
-          {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
-            <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
-              {copy.infoPageTranslationNotice}
+          {showTitleBlock ? (
+            <>
+              <h1 className="pt-4 text-[28px] font-semibold leading-[1.16] text-[#171a18] sm:text-[34px]">
+                {title}
+              </h1>
+              <p className="pt-3 text-[14px] leading-6 text-[#5f6d64]">
+                {copy.lastUpdatedLabel} {lastUpdated}
+              </p>
+              {!hasTranslatedCopy && currentLanguage.code !== "en" ? (
+                <p className="pt-2 text-[14px] leading-6 text-[#5f6d64]">
+                  {copy.infoPageTranslationNotice}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="sr-only">
+              {title}. {copy.lastUpdatedLabel} {lastUpdated}
             </p>
-          ) : null}
+          )}
         </header>
 
         <section className={contentClassName ?? "flex-1 space-y-6 pb-4 lg:pb-8"}>
