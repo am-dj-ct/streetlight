@@ -128,7 +128,7 @@ export default async function AboutPage({ searchParams }: AboutPageProps) {
           </section>
         </div>
 
-        <aside className="hidden lg:block">
+        <aside className="hidden lg:-mt-24 lg:block">
           <div className="sticky top-0">
             <StreetlightAboutImage placement="desktop" />
           </div>
