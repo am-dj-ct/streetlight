@@ -156,7 +156,7 @@ The architecture is designed to defend against eight specific threats. For each:
 **Exposure:**
 - Budget drain capped by daily spend ceiling. Worst case: tool hits cap early, real users see "today's limit reached, try again tomorrow."
 - Scraping: contained by output token cap and daily cap.
-- Prompt injection: nothing to inject toward — no tools, agents, file system, or shell connected to user input. System prompt is open-source, no secrets.
+- Prompt injection: the only user-input-connected tool is Anthropic's server-side web search. No client tools, file system, shell, database writes, or arbitrary HTTP calls are connected to user input. System prompt is open-source, no secrets. Search is capped per turn, localized to Seattle / Washington, and query/source content is not logged.
 - Harassment / illegal content: handled by Anthropic's safety floor.
 - Infrastructure recon: Vercel platform protections, Turnstile.
 
@@ -368,7 +368,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Has access to:** Full request body including conversation history with whatever PII the user pasted in, source IP (from headers), Anthropic API key (env var), Vercel KV credentials, model tier state.
 - **Logs by default:** Vercel runtime logs capture `console.log`/`console.error` output, request metadata (path, status, duration, region), uncaught exceptions including stack traces. **Critical: Vercel does not log request bodies by default.** Bodies appear in logs only if our code puts them there.
 - **Override:** Strict logging discipline (see Vercel section below). No `console.log` of message content, ever. Try/catch around Anthropic call logs only error class, status, response time. No `console.error(error)` directly on caught errors.
-- **What leaves this hop:** HTTPS POST to `https://api.anthropic.com/v1/messages` with conversation history, system prompt, model name, max_tokens. Plus a separate POST for the Haiku classifier pass after the main response returns.
+- **What leaves this hop:** HTTPS POST to `https://api.anthropic.com/v1/messages` with conversation history, system prompt, model name, max_tokens, and the Anthropic server-side `web_search` tool definition capped at five searches per turn. If the model chooses to search, Anthropic executes the search. Search queries and search result URLs are not logged by Streetlight. Plus separate POSTs for the Haiku classifier and follow-up suggestion passes after the main response returns.
 
 ### Hop 4 — Per-IP Rate Limit Check
 
@@ -380,11 +380,11 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Hop 5 — Anthropic API (Main Model — Sonnet 4.6 by default)
 
-- **Runs:** Anthropic's infrastructure. Receives conversation, runs the model, returns the completion.
+- **Runs:** Anthropic's infrastructure. Receives conversation, runs the model, optionally executes server-side web search when the model decides current information is needed, and returns the completion.
 - **Has access to:** Full conversation contents, our API key (identifies our org), source metadata Anthropic chooses to log.
 - **Logs by default (under our chosen 7-day retention):** Inputs and outputs auto-deleted after 7 days. Never used for training. Trust & safety classifier scores retained 7 years. Flagged-violation requests retained up to 2 years.
-- **Override:** None. We accept the published commercial-API defaults. ZDR pursued at month 9–10 alongside credits conversation.
-- **What leaves this hop:** Model completion, returned to our Vercel function.
+- **Override:** System prompt instructs the model to keep web search queries general and not include names, addresses, phone numbers, case numbers, account numbers, exact copied letter text, or unusually specific private facts from the user's situation. We accept the published commercial-API defaults. ZDR pursued at month 9–10 alongside credits conversation.
+- **What leaves this hop:** Model completion and citation metadata, returned to our Vercel function.
 
 ### Hop 6 — Vercel Receives Response, Fires Classifier and Follow-Up Suggestions
 
@@ -393,7 +393,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Logs by default:** Same Vercel runtime log behavior as Hop 3. Same Anthropic 7-day retention as Hop 5.
 - **Override:** Same logging discipline as Hop 3. No `console.log` of classifier input or output. We log only the classification result label.
 - **What leaves this hop:**
-  - A metadata log entry: `{timestamp, model_main, model_classifier, classifier_category, main_tokens_in, main_tokens_out, classifier_tokens_in, classifier_tokens_out, suggestions_tokens_in, suggestions_tokens_out, main_response_time_ms, classifier_response_time_ms, suggestions_response_time_ms, main_status, classifier_status, suggestions_status, language, button_id, hashed_ip}`. No content.
+  - A metadata log entry: `{timestamp, model_main, model_classifier, classifier_category, main_tokens_in, main_tokens_out, main_web_fetch_requests, main_web_search_requests, classifier_tokens_in, classifier_tokens_out, suggestions_tokens_in, suggestions_tokens_out, main_response_time_ms, classifier_response_time_ms, suggestions_response_time_ms, main_status, classifier_status, suggestions_status, language, button_id, hashed_ip}`. No content, no search query, no source URL.
   - Response payload to the client containing main model text, classifier category for the inline UI flag, and follow-up suggestion labels.
 
 ### Hop 7 — Metadata Log Write
@@ -608,6 +608,8 @@ A single metadata record per turn:
   classifier_category,    // one of 11 enum values
   main_tokens_in,
   main_tokens_out,
+  main_web_fetch_requests,
+  main_web_search_requests,
   classifier_tokens_in,
   classifier_tokens_out,
   suggestions_tokens_in,

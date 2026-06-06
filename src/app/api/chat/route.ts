@@ -72,6 +72,80 @@ function buildClassifierInput({
   ].join("\n");
 }
 
+type WebSearchSource = {
+  title: string;
+  url: string;
+};
+
+type AnthropicUsage = {
+  cache_creation_input_tokens: null | number;
+  cache_read_input_tokens: null | number;
+  input_tokens: null | number;
+  output_tokens: number;
+  server_tool_use?: null | {
+    web_fetch_requests?: null | number;
+    web_search_requests?: null | number;
+  };
+};
+
+function extractWebSearchSources(content: readonly unknown[]): WebSearchSource[] {
+  const sources: WebSearchSource[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const block of content) {
+    if (!block || typeof block !== "object") {
+      continue;
+    }
+
+    const citations = (block as { citations?: unknown }).citations;
+
+    if (!Array.isArray(citations)) {
+      continue;
+    }
+
+    for (const citation of citations) {
+      if (!citation || typeof citation !== "object") {
+        continue;
+      }
+
+      const candidate = citation as {
+        title?: unknown;
+        type?: unknown;
+        url?: unknown;
+      };
+
+      if (
+        candidate.type !== "web_search_result_location" ||
+        typeof candidate.url !== "string" ||
+        seenUrls.has(candidate.url)
+      ) {
+        continue;
+      }
+
+      seenUrls.add(candidate.url);
+      sources.push({
+        title:
+          typeof candidate.title === "string" && candidate.title.trim().length > 0
+            ? candidate.title.trim()
+            : candidate.url,
+        url: candidate.url,
+      });
+    }
+  }
+
+  return sources.slice(0, 5);
+}
+
+function formatSourcesAppendix(sources: WebSearchSource[]): string {
+  if (sources.length === 0) {
+    return "";
+  }
+
+  return `\n\nSources:\n${sources
+    .map((source) => `- ${source.title}: ${source.url}`)
+    .join("\n")}`;
+}
+
 async function readLimitedRequestBody(request: Request) {
   if (!request.body) {
     return "";
@@ -196,12 +270,7 @@ export async function POST(request: Request) {
     classifierCategory?: WeakCategory;
     classifierResponseTimeMs?: null | number;
     classifierStatus?: "completed" | "error_classifier" | "not_started";
-    classifierUsage?: null | {
-      cache_creation_input_tokens: null | number;
-      cache_read_input_tokens: null | number;
-      input_tokens: null | number;
-      output_tokens: number;
-    };
+    classifierUsage?: null | AnthropicUsage;
     mainResponseTimeMs?: null | number;
     mainStatus:
       | "blocked_abuse_controls"
@@ -213,20 +282,10 @@ export async function POST(request: Request) {
       | "error_no_text"
       | "error_request_setup"
       | "error_stream";
-    mainUsage?: null | {
-      cache_creation_input_tokens: null | number;
-      cache_read_input_tokens: null | number;
-      input_tokens: null | number;
-      output_tokens: number;
-    };
+    mainUsage?: null | AnthropicUsage;
     suggestionsResponseTimeMs?: null | number;
     suggestionsStatus?: "completed" | "error_suggestions" | "not_started";
-    suggestionsUsage?: null | {
-      cache_creation_input_tokens: null | number;
-      cache_read_input_tokens: null | number;
-      input_tokens: null | number;
-      output_tokens: number;
-    };
+    suggestionsUsage?: null | AnthropicUsage;
   }) {
     if (loggedTurnMetadata) {
       return;
@@ -456,6 +515,20 @@ export async function POST(request: Request) {
       max_tokens: 900,
       system: getSystemPrompt(body.entryId),
       messages,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 5,
+          user_location: {
+            type: "approximate",
+            city: "Seattle",
+            region: "Washington",
+            country: "US",
+            timezone: "America/Los_Angeles",
+          },
+        },
+      ],
     });
     const encoder = new TextEncoder();
 
@@ -465,33 +538,12 @@ export async function POST(request: Request) {
         let responseText = "";
         let classifierCategory: WeakCategory = "none";
         let classifierResponseTimeMs: null | number = null;
-        let classifierUsage:
-          | {
-              cache_creation_input_tokens: null | number;
-              cache_read_input_tokens: null | number;
-              input_tokens: null | number;
-              output_tokens: number;
-            }
-          | null = null;
+        let classifierUsage: AnthropicUsage | null = null;
         let suggestionsResponseTimeMs: null | number = null;
-        let suggestionsUsage:
-          | {
-              cache_creation_input_tokens: null | number;
-              cache_read_input_tokens: null | number;
-              input_tokens: null | number;
-              output_tokens: number;
-            }
-          | null = null;
+        let suggestionsUsage: AnthropicUsage | null = null;
         let suggestionsStatus: "completed" | "error_suggestions" | "not_started" =
           "not_started";
-        let mainUsage:
-          | {
-              cache_creation_input_tokens: null | number;
-              cache_read_input_tokens: null | number;
-              input_tokens: null | number;
-              output_tokens: number;
-            }
-          | null = null;
+        let mainUsage: AnthropicUsage | null = null;
 
         try {
           for await (const event of stream) {
@@ -519,6 +571,18 @@ export async function POST(request: Request) {
           } else {
             const finalMessage = await stream.finalMessage();
             mainUsage = finalMessage.usage;
+            const sourcesAppendix = formatSourcesAppendix(
+              extractWebSearchSources(finalMessage.content),
+            );
+
+            if (sourcesAppendix) {
+              responseText += sourcesAppendix;
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "delta", text: sourcesAppendix })}\n\n`,
+                ),
+              );
+            }
 
             try {
               const classifierStartedAt = Date.now();

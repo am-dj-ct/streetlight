@@ -19,6 +19,10 @@ type UsageShape = {
   cache_read_input_tokens?: null | number;
   input_tokens?: null | number;
   output_tokens?: number;
+  server_tool_use?: null | {
+    web_fetch_requests?: null | number;
+    web_search_requests?: null | number;
+  };
 };
 
 type SpendLimitResult =
@@ -59,6 +63,7 @@ type MainModelSelectionResult =
 
 const fallbackModelThreshold = 0.8;
 const cheapestModelThreshold = 0.95;
+const webSearchRequestCostUsd = 0.01;
 
 function getUtcDateKey(now: Date): string {
   return now.toISOString().slice(0, 10);
@@ -93,6 +98,12 @@ function calculateUsageCostUsd(
     (inputTokens / 1_000_000) * inputCostPerMillionUsd +
     (outputTokens / 1_000_000) * outputCostPerMillionUsd
   );
+}
+
+function calculateServerToolCostUsd(usage: UsageShape): number {
+  const webSearchRequests = usage.server_tool_use?.web_search_requests ?? 0;
+
+  return webSearchRequests * webSearchRequestCostUsd;
 }
 
 function hasSpendConfig(): boolean {
@@ -306,6 +317,7 @@ export async function recordDailySpendUsd({
     mainCostPair.inputCostPerMillionUsd,
     mainCostPair.outputCostPerMillionUsd,
   );
+  const serverToolCostUsd = calculateServerToolCostUsd(mainUsage);
   const classifierCostUsd = calculateUsageCostUsd(
     classifierUsage,
     classifierInputCostPerMillionUsd,
@@ -318,7 +330,8 @@ export async function recordDailySpendUsd({
         classifierOutputCostPerMillionUsd,
       )
     : 0;
-  const totalCostUsd = mainCostUsd + classifierCostUsd + suggestionsCostUsd;
+  const totalCostUsd =
+    mainCostUsd + serverToolCostUsd + classifierCostUsd + suggestionsCostUsd;
   const now = new Date();
   const key = `daily-spend:${getUtcDateKey(now)}`;
   const resetInSeconds = getSecondsUntilUtcMidnight(now);
@@ -336,7 +349,7 @@ export async function recordDailySpendUsd({
 
   return {
     classifierCostUsd,
-    mainCostUsd,
+    mainCostUsd: mainCostUsd + serverToolCostUsd,
     suggestionsCostUsd,
     totalCostUsd,
   };

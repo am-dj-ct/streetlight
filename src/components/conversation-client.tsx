@@ -107,6 +107,10 @@ type ConversationClientProps = {
   regionScope: RegionScope;
 };
 
+type SaveTarget =
+  | { kind: "conversation" }
+  | { kind: "answer"; messageId: string; text: string };
+
 const languageSheetDialogId = "language-sheet-dialog";
 const languageSheetTitleId = "language-sheet-title";
 const languageSheetDescriptionId = "language-sheet-description";
@@ -246,9 +250,35 @@ ${body}
 `;
 }
 
-function makeExportFilename(entryId: ConversationEntryId) {
+function formatAnswerForExport(
+  text: string,
+  {
+    copy,
+    entryLabel,
+    languageLabel,
+  }: {
+    copy: ReturnType<typeof getUiCopy>;
+    entryLabel: string;
+    languageLabel: string;
+  },
+) {
+  const exportedAt = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date());
+
+  return `${copy.answerExportTitle}
+${copy.conversationExportSavedLabel}: ${exportedAt}
+${copy.conversationExportStartedFromLabel}: ${entryLabel}
+${copy.conversationExportLanguageLabel}: ${languageLabel}
+
+${text.trim()}
+`;
+}
+
+function makeExportTimestamp() {
   const now = new Date();
-  const timestamp = [
+  return [
     now.getFullYear(),
     String(now.getMonth() + 1).padStart(2, "0"),
     String(now.getDate()).padStart(2, "0"),
@@ -256,8 +286,14 @@ function makeExportFilename(entryId: ConversationEntryId) {
     String(now.getHours()).padStart(2, "0"),
     String(now.getMinutes()).padStart(2, "0"),
   ].join("");
+}
 
-  return `access-tool-${entryId}-${timestamp}.txt`;
+function makeConversationExportFilename(entryId: ConversationEntryId) {
+  return `streetlight-conversation-${entryId}-${makeExportTimestamp()}.txt`;
+}
+
+function makeAnswerExportFilename(entryId: ConversationEntryId) {
+  return `streetlight-answer-${entryId}-${makeExportTimestamp()}.txt`;
 }
 
 function setMessageWeakCategory(
@@ -483,6 +519,61 @@ function HumanHelpIcon({ className }: IconProps) {
   );
 }
 
+function CopyIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M8 8h9v11H8V8Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function SaveIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M12 4v10"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d="m8 10 4 4 4-4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M5 20h14"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 const toolButtonClassName =
   "inline-flex min-h-10 items-center gap-2 rounded-full border border-[#d3ddd6] bg-[#fbfcfa] px-3.5 text-[14px] font-medium text-[#405047] transition-colors hover:border-[#b7c7bd] hover:bg-white disabled:opacity-50";
 const humanHelpButtonClassName =
@@ -553,7 +644,9 @@ export function ConversationClient({
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveTarget, setSaveTarget] = useState<SaveTarget>({ kind: "conversation" });
   const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
+  const [answerStatusMessages, setAnswerStatusMessages] = useState<Record<string, string>>({});
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isKeyboardViewportCompressed, setIsKeyboardViewportCompressed] = useState(false);
   const [shareSupported, setShareSupported] = useState(false);
@@ -979,6 +1072,55 @@ export function ConversationClient({
     });
   }
 
+  function getAnswerExportText(text: string) {
+    return formatAnswerForExport(text, {
+      copy,
+      entryLabel: exportEntryLabel,
+      languageLabel: currentLanguageLabel,
+    });
+  }
+
+  function getSavePayload(target: SaveTarget) {
+    if (target.kind === "answer") {
+      const text = target.text.trim();
+
+      return {
+        actionText: text,
+        fileText: getAnswerExportText(text),
+        filename: makeAnswerExportFilename(entryId),
+        title: copy.answerExportTitle,
+      };
+    }
+
+    const text = getConversationExportText();
+
+    return {
+      actionText: text,
+      fileText: text,
+      filename: makeConversationExportFilename(entryId),
+      title: copy.conversationExportTitle,
+    };
+  }
+
+  function setSaveFeedback(target: SaveTarget, message: string | null) {
+    if (target.kind === "answer") {
+      setAnswerStatusMessages((current) => {
+        const next = { ...current };
+
+        if (message) {
+          next[target.messageId] = message;
+        } else {
+          delete next[target.messageId];
+        }
+
+        return next;
+      });
+      return;
+    }
+
+    setSaveStatusMessage(message);
+  }
+
   function resetTurnstileToken() {
     setTurnstileToken(null);
 
@@ -1003,7 +1145,7 @@ export function ConversationClient({
     setHasSeenSaveWarning(true);
   }
 
-  function downloadConversation(fileContents: string) {
+  function downloadTextFile(fileContents: string, filename: string) {
     if (typeof window === "undefined") {
       return false;
     }
@@ -1012,12 +1154,12 @@ export function ConversationClient({
     let anchor: HTMLAnchorElement | null = null;
 
     try {
-      const blob = new Blob([fileContents], { type: "text/plain;charset=utf-8" });
-      objectUrl = URL.createObjectURL(blob);
+      const file = new File([fileContents], filename, { type: "text/plain;charset=utf-8" });
+      objectUrl = URL.createObjectURL(file);
       anchor = document.createElement("a");
 
       anchor.href = objectUrl;
-      anchor.download = makeExportFilename(entryId);
+      anchor.download = filename;
       document.body.appendChild(anchor);
       anchor.click();
       return true;
@@ -1027,53 +1169,71 @@ export function ConversationClient({
       anchor?.remove();
 
       if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
+        const urlToRevoke = objectUrl;
+        window.setTimeout(() => URL.revokeObjectURL(urlToRevoke), 1000);
       }
     }
   }
 
-  async function saveConversationLocally() {
-    const fileContents = getConversationExportText();
+  async function saveTargetLocally(target: SaveTarget) {
+    const payload = getSavePayload(target);
 
-    if (downloadConversation(fileContents)) {
-      setSaveStatusMessage(null);
+    if (downloadTextFile(payload.fileText, payload.filename)) {
+      setSaveFeedback(target, target.kind === "answer" ? copy.answerSaved : null);
       return;
     }
 
-    setSaveStatusMessage(
-      await copyTextToClipboard(fileContents) ? copy.saveCopied : copy.saveCopyFailed,
+    setSaveFeedback(
+      target,
+      await copyTextToClipboard(payload.actionText) ? copy.saveCopied : copy.saveCopyFailed,
     );
   }
 
-  async function emailConversationToSelf() {
+  async function emailTargetToSelf(target: SaveTarget) {
     if (typeof window === "undefined") {
       return;
     }
 
-    const fileContents = getConversationExportText();
+    const payload = getSavePayload(target);
     const href = buildMailtoHref({
-      subject: copy.conversationExportTitle,
-      body: fileContents,
+      subject: payload.title,
+      body: payload.actionText,
       to: "",
     });
 
     if (!isMailtoHrefWithinLimit(href)) {
-      setSaveStatusMessage(
-        await copyTextToClipboard(fileContents) ? copy.saveCopied : copy.saveCopyFailed,
+      setSaveFeedback(
+        target,
+        await copyTextToClipboard(payload.actionText) ? copy.saveCopied : copy.saveCopyFailed,
       );
       return;
     }
 
-    setSaveStatusMessage(null);
+    setSaveFeedback(target, null);
     setShowSaveModal(false);
     window.location.assign(href);
   }
 
   async function handleSavePress() {
-    setSaveStatusMessage(null);
+    const target: SaveTarget = { kind: "conversation" };
+    setSaveTarget(target);
+    setSaveFeedback(target, null);
 
     if (hasSeenSaveWarning) {
-      await saveConversationLocally();
+      await saveTargetLocally(target);
+      return;
+    }
+
+    setShowSaveModal(true);
+  }
+
+  async function handleSaveAnswerPress(messageId: string, text: string) {
+    const target: SaveTarget = { kind: "answer", messageId, text };
+    setSaveTarget(target);
+    setSaveFeedback(target, null);
+
+    if (hasSeenSaveWarning) {
+      await saveTargetLocally(target);
       return;
     }
 
@@ -1081,40 +1241,45 @@ export function ConversationClient({
   }
 
   async function handleSaveHere() {
+    const target = saveTarget;
     markSaveWarningSeen();
-    setSaveStatusMessage(null);
+    setSaveFeedback(target, null);
     setShowSaveModal(false);
-    await saveConversationLocally();
+    await saveTargetLocally(target);
   }
 
   function handleEmailToSelf() {
+    const target = saveTarget;
     markSaveWarningSeen();
-    setSaveStatusMessage(null);
-    void emailConversationToSelf();
+    setSaveFeedback(target, null);
+    void emailTargetToSelf(target);
   }
 
-  async function handleShareConversation() {
+  async function handleShareTarget(target: SaveTarget) {
     if (typeof window === "undefined" || typeof navigator.share !== "function") {
-      setSaveStatusMessage(copy.saveShareFailed);
+      setSaveFeedback(target, copy.saveShareFailed);
       return;
     }
 
+    const payload = getSavePayload(target);
+
     try {
       await navigator.share({
-        title: copy.conversationExportTitle,
-        text: getConversationExportText(),
+        title: payload.title,
+        text: payload.actionText,
       });
-      setSaveStatusMessage(null);
+      setSaveFeedback(target, null);
     } catch {
-      setSaveStatusMessage(copy.saveShareFailed);
+      setSaveFeedback(target, copy.saveShareFailed);
     }
   }
 
-  async function handleCopyConversation() {
-    const exportText = getConversationExportText();
+  async function handleCopyTarget(target: SaveTarget) {
+    const payload = getSavePayload(target);
 
-    setSaveStatusMessage(
-      await copyTextToClipboard(exportText) ? copy.saveCopied : copy.saveCopyFailed,
+    setSaveFeedback(
+      target,
+      await copyTextToClipboard(payload.actionText) ? copy.saveCopied : copy.saveCopyFailed,
     );
   }
 
@@ -1703,7 +1868,27 @@ export function ConversationClient({
                             className={toolButtonClassName}
                           >
                             <VoiceIcon className="h-4 w-4 shrink-0" />
-                            {copy.voiceTitle}
+                              {copy.voiceTitle}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyTarget({
+                              kind: "answer",
+                              messageId: message.id,
+                              text: message.text,
+                            })}
+                            className={toolButtonClassName}
+                          >
+                            <CopyIcon className="h-4 w-4 shrink-0" />
+                            {copy.answerCopy}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveAnswerPress(message.id, message.text)}
+                            className={toolButtonClassName}
+                          >
+                            <SaveIcon className="h-4 w-4 shrink-0" />
+                            {copy.answerSave}
                           </button>
                           <Link
                             href={buildFindHumanHref({
@@ -1717,6 +1902,11 @@ export function ConversationClient({
                             {copy.findHumanForThis}
                           </Link>
                         </div>
+                        {answerStatusMessages[message.id] ? (
+                          <p role="status" className="text-[14px] leading-6 text-[#47564d]">
+                            {answerStatusMessages[message.id]}
+                          </p>
+                        ) : null}
                         {message.suggestions?.length ? (
                           <>
                             <details className="sm:hidden">
@@ -1812,7 +2002,10 @@ export function ConversationClient({
               aria-controls={saveDialogId}
               aria-expanded={showSaveModal}
               aria-haspopup="dialog"
-              onClick={() => setShowSaveModal(true)}
+              onClick={() => {
+                setSaveTarget({ kind: "conversation" });
+                setShowSaveModal(true);
+              }}
               className={utilityIconButtonClassName}
             >
               {copy.saveExplainButton}
@@ -2048,7 +2241,7 @@ export function ConversationClient({
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
             <h2 id={saveDialogTitleId} className="text-[20px] font-semibold text-[#1f2923]">
-              {copy.saveTitle}
+              {saveTarget.kind === "answer" ? copy.saveAnswerTitle : copy.saveTitle}
             </h2>
             <div id={saveDialogDescriptionId} className="pt-4 space-y-4 text-[16px] leading-7 text-[#3c4b42]">
               <p>{copy.saveBodyOne}</p>
@@ -2076,7 +2269,7 @@ export function ConversationClient({
                 <button
                   type="button"
                   onClick={() => {
-                    void handleShareConversation();
+                    void handleShareTarget(saveTarget);
                   }}
                   className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
                 >
@@ -2086,7 +2279,7 @@ export function ConversationClient({
               <button
                 type="button"
                 onClick={() => {
-                  void handleCopyConversation();
+                  void handleCopyTarget(saveTarget);
                 }}
                 className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
               >
@@ -2099,9 +2292,13 @@ export function ConversationClient({
               >
                 {copy.saveEmail}
               </button>
-              {saveStatusMessage ? (
+              {(saveTarget.kind === "answer"
+                ? answerStatusMessages[saveTarget.messageId]
+                : saveStatusMessage) ? (
                 <p role="status" className="px-1 text-[14px] leading-6 text-[#47564d]">
-                  {saveStatusMessage}
+                  {saveTarget.kind === "answer"
+                    ? answerStatusMessages[saveTarget.messageId]
+                    : saveStatusMessage}
                 </p>
               ) : null}
               <button

@@ -5,6 +5,10 @@ type UsageShape = {
   cache_read_input_tokens?: null | number;
   input_tokens?: null | number;
   output_tokens?: null | number;
+  server_tool_use?: null | {
+    web_fetch_requests?: null | number;
+    web_search_requests?: null | number;
+  };
 };
 
 export type MainStatus =
@@ -36,6 +40,8 @@ export type ChatTurnMetadata = {
   classifier_category: WeakCategory;
   main_tokens_in: null | number;
   main_tokens_out: null | number;
+  main_web_fetch_requests: number;
+  main_web_search_requests: number;
   classifier_tokens_in: null | number;
   classifier_tokens_out: null | number;
   suggestions_tokens_in: null | number;
@@ -69,6 +75,13 @@ function getOutputTokens(usage: null | UsageShape | undefined): null | number {
   }
 
   return usage.output_tokens ?? 0;
+}
+
+function getServerToolRequests(
+  usage: null | UsageShape | undefined,
+  key: "web_fetch_requests" | "web_search_requests",
+): number {
+  return usage?.server_tool_use?.[key] ?? 0;
 }
 
 export function logChatTurnMetadata({
@@ -111,6 +124,8 @@ export function logChatTurnMetadata({
     classifier_category: classifierCategory,
     main_tokens_in: getInputTokens(mainUsage),
     main_tokens_out: getOutputTokens(mainUsage),
+    main_web_fetch_requests: getServerToolRequests(mainUsage, "web_fetch_requests"),
+    main_web_search_requests: getServerToolRequests(mainUsage, "web_search_requests"),
     classifier_tokens_in: getInputTokens(classifierUsage),
     classifier_tokens_out: getOutputTokens(classifierUsage),
     suggestions_tokens_in: getInputTokens(suggestionsUsage),
