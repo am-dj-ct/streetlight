@@ -55,6 +55,21 @@ const entryPrompts: Record<ConversationEntryId, string> = {
     "The user tapped 'Talk instead.' Keep responses easy to say out loud and easy to follow one step at a time. Use shorter sentences and fewer dense lists.",
 };
 
-export function getSystemPrompt(entryId: ConversationEntryId): string {
-  return `${masterSystemPrompt}\n\n${entryPrompts[entryId]}`;
+function getSeattleDateContext(now: Date): string {
+  const dateFormatter = new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Los_Angeles",
+    weekday: "long",
+    year: "numeric",
+  });
+
+  return `Current date context: Today is ${dateFormatter.format(now)} in Seattle / King County, Washington. Use this when the user says today, tomorrow, yesterday, this week, or asks about current hours, deadlines, or schedules.`;
+}
+
+export function getSystemPrompt(
+  entryId: ConversationEntryId,
+  now = new Date(),
+): string {
+  return `${masterSystemPrompt}\n\n${getSeattleDateContext(now)}\n\n${entryPrompts[entryId]}`;
 }
