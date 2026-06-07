@@ -296,6 +296,14 @@ function makeAnswerExportFilename(entryId: ConversationEntryId) {
   return `streetlight-answer-${entryId}-${makeExportTimestamp()}.txt`;
 }
 
+function makeConversationDocxFilename(entryId: ConversationEntryId) {
+  return `streetlight-conversation-${entryId}-${makeExportTimestamp()}.docx`;
+}
+
+function makeAnswerDocxFilename(entryId: ConversationEntryId) {
+  return `streetlight-answer-${entryId}-${makeExportTimestamp()}.docx`;
+}
+
 function setMessageWeakCategory(
   messages: ClientChatMessage[],
   messageId: string,
@@ -568,6 +576,31 @@ function SaveIcon({ className }: IconProps) {
         d="M5 20h14"
         stroke="currentColor"
         strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function DocumentIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M7 3h7l5 5v13H7V3Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M14 3v5h5M10 13h6M10 17h4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         strokeWidth="2"
       />
     </svg>
@@ -1080,6 +1113,18 @@ export function ConversationClient({
     });
   }
 
+  function getDocxLabels() {
+    return {
+      assistantLabel: copy.conversationExportAssistantLabel,
+      entryLabel: exportEntryLabel,
+      languageExportLabel: copy.conversationExportLanguageLabel,
+      languageLabel: currentLanguageLabel,
+      savedLabel: copy.conversationExportSavedLabel,
+      startedFromLabel: copy.conversationExportStartedFromLabel,
+      userLabel: copy.conversationExportUserLabel,
+    };
+  }
+
   function getSavePayload(target: SaveTarget) {
     if (target.kind === "answer") {
       const text = target.text.trim();
@@ -1145,7 +1190,7 @@ export function ConversationClient({
     setHasSeenSaveWarning(true);
   }
 
-  function downloadTextFile(fileContents: string, filename: string) {
+  function downloadBlobFile(blob: Blob, filename: string) {
     if (typeof window === "undefined") {
       return false;
     }
@@ -1154,7 +1199,7 @@ export function ConversationClient({
     let anchor: HTMLAnchorElement | null = null;
 
     try {
-      const file = new File([fileContents], filename, { type: "text/plain;charset=utf-8" });
+      const file = new File([blob], filename, { type: blob.type });
       objectUrl = URL.createObjectURL(file);
       anchor = document.createElement("a");
 
@@ -1175,6 +1220,13 @@ export function ConversationClient({
     }
   }
 
+  function downloadTextFile(fileContents: string, filename: string) {
+    return downloadBlobFile(
+      new Blob([fileContents], { type: "text/plain;charset=utf-8" }),
+      filename,
+    );
+  }
+
   async function saveTargetLocally(target: SaveTarget) {
     const payload = getSavePayload(target);
 
@@ -1187,6 +1239,37 @@ export function ConversationClient({
       target,
       await copyTextToClipboard(payload.actionText) ? copy.saveCopied : copy.saveCopyFailed,
     );
+  }
+
+  async function saveTargetDocxLocally(target: SaveTarget) {
+    try {
+      const docx = await import("../lib/docx-export");
+      const blob =
+        target.kind === "answer"
+          ? await docx.buildAnswerDocxBlob({
+              labels: getDocxLabels(),
+              text: target.text,
+              title: copy.answerExportTitle,
+            })
+          : await docx.buildConversationDocxBlob({
+              labels: getDocxLabels(),
+              messages,
+              title: copy.conversationExportTitle,
+            });
+      const filename =
+        target.kind === "answer"
+          ? makeAnswerDocxFilename(entryId)
+          : makeConversationDocxFilename(entryId);
+
+      if (downloadBlobFile(blob, filename)) {
+        setSaveFeedback(target, copy.docxSaved);
+        return;
+      }
+    } catch {
+      // Fall through to visible UI feedback.
+    }
+
+    setSaveFeedback(target, copy.docxFailed);
   }
 
   async function emailTargetToSelf(target: SaveTarget) {
@@ -1240,12 +1323,33 @@ export function ConversationClient({
     setShowSaveModal(true);
   }
 
+  async function handleSaveAnswerDocxPress(messageId: string, text: string) {
+    const target: SaveTarget = { kind: "answer", messageId, text };
+    setSaveTarget(target);
+    setSaveFeedback(target, null);
+
+    if (hasSeenSaveWarning) {
+      await saveTargetDocxLocally(target);
+      return;
+    }
+
+    setShowSaveModal(true);
+  }
+
   async function handleSaveHere() {
     const target = saveTarget;
     markSaveWarningSeen();
     setSaveFeedback(target, null);
     setShowSaveModal(false);
     await saveTargetLocally(target);
+  }
+
+  async function handleSaveDocxHere() {
+    const target = saveTarget;
+    markSaveWarningSeen();
+    setSaveFeedback(target, null);
+    setShowSaveModal(false);
+    await saveTargetDocxLocally(target);
   }
 
   function handleEmailToSelf() {
@@ -1890,6 +1994,15 @@ export function ConversationClient({
                             <SaveIcon className="h-4 w-4 shrink-0" />
                             {copy.answerSave}
                           </button>
+                          <button
+                            type="button"
+                            aria-label={copy.answerDocxLabel}
+                            onClick={() => void handleSaveAnswerDocxPress(message.id, message.text)}
+                            className={toolButtonClassName}
+                          >
+                            <DocumentIcon className="h-4 w-4 shrink-0" />
+                            {copy.answerDocx}
+                          </button>
                           <Link
                             href={buildFindHumanHref({
                               category: weakCategory ?? undefined,
@@ -2264,6 +2377,13 @@ export function ConversationClient({
                 className="min-h-12 rounded-[16px] bg-[#1f5f43] px-4 text-[16px] font-semibold text-white"
               >
                 {copy.saveHere}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveDocxHere()}
+                className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
+              >
+                {copy.saveDocx}
               </button>
               {shareSupported ? (
                 <button
