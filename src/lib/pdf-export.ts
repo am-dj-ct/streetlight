@@ -28,8 +28,7 @@ type ListState = {
 function cleanText(text: string): string {
   return text
     .replace(/\u0000/g, "")
-    .replace(/[\u0001-\u0008\u000b-\u001f\u007f]/g, "")
-    .replace(/\s+$/g, "");
+    .replace(/[\u0001-\u0008\u000b-\u001f\u007f]/g, "");
 }
 
 function makeTextRun(
@@ -116,6 +115,7 @@ function makeParagraph(
   return {
     lineHeight: 1.35,
     margin: [0, 0, 0, 8],
+    preserveTrailingSpaces: true,
     text: parseInlineMarkdown(text),
     ...options,
   };
