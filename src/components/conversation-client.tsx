@@ -1298,6 +1298,10 @@ export function ConversationClient({
   }
 
   async function handleSavePress() {
+    if (isStreaming) {
+      return;
+    }
+
     const target: SaveTarget = { kind: "conversation" };
     setSaveTarget(target);
     setSaveFeedback(target, null);
@@ -1311,6 +1315,10 @@ export function ConversationClient({
   }
 
   async function handleSaveAnswerPress(messageId: string, text: string) {
+    if (isStreaming) {
+      return;
+    }
+
     const target: SaveTarget = { kind: "answer", messageId, text };
     setSaveTarget(target);
     setSaveFeedback(target, null);
@@ -1324,6 +1332,10 @@ export function ConversationClient({
   }
 
   async function handleSaveAnswerDocxPress(messageId: string, text: string) {
+    if (isStreaming) {
+      return;
+    }
+
     const target: SaveTarget = { kind: "answer", messageId, text };
     setSaveTarget(target);
     setSaveFeedback(target, null);
@@ -1337,6 +1349,10 @@ export function ConversationClient({
   }
 
   async function handleSaveHere() {
+    if (isStreaming) {
+      return;
+    }
+
     const target = saveTarget;
     markSaveWarningSeen();
     setSaveFeedback(target, null);
@@ -1345,6 +1361,10 @@ export function ConversationClient({
   }
 
   async function handleSaveDocxHere() {
+    if (isStreaming) {
+      return;
+    }
+
     const target = saveTarget;
     markSaveWarningSeen();
     setSaveFeedback(target, null);
@@ -1353,6 +1373,10 @@ export function ConversationClient({
   }
 
   function handleEmailToSelf() {
+    if (isStreaming) {
+      return;
+    }
+
     const target = saveTarget;
     markSaveWarningSeen();
     setSaveFeedback(target, null);
@@ -1360,6 +1384,10 @@ export function ConversationClient({
   }
 
   async function handleShareTarget(target: SaveTarget) {
+    if (isStreaming) {
+      return;
+    }
+
     if (typeof window === "undefined" || typeof navigator.share !== "function") {
       setSaveFeedback(target, copy.saveShareFailed);
       return;
@@ -1379,6 +1407,10 @@ export function ConversationClient({
   }
 
   async function handleCopyTarget(target: SaveTarget) {
+    if (isStreaming) {
+      return;
+    }
+
     const payload = getSavePayload(target);
 
     setSaveFeedback(
@@ -1953,6 +1985,7 @@ export function ConversationClient({
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
+                            disabled={isStreaming}
                             onClick={() => void handlePlayAloud(message.id, message.text)}
                             className={toolButtonClassName}
                           >
@@ -1968,6 +2001,7 @@ export function ConversationClient({
                             aria-controls={voiceSettingsDialogId}
                             aria-expanded={showVoiceSettings}
                             aria-haspopup="dialog"
+                            disabled={isStreaming}
                             onClick={() => setShowVoiceSettings(true)}
                             className={toolButtonClassName}
                           >
@@ -1976,6 +2010,7 @@ export function ConversationClient({
                           </button>
                           <button
                             type="button"
+                            disabled={isStreaming}
                             onClick={() => void handleCopyTarget({
                               kind: "answer",
                               messageId: message.id,
@@ -1988,6 +2023,7 @@ export function ConversationClient({
                           </button>
                           <button
                             type="button"
+                            disabled={isStreaming}
                             onClick={() => void handleSaveAnswerPress(message.id, message.text)}
                             className={toolButtonClassName}
                           >
@@ -1997,6 +2033,7 @@ export function ConversationClient({
                           <button
                             type="button"
                             aria-label={copy.answerDocxLabel}
+                            disabled={isStreaming}
                             onClick={() => void handleSaveAnswerDocxPress(message.id, message.text)}
                             className={toolButtonClassName}
                           >
@@ -2104,6 +2141,7 @@ export function ConversationClient({
           >
             <button
               type="button"
+              disabled={isStreaming}
               onClick={handleSavePress}
               className={utilityButtonClassName}
             >
@@ -2115,6 +2153,7 @@ export function ConversationClient({
               aria-controls={saveDialogId}
               aria-expanded={showSaveModal}
               aria-haspopup="dialog"
+              disabled={isStreaming}
               onClick={() => {
                 setSaveTarget({ kind: "conversation" });
                 setShowSaveModal(true);
@@ -2373,6 +2412,7 @@ export function ConversationClient({
             <div className="pt-5 flex flex-col gap-2">
               <button
                 type="button"
+                disabled={isStreaming}
                 onClick={handleSaveHere}
                 className="min-h-12 rounded-[16px] bg-[#1f5f43] px-4 text-[16px] font-semibold text-white"
               >
@@ -2380,6 +2420,7 @@ export function ConversationClient({
               </button>
               <button
                 type="button"
+                disabled={isStreaming}
                 onClick={() => void handleSaveDocxHere()}
                 className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
               >
@@ -2388,6 +2429,7 @@ export function ConversationClient({
               {shareSupported ? (
                 <button
                   type="button"
+                  disabled={isStreaming}
                   onClick={() => {
                     void handleShareTarget(saveTarget);
                   }}
@@ -2398,6 +2440,7 @@ export function ConversationClient({
               ) : null}
               <button
                 type="button"
+                disabled={isStreaming}
                 onClick={() => {
                   void handleCopyTarget(saveTarget);
                 }}
@@ -2407,6 +2450,7 @@ export function ConversationClient({
               </button>
               <button
                 type="button"
+                disabled={isStreaming}
                 onClick={handleEmailToSelf}
                 className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
               >
