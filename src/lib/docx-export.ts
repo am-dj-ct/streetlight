@@ -30,13 +30,26 @@ function cleanText(text: string): string {
   return text.replace(/\u0000/g, "").replace(/\s+$/g, "");
 }
 
-function makeTextRun(text: string, options: { bold?: boolean } = {}) {
+function makeTextRun(
+  text: string,
+  options: { bold?: boolean; break?: number } = {},
+) {
   return new TextRun({
     bold: options.bold,
+    break: options.break,
     font: "Aptos",
     size: 24,
     text: cleanText(text),
   });
+}
+
+function makeTextRuns(text: string, options: { bold?: boolean } = {}) {
+  return text.split("\n").map((line, index) =>
+    makeTextRun(line, {
+      ...options,
+      break: index === 0 ? undefined : 1,
+    }),
+  );
 }
 
 function makeLinkRun(text: string, url: string) {
@@ -65,15 +78,15 @@ function parseBoldText(text: string): InlineChild[] {
 
   while ((match = boldPattern.exec(text))) {
     if (match.index > cursor) {
-      children.push(makeTextRun(text.slice(cursor, match.index)));
+      children.push(...makeTextRuns(text.slice(cursor, match.index)));
     }
 
-    children.push(makeTextRun(match[1] ?? "", { bold: true }));
+    children.push(...makeTextRuns(match[1] ?? "", { bold: true }));
     cursor = match.index + match[0].length;
   }
 
   if (cursor < text.length) {
-    children.push(makeTextRun(text.slice(cursor)));
+    children.push(...makeTextRuns(text.slice(cursor)));
   }
 
   return children.length > 0 ? children : [makeTextRun("")];
@@ -162,7 +175,7 @@ function markdownToDocxParagraphs(markdown: string): Paragraph[] {
   let inCodeBlock = false;
 
   function flushParagraph() {
-    const text = paragraphBuffer.join(" ").trim();
+    const text = paragraphBuffer.join("\n").trim();
     paragraphBuffer.length = 0;
 
     if (text) {
@@ -199,6 +212,11 @@ function markdownToDocxParagraphs(markdown: string): Paragraph[] {
     }
 
     if (!trimmed) {
+      flushParagraph();
+      continue;
+    }
+
+    if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
       flushParagraph();
       continue;
     }
