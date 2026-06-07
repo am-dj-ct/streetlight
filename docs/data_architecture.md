@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-05-13
-**Last meaningful change:** 2026-05-13 (brief-first main response style added; weak-category classifier changed to a recall-first warning-zone prompt with broad synthetic recall tests)
+**Last reviewed:** 2026-06-07
+**Last meaningful change:** 2026-06-07 (client-side DOCX/PDF export added to the save path; no server-side document content handling)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -430,7 +430,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Side Path — Save Conversation
 
-- **Runs:** Browser-side only. Generates a plain-text file the user downloads, optional Web Share payload where supported, screenshot, copy-to-clipboard text, or a `mailto:` link with conversation in the body.
+- **Runs:** Browser-side only. Generates a plain-text, DOCX, or PDF file the user downloads, optional Web Share payload where supported, copy-to-clipboard text, or a `mailto:` link with conversation in the body.
 - **Has access to:** Full conversation in browser memory.
 - **Logs by default:** None.
 - **Override:** Nothing leaves the browser unless the user explicitly chooses a device share or email action. First-time save modal handles the shared-device honesty disclosure. Web Share uses the device's share sheet where available. `mailto:` opens the user's mail app — email routes through their own provider (their existing trust relationship, not ours).
@@ -1118,6 +1118,12 @@ One-line summary of every decision in this document, dated for traceability.
 - Azure receives assistant response text only when the user taps read-aloud.
 - The browser uses an in-memory audio blob and revokes it after playback; no audio cache or persistence is added.
 - Browser Web Speech remains the fallback if Azure read-aloud is disabled or unavailable.
+
+**2026-06-07 — local document exports:**
+
+- Save/export can generate TXT, DOCX, and PDF files in the browser.
+- DOCX and PDF generation stay client-side; conversation content is not sent to a new server route or third-party document service.
+- Export controls are disabled while an answer is streaming so partial answers are not saved.
 
 ---
 

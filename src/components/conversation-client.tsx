@@ -304,6 +304,14 @@ function makeAnswerDocxFilename(entryId: ConversationEntryId) {
   return `streetlight-answer-${entryId}-${makeExportTimestamp()}.docx`;
 }
 
+function makeConversationPdfFilename(entryId: ConversationEntryId) {
+  return `streetlight-conversation-${entryId}-${makeExportTimestamp()}.pdf`;
+}
+
+function makeAnswerPdfFilename(entryId: ConversationEntryId) {
+  return `streetlight-answer-${entryId}-${makeExportTimestamp()}.pdf`;
+}
+
 function setMessageWeakCategory(
   messages: ClientChatMessage[],
   messageId: string,
@@ -1272,6 +1280,37 @@ export function ConversationClient({
     setSaveFeedback(target, copy.docxFailed);
   }
 
+  async function saveTargetPdfLocally(target: SaveTarget) {
+    try {
+      const pdf = await import("../lib/pdf-export");
+      const blob =
+        target.kind === "answer"
+          ? await pdf.buildAnswerPdfBlob({
+              labels: getDocxLabels(),
+              text: target.text,
+              title: copy.answerExportTitle,
+            })
+          : await pdf.buildConversationPdfBlob({
+              labels: getDocxLabels(),
+              messages,
+              title: copy.conversationExportTitle,
+            });
+      const filename =
+        target.kind === "answer"
+          ? makeAnswerPdfFilename(entryId)
+          : makeConversationPdfFilename(entryId);
+
+      if (downloadBlobFile(blob, filename)) {
+        setSaveFeedback(target, copy.pdfSaved);
+        return;
+      }
+    } catch {
+      // Fall through to visible UI feedback.
+    }
+
+    setSaveFeedback(target, copy.pdfFailed);
+  }
+
   async function emailTargetToSelf(target: SaveTarget) {
     if (typeof window === "undefined") {
       return;
@@ -1348,6 +1387,23 @@ export function ConversationClient({
     setShowSaveModal(true);
   }
 
+  async function handleSaveAnswerPdfPress(messageId: string, text: string) {
+    if (isStreaming) {
+      return;
+    }
+
+    const target: SaveTarget = { kind: "answer", messageId, text };
+    setSaveTarget(target);
+    setSaveFeedback(target, null);
+
+    if (hasSeenSaveWarning) {
+      await saveTargetPdfLocally(target);
+      return;
+    }
+
+    setShowSaveModal(true);
+  }
+
   async function handleSaveHere() {
     if (isStreaming) {
       return;
@@ -1370,6 +1426,18 @@ export function ConversationClient({
     setSaveFeedback(target, null);
     setShowSaveModal(false);
     await saveTargetDocxLocally(target);
+  }
+
+  async function handleSavePdfHere() {
+    if (isStreaming) {
+      return;
+    }
+
+    const target = saveTarget;
+    markSaveWarningSeen();
+    setSaveFeedback(target, null);
+    setShowSaveModal(false);
+    await saveTargetPdfLocally(target);
   }
 
   function handleEmailToSelf() {
@@ -2040,6 +2108,16 @@ export function ConversationClient({
                             <DocumentIcon className="h-4 w-4 shrink-0" />
                             {copy.answerDocx}
                           </button>
+                          <button
+                            type="button"
+                            aria-label={copy.answerPdfLabel}
+                            disabled={isStreaming}
+                            onClick={() => void handleSaveAnswerPdfPress(message.id, message.text)}
+                            className={toolButtonClassName}
+                          >
+                            <DocumentIcon className="h-4 w-4 shrink-0" />
+                            {copy.answerPdf}
+                          </button>
                           <Link
                             href={buildFindHumanHref({
                               category: weakCategory ?? undefined,
@@ -2425,6 +2503,14 @@ export function ConversationClient({
                 className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
               >
                 {copy.saveDocx}
+              </button>
+              <button
+                type="button"
+                disabled={isStreaming}
+                onClick={() => void handleSavePdfHere()}
+                className="min-h-12 rounded-[16px] border border-[#b7c7bd] bg-white px-4 text-[16px] font-semibold text-[#1d2a22]"
+              >
+                {copy.savePdf}
               </button>
               {shareSupported ? (
                 <button
