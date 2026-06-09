@@ -1810,6 +1810,7 @@ export function ConversationClient({
 
         const decoder = new TextDecoder();
         let buffer = "";
+        let sawDoneEvent = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -1831,11 +1832,16 @@ export function ConversationClient({
             const payload = dataLine.slice(6);
 
             if (payload === "[DONE]") {
+              sawDoneEvent = true;
               setPendingClassifierMessageId((currentId) =>
                 currentId === pendingAssistantId ? null : currentId,
               );
               setIsStreaming(false);
-              return;
+              continue;
+            }
+
+            if (sawDoneEvent) {
+              continue;
             }
 
             const rawEvent = JSON.parse(payload) as unknown;
