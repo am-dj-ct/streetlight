@@ -1747,6 +1747,7 @@ export function ConversationClient({
     setMessages([...nextMessages, pendingAssistantMessage]);
     setDraft("");
     setErrorMessage(null);
+    setSaveStatusMessage(null);
     setShowSuggestions(false);
     setIsStreaming(true);
     setPendingClassifierMessageId(pendingAssistantId);
