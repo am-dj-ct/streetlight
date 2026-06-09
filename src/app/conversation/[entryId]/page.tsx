@@ -70,6 +70,7 @@ export default async function ConversationPage({
         languageCode={currentLanguage.code}
       />
       <ConversationClient
+        key={`${seed.id}-${currentLanguage.code}`}
         currentLanguageCode={currentLanguage.code}
         currentLanguageLabel={currentLanguage.label}
         entryId={seed.id}
