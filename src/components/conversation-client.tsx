@@ -17,6 +17,7 @@ import {
 } from "../lib/routes";
 import { appTitle } from "../lib/site-metadata";
 import { buildMailtoHref, isMailtoHrefWithinLimit } from "../lib/support";
+import { formatMarkdownForPlainText } from "../lib/markdown-plain-text";
 import { stripMarkdownForSpeech } from "../lib/speech-text";
 import { getAzureVoiceOption, getAzureVoiceOptions } from "../lib/azure-tts";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
@@ -237,7 +238,11 @@ function formatConversationForExport(
         message.role === "assistant"
           ? copy.conversationExportAssistantLabel
           : copy.conversationExportUserLabel;
-      return `${speaker}:\n${message.text.trim()}`;
+      const messageText =
+        message.role === "assistant"
+          ? formatMarkdownForPlainText(message.text)
+          : message.text.trim();
+      return `${speaker}:\n${messageText}`;
     })
     .join("\n\n");
 
@@ -272,7 +277,7 @@ ${copy.conversationExportSavedLabel}: ${exportedAt}
 ${copy.conversationExportStartedFromLabel}: ${entryLabel}
 ${copy.conversationExportLanguageLabel}: ${languageLabel}
 
-${text.trim()}
+${formatMarkdownForPlainText(text)}
 `;
 }
 
@@ -1138,7 +1143,7 @@ export function ConversationClient({
       const text = target.text.trim();
 
       return {
-        actionText: text,
+        actionText: formatMarkdownForPlainText(text),
         fileText: getAnswerExportText(text),
         filename: makeAnswerExportFilename(entryId),
         title: copy.answerExportTitle,
