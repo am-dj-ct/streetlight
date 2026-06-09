@@ -110,6 +110,7 @@
     "phoneActionOpen": "Mở ứng dụng gọi điện",
     "phoneTextActionTitle": "Dùng đường dây nhắn tin này",
     "phoneTextActionDescription": "Sao chép số, hoặc mở ứng dụng nhắn tin trên thiết bị này.",
+    "phoneCallTextActionDescription": "Sao chép số, hoặc mở ứng dụng gọi điện hoặc nhắn tin trên thiết bị này.",
     "phoneTextActionOpen": "Mở ứng dụng nhắn tin",
     "phoneActionClose": "Đóng",
     "referralsRegionKing": "King County, WA",

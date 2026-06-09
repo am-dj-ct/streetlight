@@ -110,6 +110,7 @@
     "phoneActionOpen": "የመደወያ app ክፈት",
     "phoneTextActionTitle": "ይህን የመልዕክት መስመር ይጠቀሙ",
     "phoneTextActionDescription": "ቁጥሩን ይቅዱ፣ ወይም በዚህ መሳሪያ ላይ የመልዕክት app ይክፈቱ.",
+    "phoneCallTextActionDescription": "ቁጥሩን ይቅዱ፣ ወይም በዚህ መሳሪያ ላይ የመደወያ ወይም የመልዕክት app ይክፈቱ.",
     "phoneTextActionOpen": "የመልዕክት app ክፈት",
     "phoneActionClose": "ዝጋ",
     "referralsRegionKing": "King County, WA",

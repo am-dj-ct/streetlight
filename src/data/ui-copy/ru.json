@@ -110,6 +110,7 @@
     "phoneActionOpen": "Открыть приложение для звонков",
     "phoneTextActionTitle": "Использовать эту линию для сообщений",
     "phoneTextActionDescription": "Скопируйте номер или откройте приложение для сообщений на этом устройстве.",
+    "phoneCallTextActionDescription": "Скопируйте номер или откройте приложение для звонков или сообщений на этом устройстве.",
     "phoneTextActionOpen": "Открыть приложение для сообщений",
     "phoneActionClose": "Закрыть",
     "referralsRegionKing": "King County, WA",

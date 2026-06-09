@@ -13,12 +13,13 @@ type PhoneActionCopy = {
   phoneTextActionTitle?: string;
   phoneTextActionDescription?: string;
   phoneTextActionOpen?: string;
+  phoneCallTextActionDescription?: string;
   phoneActionClose: string;
   referralsWebsiteLabel: string;
 };
 
 type PhoneActionProps = {
-  actionType?: "call" | "text";
+  actionType?: "call" | "text" | "call-and-text";
   ariaLabel?: string;
   buttonClassName: string;
   copy: PhoneActionCopy;
@@ -50,13 +51,17 @@ export function PhoneAction({
   const [isOpen, setIsOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<null | "copied" | "failed">(null);
   const isTextAction = actionType === "text";
+  const isCallAndTextAction = actionType === "call-and-text";
   const actionTitle = isTextAction
     ? (copy.phoneTextActionTitle ?? "Use this text line")
     : copy.phoneActionTitle;
-  const actionDescription = isTextAction
-    ? (copy.phoneTextActionDescription ??
-      "Copy the number, or open a texting app on this device.")
-    : copy.phoneActionDescription;
+  const actionDescription = isCallAndTextAction
+    ? (copy.phoneCallTextActionDescription ??
+      "Copy the number, or open a calling or texting app on this device.")
+    : isTextAction
+      ? (copy.phoneTextActionDescription ??
+        "Copy the number, or open a texting app on this device.")
+      : copy.phoneActionDescription;
   const actionOpenLabel = isTextAction
     ? (copy.phoneTextActionOpen ?? "Open texting app")
     : copy.phoneActionOpen;
@@ -127,6 +132,14 @@ export function PhoneAction({
                   className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] font-semibold text-[#1f2923]"
                 >
                   {copy.referralsWebsiteLabel}
+                </a>
+              ) : null}
+              {isCallAndTextAction ? (
+                <a
+                  href={formatTextHref(phone)}
+                  className="inline-flex min-h-12 flex-1 items-center justify-center rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] font-semibold text-[#1f2923]"
+                >
+                  {copy.phoneTextActionOpen ?? "Open texting app"}
                 </a>
               ) : null}
               <a

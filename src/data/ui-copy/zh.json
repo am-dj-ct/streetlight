@@ -110,6 +110,7 @@
     "phoneActionOpen": "打开拨号应用",
     "phoneTextActionTitle": "使用这条短信线路",
     "phoneTextActionDescription": "复制号码，或在这台设备上打开短信应用。",
+    "phoneCallTextActionDescription": "复制号码，或在这台设备上打开拨号或短信应用。",
     "phoneTextActionOpen": "打开短信应用",
     "phoneActionClose": "关闭",
     "referralsRegionKing": "King County, WA",

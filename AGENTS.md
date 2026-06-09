@@ -93,7 +93,8 @@ sidebars or dashboard chrome without a product decision.
   `src/components/phone-action.tsx`.
 - Direct `tel:` appears only inside the explicit "Open calling app" action.
 - Phone dialog actions: `Use this number`, `Copy number`, `Open website`,
-  `Open calling app`, `Close`.
+  `Open calling app`, `Close`. Call-and-text resources (988) also offer
+  `Open texting app`.
 - Crisis/resource phone dialogs include website links where available.
 - KCSARC and national crisis-only resources stay data-only `crisis`, not `all`.
 - Benefits-filtered King County resources: King County 211, DSHS Community

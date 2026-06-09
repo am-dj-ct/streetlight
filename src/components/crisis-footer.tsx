@@ -48,6 +48,7 @@ export function CrisisFooter({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <strong className="font-semibold">{copy.footerHeading}</strong>
         <PhoneAction
+          actionType="call-and-text"
           copy={copy}
           label={copy.footerEmergency}
           phone="988"
@@ -121,6 +122,7 @@ export function CrisisFooter({
                     {copy.footerMentalHealthCrisisHelp}
                   </strong>
                   <PhoneAction
+                    actionType="call-and-text"
                     copy={copy}
                     label="988"
                     phone="988"
