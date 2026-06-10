@@ -6,12 +6,17 @@ import Script from "next/script";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
+import { PhoneAction } from "./phone-action";
 import { copyTextToClipboard } from "../lib/browser-copy";
 import { getConversationContentEntry } from "../lib/conversation-content";
-import { getWeakCategoryLabel } from "../lib/referrals";
+import {
+  getCheckedThroughDate,
+  getReferralsForCategory,
+  getWeakCategoryLabel,
+  isReferralSpecificToCategory,
+} from "../lib/referrals";
 import {
   buildConversationHref,
-  buildFindHumanHref,
   buildHomeHref,
   buildPrivacyHref,
 } from "../lib/routes";
@@ -121,6 +126,8 @@ const saveDialogDescriptionId = "save-dialog-description";
 const voiceSettingsDialogId = "voice-settings-dialog";
 const voiceSettingsTitleId = "voice-settings-title";
 const voiceSettingsDescriptionId = "voice-settings-description";
+const referralSheetDialogId = "referral-sheet-dialog";
+const referralSheetTitleId = "referral-sheet-title";
 const azureVoiceStorageKey = "access-tool-azure-voice-names";
 const dialogFocusableSelector = [
   "a[href]",
@@ -651,6 +658,9 @@ export function ConversationClient({
   const languageSheetDoneRef = useRef<HTMLButtonElement | null>(null);
   const languageSheetRef = useRef<HTMLDivElement | null>(null);
   const languageSheetReturnFocusRef = useRef<HTMLElement | null>(null);
+  const referralSheetCloseRef = useRef<HTMLButtonElement | null>(null);
+  const referralSheetRef = useRef<HTMLDivElement | null>(null);
+  const referralSheetReturnFocusRef = useRef<HTMLElement | null>(null);
   const saveCancelRef = useRef<HTMLButtonElement | null>(null);
   const saveDialogRef = useRef<HTMLDivElement | null>(null);
   const saveDialogReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -688,6 +698,10 @@ export function ConversationClient({
   const [speechLoadingMessageId, setSpeechLoadingMessageId] = useState<string | null>(null);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [referralSheet, setReferralSheet] = useState<{
+    category: WeakCategory | null;
+    showAll: boolean;
+  } | null>(null);
   const [hasSeenSaveWarning, setHasSeenSaveWarning] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveTarget, setSaveTarget] = useState<SaveTarget>({ kind: "conversation" });
@@ -703,7 +717,9 @@ export function ConversationClient({
     entryId,
     languageCode: currentLanguageCode,
   });
-  const hasOpenSheet = showLanguageSheet || showSaveModal || showVoiceSettings;
+  const isReferralSheetOpen = referralSheet !== null;
+  const hasOpenSheet =
+    showLanguageSheet || showSaveModal || showVoiceSettings || isReferralSheetOpen;
 
   function scrollThreadElementToTop(element: HTMLElement) {
     const thread = threadRef.current;
@@ -719,7 +735,12 @@ export function ConversationClient({
   }
 
   useEffect(() => {
-    if (!showLanguageSheet && !showSaveModal && !showVoiceSettings) {
+    if (
+      !showLanguageSheet &&
+      !showSaveModal &&
+      !showVoiceSettings &&
+      !isReferralSheetOpen
+    ) {
       return;
     }
 
@@ -730,6 +751,10 @@ export function ConversationClient({
 
       if (showVoiceSettings) {
         return voiceSettingsRef.current;
+      }
+
+      if (isReferralSheetOpen) {
+        return referralSheetRef.current;
       }
 
       return languageSheetRef.current;
@@ -790,6 +815,11 @@ export function ConversationClient({
         return;
       }
 
+      if (isReferralSheetOpen) {
+        setReferralSheet(null);
+        return;
+      }
+
       setShowLanguageSheet(false);
     }
 
@@ -798,7 +828,7 @@ export function ConversationClient({
     return () => {
       window.removeEventListener("keydown", handleSheetKeydown);
     };
-  }, [showLanguageSheet, showSaveModal, showVoiceSettings]);
+  }, [showLanguageSheet, showSaveModal, showVoiceSettings, isReferralSheetOpen]);
 
   useEffect(() => {
     if (showLanguageSheet) {
@@ -835,6 +865,18 @@ export function ConversationClient({
     voiceSettingsReturnFocusRef.current?.focus();
     voiceSettingsReturnFocusRef.current = null;
   }, [showVoiceSettings]);
+
+  useEffect(() => {
+    if (isReferralSheetOpen) {
+      referralSheetReturnFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      referralSheetCloseRef.current?.focus();
+      return;
+    }
+
+    referralSheetReturnFocusRef.current?.focus();
+    referralSheetReturnFocusRef.current = null;
+  }, [isReferralSheetOpen]);
 
   useEffect(() => {
     composerRef.current?.blur();
@@ -1945,6 +1987,21 @@ export function ConversationClient({
     sendMessage(suggestion);
   }
 
+  const referralActiveCategory =
+    referralSheet && !referralSheet.showAll ? referralSheet.category : null;
+  const referralResources = referralSheet
+    ? getReferralsForCategory({
+        category: referralActiveCategory,
+        regionScope,
+      })
+    : [];
+  const referralCheckedThroughDate = getCheckedThroughDate(referralResources);
+  const formatReferralDate = (value: string) =>
+    new Intl.DateTimeFormat(currentLanguageCode, {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    }).format(new Date(`${value}T00:00:00Z`));
+
   return (
     <main className="relative flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
       {turnstileSiteKey ? (
@@ -2067,13 +2124,15 @@ export function ConversationClient({
                             {copy.weakCategoryPending}
                           </p>
                         ) : weakCategory ? (
-                          <Link
-                            href={buildFindHumanHref({
-                              category: weakCategory,
-                              entryId,
-                              languageCode: currentLanguageCode,
-                            })}
-                            className="block rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[14px] leading-6 text-[#6a4c12]"
+                          <button
+                            type="button"
+                            aria-controls={referralSheetDialogId}
+                            aria-expanded={isReferralSheetOpen}
+                            aria-haspopup="dialog"
+                            onClick={() =>
+                              setReferralSheet({ category: weakCategory, showAll: false })
+                            }
+                            className="block w-full rounded-[16px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-left text-[14px] leading-6 text-[#6a4c12]"
                           >
                             <span className="font-semibold">{copy.weakCategoryLead}</span>{" "}
                             {copy.weakCategoryTail}{" "}
@@ -2081,7 +2140,7 @@ export function ConversationClient({
                               {getWeakCategoryLabel(weakCategory)}
                             </span>
                             .
-                          </Link>
+                          </button>
                         ) : null}
 
                         <div className="flex flex-wrap gap-2">
@@ -2152,17 +2211,19 @@ export function ConversationClient({
                             <DocumentIcon className="h-4 w-4 shrink-0" />
                             {copy.answerPdf}
                           </button>
-                          <Link
-                            href={buildFindHumanHref({
-                              category: weakCategory ?? undefined,
-                              entryId,
-                              languageCode: currentLanguageCode,
-                            })}
+                          <button
+                            type="button"
+                            aria-controls={referralSheetDialogId}
+                            aria-expanded={isReferralSheetOpen}
+                            aria-haspopup="dialog"
+                            onClick={() =>
+                              setReferralSheet({ category: weakCategory, showAll: false })
+                            }
                             className={humanHelpButtonClassName}
                           >
                             <HumanHelpIcon className="h-4 w-4 shrink-0" />
                             {copy.findHumanForThis}
-                          </Link>
+                          </button>
                         </div>
                         {answerStatusMessages[message.id] ? (
                           <p role="status" className="text-[14px] leading-6 text-[#47564d]">
@@ -2485,6 +2546,138 @@ export function ConversationClient({
                   <span>{language.label}</span>
                   {language.code === currentLanguageCode ? <span>{copy.languageSheetCurrent}</span> : null}
                 </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {referralSheet ? (
+        <div className="absolute inset-0 z-20 flex items-end justify-center bg-[rgba(18,24,20,0.24)] sm:items-center sm:p-6">
+          <div
+            id={referralSheetDialogId}
+            ref={referralSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={referralSheetTitleId}
+            tabIndex={-1}
+            className="flex max-h-[85dvh] w-full flex-col rounded-t-[24px] bg-white px-4 pb-6 pt-4 shadow-[0_-12px_32px_rgba(18,24,20,0.18)] sm:max-h-[80dvh] sm:max-w-xl sm:rounded-[24px] sm:px-6 sm:shadow-[0_16px_48px_rgba(18,24,20,0.18)]"
+          >
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#d4ddd6]" />
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <h2
+                id={referralSheetTitleId}
+                className="text-[20px] font-semibold leading-7 text-[#1f2923]"
+              >
+                {copy.referralsHeadingLineOne} {copy.referralsHeadingLineTwo}
+              </h2>
+              <button
+                ref={referralSheetCloseRef}
+                type="button"
+                onClick={() => setReferralSheet(null)}
+                className="shrink-0 whitespace-nowrap rounded-full border border-[#cfd7cf] bg-white px-4 py-2 text-[15px] font-medium text-[#1d2a22]"
+              >
+                {copy.phoneActionClose}
+              </button>
+            </div>
+            <p className="text-[14px] leading-6 text-[#47564d]">
+              {regionScope === "king"
+                ? copy.referralsIntroKing
+                : copy.referralsIntroFallback}
+            </p>
+            {referralCheckedThroughDate ? (
+              <p className="pt-1 text-[13px] leading-5 text-[#5f6d64]">
+                {copy.referralsCheckedThroughLabel}{" "}
+                {formatReferralDate(referralCheckedThroughDate)}
+              </p>
+            ) : null}
+            <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pb-1">
+              {referralActiveCategory ? (
+                <section className="rounded-[18px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[15px] leading-6 text-[#6a4c12]">
+                  {copy.referralsFilteredPrefix}{" "}
+                  <span className="font-semibold">
+                    {getWeakCategoryLabel(referralActiveCategory)}
+                  </span>
+                  .
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReferralSheet((current) =>
+                          current ? { ...current, showAll: true } : current,
+                        )
+                      }
+                      className="font-semibold underline"
+                    >
+                      {copy.referralsShowAll}
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+              {referralResources.map((resource) => (
+                <article
+                  key={resource.id}
+                  className="rounded-[18px] border border-[#cfd7cf] bg-white px-4 py-4 shadow-[0_1px_0_rgba(29,42,34,0.08)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-[18px] font-semibold leading-6 text-[#1f2923]">
+                      {resource.name}
+                    </h3>
+                    {isReferralSpecificToCategory(resource, referralActiveCategory) ? (
+                      <span className="shrink-0 rounded-full bg-[#edf3ef] px-3 py-1 text-[12px] font-semibold text-[#2d5c45]">
+                        {copy.referralsBestFit}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="pt-2 text-[15px] leading-6 text-[#47564d]">
+                    {resource.description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 pt-4">
+                    {resource.phone ? (
+                      <PhoneAction
+                        copy={copy}
+                        label={`${copy.referralsCallLabel} ${resource.phone}`}
+                        phone={resource.phone}
+                        websiteUrl={resource.website}
+                        ariaLabel={`${copy.referralsCallLabel} ${resource.name} ${resource.phone}`}
+                        buttonClassName="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                      />
+                    ) : null}
+
+                    {resource.secondaryPhone ? (
+                      <PhoneAction
+                        actionType={resource.secondaryPhoneType ?? "call"}
+                        copy={copy}
+                        label={`${resource.secondaryPhoneType === "text" ? copy.referralsTextLabel : copy.referralsAltLabel} ${resource.secondaryPhone}`}
+                        phone={resource.secondaryPhone}
+                        websiteUrl={resource.website}
+                        ariaLabel={`${resource.secondaryPhoneType === "text" ? copy.referralsTextLabel : copy.referralsAltLabel} ${resource.name} ${resource.secondaryPhone}`}
+                        buttonClassName="flex min-h-11 items-center rounded-full border border-[#b7c7bd] bg-white px-4 text-[15px] font-medium text-[#1d2a22]"
+                      />
+                    ) : null}
+
+                    <a
+                      href={resource.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${copy.referralsWebsiteLabel} ${resource.name}`}
+                      className="flex min-h-11 items-center rounded-full bg-[#1f5f43] px-4 text-[15px] font-semibold text-white"
+                    >
+                      {copy.referralsWebsiteLabel}
+                    </a>
+                  </div>
+
+                  <div className="mt-4 border-t border-[#e7ece8] pt-4 text-[13px] leading-5 text-[#5f6d64]">
+                    <p>
+                      {copy.referralsSourceLabel} {resource.sourceName}
+                    </p>
+                    <p className="pt-1">
+                      {copy.referralsVerifiedLabel}{" "}
+                      {formatReferralDate(resource.lastVerified)}
+                    </p>
+                  </div>
+                </article>
               ))}
             </div>
           </div>
