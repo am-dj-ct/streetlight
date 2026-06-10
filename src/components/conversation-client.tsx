@@ -1919,6 +1919,16 @@ export function ConversationClient({
           currentId === pendingAssistantId ? null : currentId,
         );
         setIsStreaming(false);
+
+        // Return focus to the composer so the next turn can be typed without a
+        // click. Only on pointer-fine (desktop) devices, so the mobile keyboard
+        // is not re-summoned over the answer the user is reading.
+        if (
+          typeof window !== "undefined" &&
+          window.matchMedia("(pointer: fine)").matches
+        ) {
+          composerRef.current?.focus();
+        }
       }
     })();
   }
