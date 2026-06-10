@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { copyTextToClipboard } from "../lib/browser-copy";
 
 type PhoneActionCopy = {
@@ -71,6 +71,30 @@ export function PhoneAction({
     const copied = await copyTextToClipboard(phone);
     setCopyStatus(copied ? "copied" : "failed");
   }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    // Capture phase so Escape closes this dialog before any sheet underneath
+    // (e.g. the in-conversation referral sheet) handles the same key.
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      setIsOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeydown, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeydown, true);
+    };
+  }, [isOpen]);
 
   return (
     <>
