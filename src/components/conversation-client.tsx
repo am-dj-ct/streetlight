@@ -1933,6 +1933,18 @@ export function ConversationClient({
     })();
   }
 
+  function handleSuggestionSelect(suggestion: string) {
+    // If the user has already started typing, don't silently throw their draft
+    // away. Fold the suggestion into the draft so they can edit and send it.
+    if (draft.trim().length > 0) {
+      setDraft((current) => `${current.trim()} ${suggestion}`);
+      composerRef.current?.focus();
+      return;
+    }
+
+    sendMessage(suggestion);
+  }
+
   return (
     <main className="relative flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
       {turnstileSiteKey ? (
@@ -2168,7 +2180,7 @@ export function ConversationClient({
                                   <button
                                     key={suggestion}
                                     type="button"
-                                    onClick={() => sendMessage(suggestion)}
+                                    onClick={() => handleSuggestionSelect(suggestion)}
                                     disabled={isStreaming}
                                     className={suggestionButtonClassName}
                                   >
@@ -2182,7 +2194,7 @@ export function ConversationClient({
                                 <button
                                   key={suggestion}
                                   type="button"
-                                  onClick={() => sendMessage(suggestion)}
+                                  onClick={() => handleSuggestionSelect(suggestion)}
                                   disabled={isStreaming}
                                   className={suggestionButtonClassName}
                                 >
@@ -2205,7 +2217,7 @@ export function ConversationClient({
                   <button
                     key={suggestion}
                     type="button"
-                    onClick={() => sendMessage(suggestion)}
+                    onClick={() => handleSuggestionSelect(suggestion)}
                     className={suggestionButtonClassName}
                   >
                     {suggestion}
