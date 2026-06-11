@@ -151,6 +151,7 @@
     "answerDocxLabel": "将回答下载为 DOCX",
     "answerPdf": "PDF",
     "answerPdfLabel": "将回答下载为 PDF",
+    "answerToolsLabel": "朗读、保存或分享",
     "answerSaved": "已保存在此设备上。",
     "docxSaved": "DOCX 已保存在此设备上。",
     "docxFailed": "DOCX 在这里无法使用。请尝试在此保存或复制文本。",

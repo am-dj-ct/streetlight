@@ -151,6 +151,7 @@
     "answerDocxLabel": "Скачать ответ как DOCX",
     "answerPdf": "PDF",
     "answerPdfLabel": "Скачать ответ как PDF",
+    "answerToolsLabel": "Послушать, сохранить или поделиться",
     "answerSaved": "Сохранено на этом устройстве.",
     "docxSaved": "DOCX сохранен на этом устройстве.",
     "docxFailed": "DOCX здесь не сработал. Попробуйте «Сохранить здесь» или скопировать текст.",

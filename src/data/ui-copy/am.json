@@ -151,6 +151,7 @@
     "answerDocxLabel": "መልሱን እንደ DOCX አውርድ",
     "answerPdf": "PDF",
     "answerPdfLabel": "መልሱን እንደ PDF አውርድ",
+    "answerToolsLabel": "አዳምጥ፣ አስቀምጥ ወይም አጋራ",
     "answerSaved": "በዚህ መሳሪያ ላይ ተቀምጧል.",
     "docxSaved": "DOCX በዚህ መሳሪያ ላይ ተቀምጧል።",
     "docxFailed": "DOCX እዚህ አልሰራም። እዚህ አስቀምጥ ወይም ጽሑፍ ቅዳ ይሞክሩ።",

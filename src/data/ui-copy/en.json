@@ -151,6 +151,7 @@
     "answerDocxLabel": "Download answer as DOCX",
     "answerPdf": "PDF",
     "answerPdfLabel": "Download answer as PDF",
+    "answerToolsLabel": "Listen, save, or share",
     "answerSaved": "Saved on this device.",
     "docxSaved": "DOCX saved on this device.",
     "docxFailed": "DOCX did not work here. Try Save here or Copy text instead.",

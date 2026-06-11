@@ -151,6 +151,7 @@
     "answerDocxLabel": "Descargar la respuesta como DOCX",
     "answerPdf": "PDF",
     "answerPdfLabel": "Descargar la respuesta como PDF",
+    "answerToolsLabel": "Escuchar, guardar o compartir",
     "answerSaved": "Guardada en este dispositivo.",
     "docxSaved": "DOCX guardado en este dispositivo.",
     "docxFailed": "DOCX no funcionó aquí. Prueba Guardar aquí o Copiar texto.",

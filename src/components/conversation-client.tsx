@@ -523,6 +523,25 @@ function VoiceIcon({ className }: IconProps) {
   );
 }
 
+function ChevronDownIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="m6 9 6 6 6-6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function HumanHelpIcon({ className }: IconProps) {
   return (
     <svg
@@ -940,8 +959,10 @@ export function ConversationClient({
       return;
     }
 
+    const borderHeight = composer.offsetHeight - composer.clientHeight;
+
     composer.style.height = "0px";
-    composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
+    composer.style.height = `${Math.min(composer.scrollHeight + borderHeight, 224)}px`;
   }, [draft]);
 
   useEffect(() => {
@@ -1149,8 +1170,8 @@ export function ConversationClient({
   const shouldReserveAnswerScrollRoom =
     !isStreaming && messages.some((message) => message.role === "user");
   const composerControlSizeClassName = isCompactComposer
-    ? "min-h-12 min-w-12 sm:min-h-14 sm:min-w-14"
-    : "min-h-14 min-w-14";
+    ? "min-h-12 min-w-12 sm:min-h-20 sm:min-w-20"
+    : "min-h-20 min-w-20";
 
   function getConversationExportText() {
     return formatConversationForExport(messages, {
@@ -2143,7 +2164,22 @@ export function ConversationClient({
                           </button>
                         ) : null}
 
-                        <div className="flex flex-wrap gap-2 print:hidden">
+                        <div className="flex flex-wrap items-start gap-2 print:hidden">
+                          <details
+                            className="group min-w-0"
+                            onToggle={(event) => {
+                              if (event.currentTarget.open) {
+                                event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                              }
+                            }}
+                          >
+                            <summary
+                              className={`${toolButtonClassName} cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden`}
+                            >
+                              {copy.answerToolsLabel}
+                              <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="mt-2 flex flex-wrap gap-2">
                           <button
                             type="button"
                             disabled={isStreaming}
@@ -2211,6 +2247,8 @@ export function ConversationClient({
                             <DocumentIcon className="h-4 w-4 shrink-0" />
                             {copy.answerPdf}
                           </button>
+                            </div>
+                          </details>
                           <button
                             type="button"
                             aria-controls={referralSheetDialogId}
@@ -2231,26 +2269,19 @@ export function ConversationClient({
                           </p>
                         ) : null}
                         {message.suggestions?.length ? (
-                          <>
-                            <details className="sm:hidden print:hidden">
-                              <summary className="cursor-pointer rounded-[16px] border border-[#a9c3b6] bg-[#eef7f1] px-4 py-3 text-[15px] font-semibold leading-5 text-[#20382d]">
-                                {copy.suggestedReplies}
-                              </summary>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {message.suggestions.map((suggestion) => (
-                                  <button
-                                    key={suggestion}
-                                    type="button"
-                                    onClick={() => handleSuggestionSelect(suggestion)}
-                                    disabled={isStreaming}
-                                    className={suggestionButtonClassName}
-                                  >
-                                    {suggestion}
-                                  </button>
-                                ))}
-                              </div>
-                            </details>
-                            <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
+                          <details
+                            className="group print:hidden"
+                            onToggle={(event) => {
+                              if (event.currentTarget.open) {
+                                event.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                              }
+                            }}
+                          >
+                            <summary className="inline-flex cursor-pointer items-center gap-2 rounded-[16px] border border-[#a9c3b6] bg-[#eef7f1] px-4 py-3 text-[15px] font-semibold leading-5 text-[#20382d] list-none [&::-webkit-details-marker]:hidden">
+                              {copy.suggestedReplies}
+                              <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="mt-2 flex flex-wrap gap-2">
                               {message.suggestions.map((suggestion) => (
                                 <button
                                   key={suggestion}
@@ -2263,7 +2294,7 @@ export function ConversationClient({
                                 </button>
                               ))}
                             </div>
-                          </>
+                          </details>
                         ) : null}
                       </div>
                     ) : null}
@@ -2377,10 +2408,10 @@ export function ConversationClient({
                 }}
                 maxLength={maxClientMessageTextLength}
                 placeholder={copy.composerPlaceholder}
-                className={`w-full resize-none overflow-y-auto rounded-[18px] border border-[#b7c7bd] bg-white px-4 text-[17px] leading-6 text-[#1f2923] outline-none placeholder:text-[#7c8a82] ${
+                className={`w-full resize-none overflow-y-auto rounded-[18px] border-2 border-[#35695a] bg-white px-4 text-[18px] leading-7 text-[#1f2923] shadow-[0_2px_12px_rgba(31,95,67,0.15)] outline-none transition-colors placeholder:text-[#7c8a82] focus:border-[#24594d] ${
                   isCompactComposer
-                    ? "max-h-32 min-h-12 py-3 sm:max-h-40 sm:min-h-14 sm:py-[15px]"
-                    : "max-h-40 min-h-14 py-[15px]"
+                    ? "max-h-32 min-h-12 py-3 sm:max-h-56 sm:min-h-20 sm:py-6"
+                    : "max-h-56 min-h-20 py-6"
                 }`}
               />
             </label>
