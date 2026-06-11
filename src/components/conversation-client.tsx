@@ -2003,7 +2003,7 @@ export function ConversationClient({
     }).format(new Date(`${value}T00:00:00Z`));
 
   return (
-    <main className="relative flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
+    <main className="relative flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124] print:h-auto print:overflow-visible">
       {turnstileSiteKey ? (
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
@@ -2015,13 +2015,13 @@ export function ConversationClient({
       <div
         aria-hidden={hasOpenSheet ? true : undefined}
         inert={hasOpenSheet ? true : undefined}
-        className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-5"
+        className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden px-4 pt-3 sm:max-w-2xl sm:px-6 lg:max-w-3xl lg:px-8 lg:pt-5 print:overflow-visible"
       >
         <header className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pb-3">
           <Link
             href={buildHomeHref(currentLanguageCode)}
             aria-label={copy.backLabel}
-            className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22]"
+            className="flex min-h-10 min-w-10 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[20px] leading-none text-[#1d2a22] print:invisible"
           >
             <span aria-hidden="true">{"<"}</span>
           </Link>
@@ -2037,7 +2037,7 @@ export function ConversationClient({
             aria-expanded={showLanguageSheet}
             aria-haspopup="dialog"
             onClick={() => setShowLanguageSheet(true)}
-            className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036]"
+            className="min-h-10 rounded-full border border-[#cfd7cf] bg-white px-3 text-[15px] font-medium text-[#314036] print:invisible"
           >
             {currentLanguageLabel}
           </button>
@@ -2047,7 +2047,7 @@ export function ConversationClient({
           ref={threadRef}
           aria-busy={isStreaming}
           aria-live="polite"
-          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 lg:max-h-[calc(100dvh-22rem)] lg:flex-none"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 lg:max-h-[calc(100dvh-22rem)] lg:flex-none print:max-h-none print:overflow-visible"
         >
           <div className="flex flex-col gap-5">
             {!hasTranslatedCopy && currentLanguageCode !== "en" ? (
@@ -2090,7 +2090,7 @@ export function ConversationClient({
                       className={`break-words px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
                         isAssistant
                           ? "rounded-[18px] rounded-bl-[6px] bg-white text-[#1f2923]"
-                          : "whitespace-pre-wrap rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
+                          : "whitespace-pre-wrap rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white print:border print:border-[#cfd7cf] print:text-[#1f2923]"
                       }`}
                     >
                       {isEmptyAssistant ? (
@@ -2143,7 +2143,7 @@ export function ConversationClient({
                           </button>
                         ) : null}
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 print:hidden">
                           <button
                             type="button"
                             disabled={isStreaming}
@@ -2232,7 +2232,7 @@ export function ConversationClient({
                         ) : null}
                         {message.suggestions?.length ? (
                           <>
-                            <details className="sm:hidden">
+                            <details className="sm:hidden print:hidden">
                               <summary className="cursor-pointer rounded-[16px] border border-[#a9c3b6] bg-[#eef7f1] px-4 py-3 text-[15px] font-semibold leading-5 text-[#20382d]">
                                 {copy.suggestedReplies}
                               </summary>
@@ -2250,7 +2250,7 @@ export function ConversationClient({
                                 ))}
                               </div>
                             </details>
-                            <div className="hidden flex-wrap gap-2 sm:flex">
+                            <div className="hidden flex-wrap gap-2 sm:flex print:hidden">
                               {message.suggestions.map((suggestion) => (
                                 <button
                                   key={suggestion}
@@ -2273,7 +2273,7 @@ export function ConversationClient({
             })}
 
             {showSuggestions ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 print:hidden">
                 {initialSuggestions.map((suggestion) => (
                   <button
                     key={suggestion}
@@ -2301,13 +2301,13 @@ export function ConversationClient({
             ) : null}
 
             {shouldReserveAnswerScrollRoom ? (
-              <div aria-hidden="true" className="h-[45dvh] shrink-0 sm:hidden" />
+              <div aria-hidden="true" className="h-[45dvh] shrink-0 sm:hidden print:hidden" />
             ) : null}
           </div>
         </section>
 
         <section
-          className={`shrink-0 border-t border-[#d4ddd6] ${isCompactComposer ? "py-2 sm:py-3" : "py-3"}`}
+          className={`shrink-0 border-t border-[#d4ddd6] print:hidden ${isCompactComposer ? "py-2 sm:py-3" : "py-3"}`}
         >
           <div
             className={`flex flex-wrap items-center gap-2 ${isCompactComposer ? "mb-0 hidden sm:flex" : "mb-3"}`}
