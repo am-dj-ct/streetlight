@@ -2456,20 +2456,22 @@ export function ConversationClient({
                 </select>
               </label>
 
-              <label className="block">
-                <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">{copy.deviceVoiceOptionLabel}</span>
-                <select
-                  value={effectiveVoiceUri}
-                  onChange={(event) => setSelectedVoiceUri(event.target.value)}
-                  className="min-h-12 w-full rounded-[16px] border border-[#cfd7cf] bg-white px-4 text-[16px] text-[#1f2923]"
-                >
-                  {voiceOptions.map((voice) => (
-                    <option key={voice.voiceURI} value={voice.voiceURI}>
-                      {voice.name} ({voice.lang})
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {voiceOptions.length > 0 ? (
+                <label className="block">
+                  <span className="mb-2 block text-[15px] font-medium text-[#1f2923]">{copy.deviceVoiceOptionLabel}</span>
+                  <select
+                    value={effectiveVoiceUri}
+                    onChange={(event) => setSelectedVoiceUri(event.target.value)}
+                    className="min-h-12 w-full rounded-[16px] border border-[#cfd7cf] bg-white px-4 text-[16px] text-[#1f2923]"
+                  >
+                    {voiceOptions.map((voice) => (
+                      <option key={voice.voiceURI} value={voice.voiceURI}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
 
               <label className="block">
                 <div className="mb-2 flex items-center justify-between text-[15px] font-medium text-[#1f2923]">
@@ -2487,7 +2489,11 @@ export function ConversationClient({
                 />
               </label>
 
-              {voiceOptions.length <= 1 ? (
+              {voiceOptions.length === 0 ? (
+                <p className="text-[14px] leading-6 text-[#5f6d64]">
+                  {copy.voiceNoDeviceVoices}
+                </p>
+              ) : voiceOptions.length === 1 ? (
                 <p className="text-[14px] leading-6 text-[#5f6d64]">
                   {copy.voiceOnlyOneOption}
                 </p>

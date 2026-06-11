@@ -171,6 +171,7 @@
     "voiceSpeedLabel": "Tốc độ",
     "voiceDefaultOption": "Mặc định",
     "voiceOnlyOneOption": "Trình duyệt này chỉ hiển thị một giọng nói cho ngôn ngữ này.",
+    "voiceNoDeviceVoices": "Trình duyệt này không có giọng dự phòng trên thiết bị cho ngôn ngữ này.",
     "voiceLoading": "Đang tải giọng đọc...",
     "voiceUnavailable": "Đọc thành tiếng hiện không khả dụng ở đây.",
     "composerPlaceholder": "Nhập ở đây",

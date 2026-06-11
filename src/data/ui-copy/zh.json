@@ -171,6 +171,7 @@
     "voiceSpeedLabel": "速度",
     "voiceDefaultOption": "默认",
     "voiceOnlyOneOption": "这个浏览器只为此语言提供一个语音。",
+    "voiceNoDeviceVoices": "这个浏览器没有为此语言提供设备备用语音。",
     "voiceLoading": "正在加载语音...",
     "voiceUnavailable": "这里现在不能朗读。",
     "composerPlaceholder": "在这里输入",

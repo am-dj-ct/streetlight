@@ -171,6 +171,7 @@
     "voiceSpeedLabel": "Velocidad",
     "voiceDefaultOption": "Predeterminada",
     "voiceOnlyOneOption": "Este navegador solo muestra una voz para este idioma.",
+    "voiceNoDeviceVoices": "Este navegador no tiene voces de respaldo del dispositivo para este idioma.",
     "voiceLoading": "Cargando voz...",
     "voiceUnavailable": "La lectura en voz alta no está disponible aquí ahora.",
     "composerPlaceholder": "Escribe aquí",

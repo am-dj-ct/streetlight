@@ -171,6 +171,7 @@
     "voiceSpeedLabel": "Speed",
     "voiceDefaultOption": "Default",
     "voiceOnlyOneOption": "This browser is only exposing one voice for this language.",
+    "voiceNoDeviceVoices": "This browser has no device backup voices for this language.",
     "voiceLoading": "Loading voice...",
     "voiceUnavailable": "Read-aloud is not available here right now.",
     "composerPlaceholder": "Type here",
