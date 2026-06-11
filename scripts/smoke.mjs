@@ -1344,8 +1344,11 @@ async function checkInvalidConversationEntryRoute() {
     path: "/conversation/not-a-real-entry?lang=en",
   });
 
-  if (!html.includes("404")) {
-    fail("Invalid conversation route did not render the 404 page.");
+  if (
+    !html.includes("This page could not be found.") ||
+    !html.includes("Go to the main screen")
+  ) {
+    fail("Invalid conversation route did not render the not-found page.");
   }
 }
 
