@@ -87,7 +87,7 @@
     },
     "talk-instead": {
       "label": "Nói thay vì gõ",
-      "assistantMessage": "Bạn có thể dùng mic khi có sẵn. Còn bây giờ, hãy gõ vài từ và tôi vẫn có thể giúp bạn bắt đầu.",
+      "assistantMessage": "Nhấn Mic và nói điều đang xảy ra. Nếu mic không hoạt động trên thiết bị này, gõ vài từ cũng đủ để bắt đầu.",
       "suggestions": [
         "Tôi muốn nói điều này thành tiếng",
         "Giúp tôi bắt đầu bằng một câu",

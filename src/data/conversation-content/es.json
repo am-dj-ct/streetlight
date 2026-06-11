@@ -87,7 +87,7 @@
     },
     "talk-instead": {
       "label": "Hablar en vez de escribir",
-      "assistantMessage": "Puedes usar el micrófono cuando esté disponible. Por ahora, escribe unas palabras y aun así puedo ayudarte a empezar.",
+      "assistantMessage": "Toca Micrófono y cuenta qué está pasando. Si el micrófono no funciona en este dispositivo, escribir unas palabras basta para empezar.",
       "suggestions": [
         "Quiero decir esto en voz alta",
         "Ayúdame a empezar con una frase",

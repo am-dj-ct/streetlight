@@ -87,7 +87,7 @@
     },
     "talk-instead": {
       "label": "Talk instead",
-      "assistantMessage": "You can use the mic when it's available. For now, type a few words and I can still help you get started.",
+      "assistantMessage": "Tap Mic and say what's going on. If the mic doesn't work on this device, typing a few words is enough to start.",
       "suggestions": [
         "I want to say this out loud",
         "Help me start with one sentence",
