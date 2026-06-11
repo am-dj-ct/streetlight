@@ -2090,7 +2090,7 @@ export function ConversationClient({
                       className={`break-words px-4 py-3 text-[18px] leading-7 shadow-[0_1px_0_rgba(29,42,34,0.08)] ${
                         isAssistant
                           ? "rounded-[18px] rounded-bl-[6px] bg-white text-[#1f2923]"
-                          : "rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
+                          : "whitespace-pre-wrap rounded-[18px] rounded-br-[6px] bg-[#1f5f43] text-white"
                       }`}
                     >
                       {isEmptyAssistant ? (
