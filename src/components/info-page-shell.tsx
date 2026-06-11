@@ -38,12 +38,12 @@ export function InfoPageShell({
   const copy = getUiCopy(currentLanguage.code);
   const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguage.code);
   const containerClassName = [
-    "mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:px-8 lg:pt-6",
+    "mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:px-8 lg:pt-6 print:overflow-visible",
     wide ? "lg:max-w-5xl" : "lg:max-w-3xl",
   ].join(" ");
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124] print:h-auto print:overflow-visible">
       <div className={containerClassName}>
         <header className="pb-4 lg:pb-6">
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">

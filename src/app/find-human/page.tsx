@@ -76,8 +76,8 @@ export default async function FindHumanPage({
     : null;
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-6">
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124] print:h-auto print:overflow-visible">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-3 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-6 print:overflow-visible">
         <header className="pb-4 lg:pb-6">
           <div className="flex items-center justify-between">
             <Link

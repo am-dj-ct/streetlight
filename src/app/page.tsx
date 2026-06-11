@@ -46,8 +46,8 @@ export default async function Home({ searchParams }: HomePageProps) {
   const alternateActions = getAlternateActions(currentLanguage.code);
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124]">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-7">
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124] print:h-auto print:overflow-visible">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-7 print:overflow-visible">
         <header className="pb-4">
           <div className="sm:flex sm:items-start sm:justify-between sm:gap-4">
             <p className="text-[22px] font-semibold leading-8 text-[#171a18] sm:text-[22px] sm:leading-10">
