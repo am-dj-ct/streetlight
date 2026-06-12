@@ -36,6 +36,7 @@ import type {
 import {
   isChatErrorBody,
   isChatStreamEvent,
+  maxChatMessages,
   maxClientMessageTextLength,
 } from "../lib/chat-types";
 import { isTtsErrorBody } from "../lib/tts-types";
@@ -322,6 +323,30 @@ function makeConversationPdfFilename(entryId: ConversationEntryId) {
 
 function makeAnswerPdfFilename(entryId: ConversationEntryId) {
   return `streetlight-answer-${entryId}-${makeExportTimestamp()}.pdf`;
+}
+
+// Bound the history sent to the server to maxChatMessages so long
+// conversations never dead-end at the request cap. Keeps the seeded greeting
+// as the first message and trims the oldest middle turns, preserving the
+// leading-assistant-then-alternating shape (ending on the latest user message)
+// that the live Anthropic call relies on. See
+// docs/decisions/2026-06-12-client-history-window.md.
+function windowMessagesForRequest(
+  messages: ClientChatMessage[],
+): ClientChatMessage[] {
+  if (messages.length <= maxChatMessages) {
+    return messages;
+  }
+
+  const [seed, ...rest] = messages;
+  let tail = rest.slice(-(maxChatMessages - 1));
+  // The window after the assistant seed must begin with a user message so the
+  // server (latest-must-be-user) and Anthropic (user-first, strict
+  // alternation) both accept it.
+  if (tail.length > 0 && tail[0].role !== "user") {
+    tail = tail.slice(1);
+  }
+  return [seed, ...tail];
 }
 
 function setMessageWeakCategory(
@@ -1811,6 +1836,7 @@ export function ConversationClient({
       weakCategory: "none",
     };
     const nextMessages = [...messages, nextUserMessage];
+    const sentMessages = windowMessagesForRequest(nextMessages);
 
     setMessages([...nextMessages, pendingAssistantMessage]);
     setDraft("");
@@ -1832,7 +1858,7 @@ export function ConversationClient({
           body: JSON.stringify({
             entryId,
             language: currentLanguageCode,
-            messages: nextMessages,
+            messages: sentMessages,
             turnstileToken: turnstileSiteKey ? turnstileToken : undefined,
           }),
         });

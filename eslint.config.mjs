@@ -44,6 +44,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gitignored scratch tooling (audit/stress scripts); not shipped code.
+    "tmp/**",
   ]),
 ]);
 
