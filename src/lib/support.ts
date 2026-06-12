@@ -1,4 +1,4 @@
-export const supportEmail = "jesse.c.dunn@outlook.com";
+export const supportEmail = "jesse@balancedlivingtherapy.com";
 export const maxMailtoHrefLength = 6000;
 
 export function buildMailtoHref({
