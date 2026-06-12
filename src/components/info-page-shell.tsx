@@ -54,7 +54,7 @@ export function InfoPageShell({
             >
               <span aria-hidden="true">{"<"}</span>
             </Link>
-            <p className="truncate text-center text-[16px] font-semibold text-[#171a18]">
+            <p className="truncate text-center text-[18px] font-semibold text-[#171a18]">
               {appTitle}
             </p>
             <span aria-hidden="true" className="min-h-10 min-w-10" />

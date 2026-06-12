@@ -50,7 +50,7 @@ export default async function Home({ searchParams }: HomePageProps) {
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-7 print:overflow-visible">
         <header className="pb-4">
           <div className="sm:flex sm:items-start sm:justify-between sm:gap-4">
-            <p className="text-[22px] font-semibold leading-8 text-[#171a18] sm:text-[22px] sm:leading-10">
+            <p className="text-[24px] font-semibold leading-8 text-[#171a18] sm:text-[24px] sm:leading-10">
               {appTitle}
             </p>
             <div className="-mx-4 mt-3 border-y border-[#e1e8e2] bg-[#f7f8f4] px-4 py-1 sm:mx-0 sm:mt-0 sm:flex-1 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
