@@ -731,6 +731,10 @@ export function ConversationClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
+  // A send attempted while the previous turn's stream is still closing
+  // (classifier + suggestions finish after the visible text) waits here and
+  // fires as soon as the stream ends, instead of being silently dropped.
+  const queuedDraftRef = useRef<string | null>(null);
   const [pendingClassifierMessageId, setPendingClassifierMessageId] = useState<string | null>(null);
   const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
   const [micSupported, setMicSupported] = useState<boolean | null>(null);
@@ -1807,7 +1811,13 @@ export function ConversationClient({
   function sendMessage(text: string) {
     const trimmed = text.trim();
 
-    if (!trimmed || isStreaming) {
+    if (!trimmed) {
+      return;
+    }
+
+    if (isStreaming) {
+      queuedDraftRef.current = trimmed;
+      setDraft("");
       return;
     }
 
@@ -2021,6 +2031,19 @@ export function ConversationClient({
       }
     })();
   }
+
+  useEffect(() => {
+    if (isStreaming || !queuedDraftRef.current) {
+      return;
+    }
+
+    const queued = queuedDraftRef.current;
+    queuedDraftRef.current = null;
+    sendMessage(queued);
+    // sendMessage is recreated every render; this effect only needs to fire on
+    // the streaming -> idle transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming]);
 
   function handleSuggestionSelect(suggestion: string) {
     // If the user has already started typing, don't silently throw their draft
@@ -2457,7 +2480,7 @@ export function ConversationClient({
             <button
               type="submit"
               aria-label={copy.sendAssistiveLabel}
-              disabled={isStreaming || draft.trim().length === 0}
+              disabled={draft.trim().length === 0}
               className={`flex items-center justify-center rounded-[18px] bg-[#24594d] text-white shadow-[0_2px_8px_rgba(31,95,67,0.2)] transition-colors hover:bg-[#1d4a40] disabled:bg-[#9fb7ad] disabled:opacity-80 ${composerControlSizeClassName}`}
             >
               <SendIcon className="h-5 w-5" />
