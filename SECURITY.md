@@ -10,7 +10,7 @@ deployed to the production alias.
 Please do not open public GitHub issues for suspected security issues.
 
 Report privately by email:
-- `jesse.c.dunn@outlook.com`
+- `jesse@balancedlivingtherapy.com`
 
 Include:
 1. What you found

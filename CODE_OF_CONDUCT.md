@@ -25,7 +25,7 @@ Project maintainers may remove comments, close threads, reject contributions,
 or block participants whose behavior violates this Code of Conduct.
 
 Reports can be sent to:
-- `jesse.c.dunn@outlook.com`
+- `jesse@balancedlivingtherapy.com`
 
 All reports will be reviewed and handled in good faith, with as much privacy as
 practical.

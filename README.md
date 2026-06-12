@@ -135,4 +135,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
 ## Contact
 
-Bug reports currently go to `jesse.c.dunn@outlook.com`.
+Bug reports currently go to `jesse@balancedlivingtherapy.com`.

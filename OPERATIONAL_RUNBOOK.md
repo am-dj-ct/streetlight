@@ -16,12 +16,9 @@ Before launch:
 ## Fill this in before launch
 
 - Live URL: `https://streetlight.help`
-- Bus-factor person: `Jesse Dunn`
-- Best phone or text: `206-388-8748`
-- Backup email: `jesse.c.dunn@outlook.com` (`jesse@balancedlivingtherapy.com` also reaches Jesse)
-- Secondary ops contact: `Malia Clancy`
-- Secondary phone or text: `425-350-4707`
-- Secondary email: `malia.clancy@live.com`
+- Primary operator: `Jesse Dunn`
+- Operator contact: `jesse@balancedlivingtherapy.com`
+- Bus-factor person: `Malia Clancy` (reach via the operator contact above)
 
 ---
 
@@ -299,13 +296,10 @@ Short, plain-language update template:
 
 ## Bus-factor section
 
-Fill this in before launch:
-
-- Primary operator:
-- Bus-factor person:
-- Best phone number:
-- Best email:
-- Time zone:
+- Primary operator: `Jesse Dunn`
+- Bus-factor person: `Malia Clancy`
+- Best contact: `jesse@balancedlivingtherapy.com`
+- Time zone: Pacific (`America/Los_Angeles`)
 
 ---
 
