@@ -2341,7 +2341,7 @@ export function ConversationClient({
           className={`shrink-0 border-t border-[#d4ddd6] print:hidden ${isCompactComposer ? "py-2 sm:py-3" : "py-3"}`}
         >
           <div
-            className={`flex flex-wrap items-center gap-2 ${isCompactComposer ? "mb-0 hidden sm:flex" : "mb-3"}`}
+            className={`flex flex-wrap items-center gap-2 ${isCompactComposer ? "mb-0 hidden sm:mb-3 sm:flex" : "mb-3"}`}
           >
             <button
               type="button"
@@ -2408,7 +2408,7 @@ export function ConversationClient({
                 }}
                 maxLength={maxClientMessageTextLength}
                 placeholder={copy.composerPlaceholder}
-                className={`w-full resize-none overflow-y-auto rounded-[18px] border-2 border-[#35695a] bg-white px-4 text-[18px] leading-7 text-[#1f2923] shadow-[0_2px_12px_rgba(31,95,67,0.15)] outline-none transition-colors placeholder:text-[#7c8a82] focus:border-[#24594d] ${
+                className={`w-full resize-none overflow-y-auto rounded-[18px] border-2 border-[#35695a] bg-white px-4 text-[18px] leading-7 text-[#1f2923] shadow-[0_2px_12px_rgba(31,95,67,0.15)] placeholder:text-[#7c8a82] ${
                   isCompactComposer
                     ? "max-h-32 min-h-12 py-3 sm:max-h-56 sm:min-h-20 sm:py-6"
                     : "max-h-56 min-h-20 py-6"

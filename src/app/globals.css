@@ -46,6 +46,15 @@ textarea:focus-visible {
   outline-offset: 3px;
 }
 
+/* The composer already has a bold green border; an offset ring next to it
+   reads as a double line. Use a soft glow as its visible focus state. */
+#conversation-input:focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 2px 12px rgba(31, 95, 67, 0.15),
+    0 0 0 5px rgba(36, 95, 71, 0.35);
+}
+
 a,
 button,
 h1,
