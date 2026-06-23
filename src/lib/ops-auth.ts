@@ -1,5 +1,8 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getOpsReadToken, hasOpsReadToken } from "./env";
+
+const opsSessionCookieName = "streetlight_ops_session";
+const opsSessionMaxAgeSeconds = 7 * 24 * 60 * 60;
 
 function safeEqual(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
@@ -10,6 +13,37 @@ function safeEqual(left: string, right: string): boolean {
   }
 
   return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function getExpectedSessionValue(): string {
+  return createHmac("sha256", getOpsReadToken())
+    .update("streetlight-ops-session-v1")
+    .digest("hex");
+}
+
+function getCookieValue(request: Request, name: string): null | string {
+  const cookieHeader = request.headers.get("cookie");
+
+  if (!cookieHeader) {
+    return null;
+  }
+
+  for (const entry of cookieHeader.split(";")) {
+    const separatorIndex = entry.indexOf("=");
+
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = entry.slice(0, separatorIndex).trim();
+    const value = entry.slice(separatorIndex + 1).trim();
+
+    if (key === name) {
+      return decodeURIComponent(value);
+    }
+  }
+
+  return null;
 }
 
 function getBearerToken(authorization: null | string): null | string {
@@ -39,6 +73,24 @@ function getBasicPassword(authorization: null | string): null | string {
   }
 }
 
+export function isOpsPasswordValid(password: null | string): boolean {
+  if (!hasOpsReadToken() || !password) {
+    return false;
+  }
+
+  return safeEqual(password.trim(), getOpsReadToken());
+}
+
+function isOpsCookieAuthorized(request: Request): boolean {
+  if (!hasOpsReadToken()) {
+    return false;
+  }
+
+  const cookieValue = getCookieValue(request, opsSessionCookieName);
+
+  return Boolean(cookieValue && safeEqual(cookieValue, getExpectedSessionValue()));
+}
+
 export function isOpsRequestAuthorized(request: Request): boolean {
   if (!hasOpsReadToken()) {
     return false;
@@ -49,14 +101,39 @@ export function isOpsRequestAuthorized(request: Request): boolean {
   const candidate =
     getBearerToken(authorization) ?? getBasicPassword(authorization);
 
-  return Boolean(candidate && safeEqual(candidate, expectedToken));
+  return Boolean(
+    (candidate && safeEqual(candidate, expectedToken)) ||
+      isOpsCookieAuthorized(request),
+  );
+}
+
+export function makeOpsSessionCookie({ secure }: { secure: boolean }): string {
+  return [
+    `${opsSessionCookieName}=${encodeURIComponent(getExpectedSessionValue())}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${opsSessionMaxAgeSeconds}`,
+    secure ? "Secure" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
+export function clearOpsSessionCookie(): string {
+  return [
+    `${opsSessionCookieName}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=0",
+  ].join("; ");
 }
 
 export function opsUnauthorizedResponse() {
   return new Response("Unauthorized", {
     headers: {
       "Cache-Control": "no-store",
-      "WWW-Authenticate": 'Basic realm="Streetlight usage", charset="UTF-8"',
     },
     status: 401,
   });

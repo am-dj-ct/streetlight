@@ -1,6 +1,8 @@
 import {
+  clearOpsSessionCookie,
   isOpsRequestAuthorized,
-  opsUnauthorizedResponse,
+  isOpsPasswordValid,
+  makeOpsSessionCookie,
 } from "../../../lib/ops-auth";
 import {
   getUsageSummary,
@@ -20,6 +22,10 @@ function getDays(request: Request): number {
   const parsed = Number(url.searchParams.get("days") ?? 14);
 
   return Number.isFinite(parsed) ? parsed : 14;
+}
+
+function getSecureCookieFlag(request: Request): boolean {
+  return new URL(request.url).protocol === "https:";
 }
 
 function sumRecord(values: Record<string, number>): number {
@@ -48,6 +54,98 @@ function formatCurrency(value: number): string {
     minimumFractionDigits: 2,
     style: "currency",
   });
+}
+
+function buildLoginHtml({
+  days,
+  error = false,
+}: {
+  days: number;
+  error?: boolean;
+}): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Streetlight Usage</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f7f8f4;
+      color: #071f1a;
+    }
+    body {
+      display: grid;
+      margin: 0;
+      min-height: 100vh;
+      place-items: center;
+    }
+    main {
+      background: #ffffff;
+      border: 1px solid #d4ded7;
+      border-radius: 8px;
+      box-sizing: border-box;
+      max-width: 420px;
+      padding: 28px;
+      width: calc(100% - 32px);
+    }
+    h1 {
+      font-size: 24px;
+      margin: 0 0 8px;
+    }
+    p {
+      color: #42524d;
+      line-height: 1.4;
+      margin: 0 0 18px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    input {
+      border: 1px solid #9fb4aa;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font: inherit;
+      margin-bottom: 14px;
+      padding: 12px;
+      width: 100%;
+    }
+    button {
+      background: #245f4f;
+      border: 0;
+      border-radius: 8px;
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 12px 16px;
+      width: 100%;
+    }
+    .error {
+      color: #9f241b;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Streetlight Usage</h1>
+    <p>Enter the ops password to view aggregate usage counts.</p>
+    ${error ? '<p class="error">That password did not work.</p>' : ""}
+    <form method="post" action="/ops/usage?days=${days}">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" autofocus>
+      <button type="submit">Open dashboard</button>
+    </form>
+  </main>
+</body>
+</html>`;
 }
 
 function buildRows(days: UsageDaySummary[]): string {
@@ -209,16 +307,64 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 }
 
 export async function GET(request: Request) {
-  if (!isOpsRequestAuthorized(request)) {
-    return opsUnauthorizedResponse();
+  const days = getDays(request);
+  const url = new URL(request.url);
+
+  if (url.searchParams.get("logout") === "1") {
+    return new Response(null, {
+      headers: {
+        "Cache-Control": "no-store",
+        Location: `/ops/usage?days=${days}`,
+        "Set-Cookie": clearOpsSessionCookie(),
+      },
+      status: 303,
+    });
   }
 
-  const summary = await getUsageSummary({ days: getDays(request) });
+  if (!isOpsRequestAuthorized(request)) {
+    return new Response(buildLoginHtml({ days }), {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/html; charset=utf-8",
+      },
+      status: 200,
+    });
+  }
+
+  const summary = await getUsageSummary({ days });
 
   return new Response(buildHtml(summary), {
     headers: {
       "Cache-Control": "no-store",
       "Content-Type": "text/html; charset=utf-8",
     },
+  });
+}
+
+export async function POST(request: Request) {
+  const days = getDays(request);
+  const formData = await request.formData().catch(() => null);
+  const passwordEntry = formData?.get("password");
+  const password = typeof passwordEntry === "string" ? passwordEntry : null;
+
+  if (!isOpsPasswordValid(password)) {
+    return new Response(buildLoginHtml({ days, error: true }), {
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/html; charset=utf-8",
+      },
+      status: 401,
+    });
+  }
+
+  return new Response(null, {
+    headers: {
+      "Cache-Control": "no-store",
+      Location: `/ops/usage?days=${days}`,
+      "Set-Cookie": makeOpsSessionCookie({
+        secure: getSecureCookieFlag(request),
+      }),
+    },
+    status: 303,
   });
 }
