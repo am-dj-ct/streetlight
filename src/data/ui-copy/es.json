@@ -189,7 +189,7 @@
     "weakCategoryPending": "Comprobando si esto necesita una nota para verificarlo con una persona...",
     "weakCategoryLead": "La IA a veces se equivoca en esto.",
     "weakCategoryTail": "Vale la pena verificarlo con una persona que sí sepa",
-    "turnstileWait": "Todavía estamos comprobando que eres una persona. Inténtalo de nuevo en un momento.",
+    "turnstileWait": "Un momento más. Inténtalo de nuevo en unos segundos.",
     "sendFailure": "La respuesta no llegó. Inténtalo de nuevo."
   }
 }

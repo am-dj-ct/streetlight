@@ -39,6 +39,10 @@ function runNodeScriptExpectingFailure(scriptPath, args) {
   return `${result.stderr}${result.stdout}`;
 }
 
+function normalizePathSeparators(value) {
+  return value.replaceAll("\\", "/");
+}
+
 const newIncidentOutput = runNodeScript("scripts/new-incident.mjs", [
   "--slug",
   "ops-script-check",
@@ -72,8 +76,10 @@ if (!envShapeOutput.includes("Env shape check passed.")) {
   fail("env shape check did not include the expected pass output.");
 }
 
+const normalizedNewIncidentOutput = normalizePathSeparators(newIncidentOutput);
+
 if (
-  !newIncidentOutput.includes("Would create incidents/") ||
+  !normalizedNewIncidentOutput.includes("Would create incidents/") ||
   !newIncidentOutput.includes("Severity: Sev-1")
 ) {
   fail("new-incident dry run did not include the expected scaffold output.");
@@ -91,9 +97,10 @@ const sev3Output = runNodeScript("scripts/append-sev3-note.mjs", [
   "--dry-run",
   "true",
 ]);
+const normalizedSev3Output = normalizePathSeparators(sev3Output);
 
 if (
-  !sev3Output.includes("Would update incidents/log.md") ||
+  !normalizedSev3Output.includes("Would update incidents/log.md") ||
   !sev3Output.includes("Synthetic ops script check")
 ) {
   fail("append-sev3-note dry run did not include the expected log preview.");

@@ -10,6 +10,8 @@ import {
 const cwd = process.cwd();
 const promptFixtureMinimum = 5;
 const promptFixtureMaximum = 10;
+const quietRetryCopyForbiddenPattern =
+  /cloudflare|turnstile|captcha|bot|robot|human|person|spam|security|check|verif/i;
 
 function fail(message) {
   throw new Error(message);
@@ -98,6 +100,7 @@ const [
   englishConversationContent,
   englishStaticPages,
   promptEntries,
+  uiCopyEntries,
 ] = await Promise.all([
   readFile(path.join(cwd, "src/lib/chat-types.ts"), "utf8"),
   readFile(path.join(cwd, "src/lib/buttons.ts"), "utf8"),
@@ -105,6 +108,7 @@ const [
   readJsonFile(path.join(cwd, "src/data/conversation-content/en.json")),
   readJsonFile(path.join(cwd, "src/data/static-pages/en.json")),
   readdir(path.join(cwd, "tests/prompts"), { withFileTypes: true }),
+  readdir(path.join(cwd, "src/data/ui-copy"), { withFileTypes: true }),
 ]);
 
 const conversationEntryIds = extractArrayEntries(
@@ -120,6 +124,15 @@ const promptFixtureIds = promptEntries
   .map((entry) => entry.name);
 const staticPageKeys = Object.keys(englishStaticPages.pages ?? {});
 const expectedStaticPageKeys = ["about", "privacy"];
+const uiCopyFiles = uiCopyEntries
+  .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+  .map((entry) => entry.name);
+const uiCopyDocuments = await Promise.all(
+  uiCopyFiles.map(async (fileName) => ({
+    fileName,
+    document: await readJsonFile(path.join(cwd, "src/data/ui-copy", fileName)),
+  })),
+);
 
 assertNoDuplicates("conversationEntryIds", conversationEntryIds);
 assertNoDuplicates("promptButtons", promptButtonIds);
@@ -145,6 +158,22 @@ assertSameSet(
   promptFixtureIds,
 );
 assertSameSet("static page keys", expectedStaticPageKeys, staticPageKeys);
+
+for (const { document, fileName } of uiCopyDocuments) {
+  const turnstileWait = document.strings?.turnstileWait;
+
+  if (typeof turnstileWait !== "string" || turnstileWait.trim().length === 0) {
+    fail(`ui-copy ${fileName} must include a non-empty turnstileWait string.`);
+  }
+
+  const forbiddenMatch = turnstileWait.match(quietRetryCopyForbiddenPattern);
+
+  if (forbiddenMatch) {
+    fail(
+      `ui-copy ${fileName} turnstileWait must stay neutral; found "${forbiddenMatch[0]}".`,
+    );
+  }
+}
 
 for (const entryId of conversationEntryIds) {
   const content = englishConversationContent.buttons?.[entryId];

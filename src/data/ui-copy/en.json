@@ -189,7 +189,7 @@
     "weakCategoryPending": "Checking whether this needs a note to verify with a person...",
     "weakCategoryLead": "AI sometimes gets this wrong.",
     "weakCategoryTail": "Worth verifying with a person who does",
-    "turnstileWait": "Still checking that you're human. Please try again in a moment.",
+    "turnstileWait": "One more moment. Try again in a few seconds.",
     "sendFailure": "The response did not come through. Please try again."
   }
 }

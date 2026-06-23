@@ -108,6 +108,10 @@ function buildMarkdown(missingByLanguage) {
   return `${lines.join("\n")}\n`;
 }
 
+function normalizeLineEndings(value) {
+  return value.replace(/\r\n?/g, "\n");
+}
+
 const outputPath = path.join(cwd, "docs/translation_worklist.md");
 const missingByLanguage = await collectMissingByLanguage();
 const markdown = buildMarkdown(missingByLanguage);
@@ -115,7 +119,7 @@ const markdown = buildMarkdown(missingByLanguage);
 if (checkOnly) {
   const existing = await readFile(outputPath, "utf8").catch(() => null);
 
-  if (existing !== markdown) {
+  if (existing === null || normalizeLineEndings(existing) !== markdown) {
     console.log("docs/translation_worklist.md is out of date.");
     console.log("Run: npm run build:translation-worklist");
     process.exit(1);

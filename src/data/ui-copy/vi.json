@@ -189,7 +189,7 @@
     "weakCategoryPending": "Đang kiểm tra xem phần này có cần ghi chú để xác minh với một người không...",
     "weakCategoryLead": "AI đôi khi sai ở phần này.",
     "weakCategoryTail": "Nên kiểm tra lại với người hiểu việc này",
-    "turnstileWait": "Vẫn đang kiểm tra rằng bạn là người thật. Vui lòng thử lại sau một lát.",
+    "turnstileWait": "Chờ thêm một chút. Vui lòng thử lại sau vài giây.",
     "sendFailure": "Không nhận được phản hồi. Vui lòng thử lại."
   }
 }

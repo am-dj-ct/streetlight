@@ -735,6 +735,7 @@ export function ConversationClient({
   // (classifier + suggestions finish after the visible text) waits here and
   // fires as soon as the stream ends, instead of being silently dropped.
   const queuedDraftRef = useRef<string | null>(null);
+  const lastSendFailureMessageRef = useRef<string | null>(null);
   const [pendingClassifierMessageId, setPendingClassifierMessageId] = useState<string | null>(null);
   const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
   const [micSupported, setMicSupported] = useState<boolean | null>(null);
@@ -1829,7 +1830,7 @@ export function ConversationClient({
     }
 
     if (turnstileSiteKey && !turnstileToken) {
-      setErrorMessage(copy.turnstileWait);
+      setErrorMessage(lastSendFailureMessageRef.current ?? copy.turnstileWait);
       return;
     }
 
@@ -1891,10 +1892,11 @@ export function ConversationClient({
             ]);
             setErrorMessage(null);
           } else {
+            const visibleError = errorBody?.error ?? copy.sendFailure;
+
+            lastSendFailureMessageRef.current = visibleError;
             setMessages(nextMessages);
-            setErrorMessage(
-              errorBody?.error ?? copy.sendFailure,
-            );
+            setErrorMessage(visibleError);
           }
           setPendingClassifierMessageId((currentId) =>
             currentId === pendingAssistantId ? null : currentId,
@@ -1905,6 +1907,7 @@ export function ConversationClient({
         const reader = response.body?.getReader();
 
         if (!reader) {
+          lastSendFailureMessageRef.current = copy.sendFailure;
           setMessages(nextMessages);
           setErrorMessage(copy.sendFailure);
           setPendingClassifierMessageId((currentId) =>
@@ -1938,6 +1941,7 @@ export function ConversationClient({
 
             if (payload === "[DONE]") {
               sawDoneEvent = true;
+              lastSendFailureMessageRef.current = null;
               setPendingClassifierMessageId((currentId) =>
                 currentId === pendingAssistantId ? null : currentId,
               );
@@ -1962,6 +1966,7 @@ export function ConversationClient({
                 setMessages(nextMessages);
               }
 
+              lastSendFailureMessageRef.current = event.error;
               setErrorMessage(event.error);
               setPendingClassifierMessageId((currentId) =>
                 currentId === pendingAssistantId ? null : currentId,
@@ -2005,6 +2010,7 @@ export function ConversationClient({
           }
         }
       } catch {
+        lastSendFailureMessageRef.current = copy.sendFailure;
         setMessages((currentMessages) =>
           currentMessages.filter((message) => message.id !== pendingAssistantId || message.text.length > 0),
         );

@@ -8,7 +8,7 @@ type TurnstileValidationResult =
     }
   | {
       allowed: false;
-      reason: "invalid";
+      reason: "invalid" | "unavailable";
     };
 
 type TurnstileSiteverifyResponse = {
@@ -65,7 +65,7 @@ export async function validateTurnstileToken({
   if (!response?.ok) {
     return {
       allowed: false,
-      reason: "invalid",
+      reason: "unavailable",
     };
   }
 
@@ -76,6 +76,13 @@ export async function validateTurnstileToken({
     return {
       allowed: true,
       reason: "allowed",
+    };
+  }
+
+  if (!data) {
+    return {
+      allowed: false,
+      reason: "unavailable",
     };
   }
 

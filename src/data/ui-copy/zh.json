@@ -189,7 +189,7 @@
     "weakCategoryPending": "正在检查这里是否需要找真人核实的提示...",
     "weakCategoryLead": "AI 有时会在这里出错。",
     "weakCategoryTail": "值得找懂这件事的人核实一下",
-    "turnstileWait": "仍在确认你是真人。请稍后再试。",
+    "turnstileWait": "再等一下。请过几秒再试。",
     "sendFailure": "回复没有发过来。请再试一次。"
   }
 }

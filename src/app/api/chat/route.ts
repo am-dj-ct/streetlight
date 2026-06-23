@@ -4,7 +4,9 @@ import { classifierPrompt, parseWeakCategory } from "../../../lib/classifier-pro
 import {
   getDeployEnvironment,
   getAnthropicApiKey,
+  getCheapestMainModel,
   getClassifierModel,
+  getFallbackMainModel,
   getMainModel,
   hasHashedIpSalt,
   hasKvConfig,
@@ -144,6 +146,119 @@ function formatSourcesAppendix(sources: WebSearchSource[]): string {
   return `\n\nSources:\n${sources
     .map((source) => `- ${source.title}: ${source.url}`)
     .join("\n")}`;
+}
+
+type MainModelAttempt = {
+  model: string;
+  tier: MainModelTier;
+};
+
+function dedupeModelAttempts(attempts: MainModelAttempt[]): MainModelAttempt[] {
+  const seen = new Set<string>();
+  const result: MainModelAttempt[] = [];
+
+  for (const attempt of attempts) {
+    if (seen.has(attempt.model)) {
+      continue;
+    }
+
+    seen.add(attempt.model);
+    result.push(attempt);
+  }
+
+  return result;
+}
+
+function buildMainModelAttempts({
+  cheapestModel,
+  fallbackModel,
+  primaryModel,
+  selectedModel,
+  selectedTier,
+}: {
+  cheapestModel: null | string;
+  fallbackModel: string;
+  primaryModel: string;
+  selectedModel: string;
+  selectedTier: MainModelTier;
+}): MainModelAttempt[] {
+  const configuredAttempts: MainModelAttempt[] = [
+    {
+      model: primaryModel,
+      tier: "primary",
+    },
+    {
+      model: fallbackModel,
+      tier: "fallback",
+    },
+  ];
+
+  if (cheapestModel) {
+    configuredAttempts.push({
+      model: cheapestModel,
+      tier: "cheapest",
+    });
+  }
+
+  const selectedIndex = configuredAttempts.findIndex(
+    (attempt) => attempt.tier === selectedTier,
+  );
+  const attempts =
+    selectedIndex === -1
+      ? [
+          {
+            model: selectedModel,
+            tier: selectedTier,
+          },
+          ...configuredAttempts,
+        ]
+      : configuredAttempts.slice(selectedIndex);
+
+  return dedupeModelAttempts(attempts);
+}
+
+function getApiErrorStatus(error: unknown): null | number {
+  return error instanceof Anthropic.APIError &&
+    typeof error.status === "number"
+    ? error.status
+    : null;
+}
+
+function getApiErrorName(error: unknown): string {
+  return error instanceof Anthropic.APIError ? error.name : "UnknownError";
+}
+
+function isRetryableMainModelError(error: unknown): boolean {
+  const status = getApiErrorStatus(error);
+
+  if (status === null) {
+    return true;
+  }
+
+  return status === 408 || status >= 500;
+}
+
+function getStreamEventErrorDescription(event: unknown): string {
+  if (!event || typeof event !== "object") {
+    return "unknown";
+  }
+
+  const candidate = event as {
+    error?: {
+      message?: unknown;
+      type?: unknown;
+    };
+  };
+  const type =
+    typeof candidate.error?.type === "string"
+      ? candidate.error.type
+      : "unknown";
+  const message =
+    typeof candidate.error?.message === "string"
+      ? candidate.error.message
+      : "stream error";
+
+  return `${type}: ${message}`;
 }
 
 async function readLimitedRequestBody(request: Request) {
@@ -436,12 +551,15 @@ export async function POST(request: Request) {
 
       if (!turnstile.allowed) {
         logTurnMetadataOnce({
-          mainStatus: "blocked_turnstile",
+          mainStatus:
+            turnstile.reason === "unavailable"
+              ? "error_request_setup"
+              : "blocked_turnstile",
         });
 
         return jsonNoStore(
-          { error: "Please try again." },
-          { status: 403 },
+          { error: "The response did not come through. Please try again." },
+          { status: turnstile.reason === "unavailable" ? 503 : 403 },
         );
       }
     }
@@ -479,7 +597,10 @@ export async function POST(request: Request) {
       );
     }
 
-    model = getMainModel();
+    const primaryModel = getMainModel();
+    const fallbackModel = getFallbackMainModel();
+    const cheapestModel = getCheapestMainModel();
+    model = primaryModel;
     classifierModel = getClassifierModel();
     const modelSelection = await selectMainModelForSpend({
       primaryModel: model,
@@ -507,28 +628,14 @@ export async function POST(request: Request) {
 
     const anthropic = new Anthropic({
       apiKey: getAnthropicApiKey(),
+      maxRetries: 0,
     });
-    model = modelSelection.model;
-    mainModelTier = modelSelection.tier;
-    const stream = anthropic.messages.stream({
-      model,
-      max_tokens: 900,
-      system: getSystemPrompt(body.entryId),
-      messages,
-      tools: [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 5,
-          user_location: {
-            type: "approximate",
-            city: "Seattle",
-            region: "Washington",
-            country: "US",
-            timezone: "America/Los_Angeles",
-          },
-        },
-      ],
+    const mainModelAttempts = buildMainModelAttempts({
+      cheapestModel,
+      fallbackModel,
+      primaryModel,
+      selectedModel: modelSelection.model,
+      selectedTier: modelSelection.tier,
     });
     const encoder = new TextEncoder();
 
@@ -544,18 +651,106 @@ export async function POST(request: Request) {
         let suggestionsStatus: "completed" | "error_suggestions" | "not_started" =
           "not_started";
         let mainUsage: AnthropicUsage | null = null;
+        let finalMessageContent: readonly unknown[] = [];
 
         try {
-          for await (const event of stream) {
-            if (event.type !== "content_block_delta" || event.delta.type !== "text_delta") {
-              continue;
-            }
+          for (const [attemptIndex, attempt] of mainModelAttempts.entries()) {
+            model = attempt.model;
+            mainModelTier = attempt.tier;
+            const nextAttempt = mainModelAttempts[attemptIndex + 1] ?? null;
+            const attemptStartedAt = Date.now();
+            let attemptSentAnyText = false;
 
-            sentAnyText = true;
-            responseText += event.delta.text;
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: "delta", text: event.delta.text })}\n\n`),
-            );
+            try {
+              const stream = anthropic.messages.stream({
+                model,
+                max_tokens: 900,
+                system: getSystemPrompt(body.entryId),
+                messages,
+                tools: [
+                  {
+                    type: "web_search_20250305",
+                    name: "web_search",
+                    max_uses: 5,
+                    user_location: {
+                      type: "approximate",
+                      city: "Seattle",
+                      region: "Washington",
+                      country: "US",
+                      timezone: "America/Los_Angeles",
+                    },
+                  },
+                ],
+              });
+
+              for await (const event of stream) {
+                const eventType = (event as { type?: unknown }).type;
+
+                if (eventType === "error") {
+                  throw new Error(
+                    `Anthropic stream error: ${getStreamEventErrorDescription(event)}`,
+                  );
+                }
+
+                if (
+                  event.type !== "content_block_delta" ||
+                  event.delta.type !== "text_delta"
+                ) {
+                  continue;
+                }
+
+                attemptSentAnyText = true;
+                sentAnyText = true;
+                responseText += event.delta.text;
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: "delta", text: event.delta.text })}\n\n`,
+                  ),
+                );
+              }
+
+              if (!attemptSentAnyText) {
+                if (nextAttempt) {
+                  console.error({
+                    code: "anthropic_main_model_no_text_fallback",
+                    model,
+                    modelTier: mainModelTier,
+                    nextModel: nextAttempt.model,
+                    nextModelTier: nextAttempt.tier,
+                    responseTimeMs: Date.now() - attemptStartedAt,
+                  });
+                  continue;
+                }
+
+                break;
+              }
+
+              const finalMessage = await stream.finalMessage();
+              mainUsage = finalMessage.usage;
+              finalMessageContent = finalMessage.content;
+              break;
+            } catch (error: unknown) {
+              const shouldTryNext =
+                !attemptSentAnyText &&
+                nextAttempt !== null &&
+                isRetryableMainModelError(error);
+
+              if (shouldTryNext) {
+                console.error({
+                  code: "anthropic_main_model_fallback",
+                  errorType: getApiErrorName(error),
+                  status: getApiErrorStatus(error) ?? 500,
+                  model,
+                  modelTier: mainModelTier,
+                  nextModel: nextAttempt.model,
+                  nextModelTier: nextAttempt.tier,
+                  responseTimeMs: Date.now() - attemptStartedAt,
+                });
+                continue;
+              }
+
+              throw error;
+            }
           }
 
           if (!sentAnyText) {
@@ -565,14 +760,15 @@ export async function POST(request: Request) {
 
             controller.enqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ type: "error", error: "The model returned no text." })}\n\n`,
+                `data: ${JSON.stringify({
+                  type: "error",
+                  error: "The response did not come through. Please try again.",
+                })}\n\n`,
               ),
             );
           } else {
-            const finalMessage = await stream.finalMessage();
-            mainUsage = finalMessage.usage;
             const sourcesAppendix = formatSourcesAppendix(
-              extractWebSearchSources(finalMessage.content),
+              extractWebSearchSources(finalMessageContent),
             );
 
             if (sourcesAppendix) {
