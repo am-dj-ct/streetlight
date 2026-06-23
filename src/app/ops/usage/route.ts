@@ -56,6 +56,20 @@ function formatCurrency(value: number): string {
   });
 }
 
+function buildMetricHtml({
+  label,
+  value,
+  unique,
+}: {
+  label: string;
+  value: number | string;
+  unique?: number;
+}): string {
+  return `<div class="metric"><span>${label}</span><strong>${value}</strong>${
+    unique === undefined ? "" : `<small>${unique} unique</small>`
+  }</div>`;
+}
+
 function buildLoginHtml({
   days,
   error = false,
@@ -181,22 +195,37 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
   const totals = summary.days.reduce(
     (result, day) => ({
       chatRequests: result.chatRequests + day.chat.requests,
+      chatUnique: result.chatUnique + day.chat.unique,
       chatSubmitClicks:
         result.chatSubmitClicks + day.funnel.chatSubmitClicks,
+      chatSubmitUnique:
+        result.chatSubmitUnique + day.funnel.chatSubmitUnique,
       conversationPageViews:
         result.conversationPageViews + day.funnel.conversationPageViews,
+      conversationPageUnique:
+        result.conversationPageUnique + day.funnel.conversationPageUnique,
       llmTurns: result.llmTurns + day.llm.turns,
+      llmUnique: result.llmUnique + day.llm.unique,
       promptButtonClicks:
         result.promptButtonClicks + day.funnel.promptButtonClicks,
+      promptButtonUnique:
+        result.promptButtonUnique + day.funnel.promptButtonUnique,
+      siteUnique: result.siteUnique + day.site.unique,
       siteViews: result.siteViews + day.site.views,
       spendUsd: result.spendUsd + day.spendUsd,
     }),
     {
       chatRequests: 0,
+      chatUnique: 0,
       chatSubmitClicks: 0,
+      chatSubmitUnique: 0,
       conversationPageViews: 0,
+      conversationPageUnique: 0,
       llmTurns: 0,
+      llmUnique: 0,
       promptButtonClicks: 0,
+      promptButtonUnique: 0,
+      siteUnique: 0,
       siteViews: 0,
       spendUsd: 0,
     },
@@ -255,6 +284,12 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       font-size: 24px;
       margin-top: 6px;
     }
+    .metric small {
+      color: #586761;
+      display: block;
+      font-size: 13px;
+      margin-top: 4px;
+    }
     .table-wrap {
       overflow-x: auto;
       border: 1px solid #d4ded7;
@@ -289,13 +324,40 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     <h1>Streetlight Usage</h1>
     <p>Aggregate counts only. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
-      <div class="metric"><span>Site views</span><strong>${totals.siteViews}</strong></div>
-      <div class="metric"><span>Prompt clicks</span><strong>${totals.promptButtonClicks}</strong></div>
-      <div class="metric"><span>Conversation views</span><strong>${totals.conversationPageViews}</strong></div>
-      <div class="metric"><span>Submit clicks</span><strong>${totals.chatSubmitClicks}</strong></div>
-      <div class="metric"><span>Chat requests</span><strong>${totals.chatRequests}</strong></div>
-      <div class="metric"><span>LLM turns</span><strong>${totals.llmTurns}</strong></div>
-      <div class="metric"><span>Spend</span><strong>${formatCurrency(totals.spendUsd)}</strong></div>
+      ${buildMetricHtml({
+        label: "Site views",
+        unique: totals.siteUnique,
+        value: totals.siteViews,
+      })}
+      ${buildMetricHtml({
+        label: "Prompt clicks",
+        unique: totals.promptButtonUnique,
+        value: totals.promptButtonClicks,
+      })}
+      ${buildMetricHtml({
+        label: "Conversation views",
+        unique: totals.conversationPageUnique,
+        value: totals.conversationPageViews,
+      })}
+      ${buildMetricHtml({
+        label: "Submit clicks",
+        unique: totals.chatSubmitUnique,
+        value: totals.chatSubmitClicks,
+      })}
+      ${buildMetricHtml({
+        label: "Chat requests",
+        unique: totals.chatUnique,
+        value: totals.chatRequests,
+      })}
+      ${buildMetricHtml({
+        label: "LLM turns",
+        unique: totals.llmUnique,
+        value: totals.llmTurns,
+      })}
+      ${buildMetricHtml({
+        label: "Spend",
+        value: formatCurrency(totals.spendUsd),
+      })}
     </section>
     <div class="table-wrap">
       <table>
