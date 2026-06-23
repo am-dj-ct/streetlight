@@ -89,6 +89,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - We have no user identity. A subpoena ("records for John Doe") cannot be linked to anything in our system.
 - We have no conversation content. Nothing to hand over.
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
+- Blind usage counters in Vercel KV: daily site visits, chat requests, LLM turns, and daily unique salted-IP counts. The per-day unique markers expire shortly after the day ends; aggregate counts remain for operational review.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
 - In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
@@ -319,7 +320,7 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 - Cloudflare Turnstile script-only versus full proxy: script-only.
 - Vercel plan: Pro.
 - Vercel logging discipline rules (eight-rule list in Vercel section).
-- No Supabase for V1; Vercel KV for rate limit / spend / kill switch; static JSON for referrals and translations; metrics as runtime logs.
+- No Supabase for V1; Vercel KV for rate limit / spend / kill switch / blind aggregate usage counters; static JSON for referrals and translations; per-turn metadata also appears in runtime logs.
 - Hashed IP with secret salt, daily TTL.
 - Synthetic regression suite per button system prompt.
 - Partner bug-report template (5-question structured intake, no content paste).
@@ -361,7 +362,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Runs:** Next.js client-side React, the conversation UI.
 - **Has access to:** Full conversation history for the current session (in-memory state), user's typed/dictated message, button selection that started the conversation, language setting, optional saved conversations (only if user explicitly saved — `localStorage` or generated text file/screenshot the user kept).
 - **Logs by default:** Browser console (dev tools only). Browser history records the URL but not message content (we never put content in URL params).
-- **Override:** No analytics/telemetry SDK is loaded. No Google Analytics, no Vercel Analytics, no Sentry, no PostHog. Page loads zero tracking pixels.
+- **Override:** No analytics/telemetry SDK is loaded. No Google Analytics, no Vercel Analytics, no Sentry, no PostHog. Page loads zero tracking pixels. Server-side page renders increment blind aggregate counters only: total visits and daily unique salted-IP count. No path, user agent, raw IP, cookie, session ID, or per-person event stream is stored.
 - **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), language code, button-selection metadata, and a Cloudflare Turnstile token when Turnstile is configured. In local development without Turnstile keys, no token is sent. No user identifier, no session ID, no cookie. Language routing uses explicit `?lang=` links or the browser `Accept-Language` header; it does not set a language cookie.
 
 ### Hop 2 — Cloudflare Edge (Turnstile Only)
@@ -387,6 +388,14 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Logs by default:** Vercel KV operations log (GET/SET on key names). Key is the hashed IP, not the raw IP.
 - **Override:** Hash IP using `sha256(ip + secret_salt)`. Salt is in env var, never logged. Key store contains only the hash and a TTL counter. Counter resets daily via TTL.
 - **What leaves this hop:** Either a "proceed" flag or a 429 response back to the client.
+
+### Hop 4b — Blind Usage Counters
+
+- **Runs:** Inside Vercel during page render and `/api/chat` handling.
+- **Has access to:** Salted hashed IP, current UTC date, route class (`site`, `chat`, or `llm`), button id, language, final status, model label, classifier category, and spend counter.
+- **Logs by default:** Vercel KV operation metadata only. Counter keys contain metric names and UTC dates. Short-lived unique marker keys contain salted hashes, never raw IPs.
+- **Override:** Stores one daily hash of aggregate fields such as `site.views`, `site.unique`, `chat.requests`, `chat.status.completed`, `llm.turns`, `llm.unique`, `llm.model.<label>`. Stores no request path, user agent, raw IP, message text, answer text, source URLs, session ID, cookie, or per-user timeline. Per-day unique marker keys expire shortly after UTC midnight; aggregate counters expire after 180 days.
+- **What leaves this hop:** Counts are available only through the token-protected `/api/ops/usage` JSON endpoint and `/ops/usage` dashboard. Both return aggregate counts only.
 
 ### Hop 5 — Anthropic API (Main Model — Sonnet 4.6 by default)
 
@@ -547,6 +556,7 @@ The user-facing privacy page names OpenAI as a rare outage backup. That wording 
 - **Vercel Analytics:** Off.
 - **Vercel Speed Insights:** Off.
 - **Vercel Web Analytics:** Off.
+- **Self-hosted usage dashboard:** On when `OPS_READ_TOKEN` is configured. Reads Streetlight-owned aggregate KV counters only.
 - **Log Drains:** None. Not configured. Future addition would trigger a re-read of this document.
 - **Deploy Notifications:** On (email on every production deploy). Acts as part of the human detection layer.
 
@@ -1068,7 +1078,7 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 
 - **No backups.** Nothing is stored that could be backed up. No database, no user content, no per-user state.
 - **No monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom. Detection is human. Slower than automated; accepted because monitoring tools introduce vendors with content access and a surveillance-shaped surface.
-- **No analytics.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Aggregate session-shape metrics from runtime logs only.
+- **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count daily visits, chat requests, and LLM turns without raw IPs, paths, user agents, cookies, content, or per-person timelines.
 - **No A/B testing or experimentation framework.** One version ships. Improvements deploy for everyone after partner review.
 - **No accounts, no login, no email, no phone collection.** No user table, no session table, no auth code. Adding any is a fundamental shift.
 - **No admin panel.** Vercel's dashboard is the only admin surface.

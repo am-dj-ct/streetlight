@@ -4,6 +4,8 @@ import { getHashedIpSalt, hasHashedIpSalt, hasKvConfig } from "./env";
 
 const MAX_TURNS_PER_DAY = 100;
 
+export type HeaderReader = Pick<Headers, "get">;
+
 type RateLimitResult =
   | {
       allowed: true;
@@ -20,8 +22,8 @@ type RateLimitResult =
       reason: "limit_reached";
     };
 
-export function getClientIp(request: Request): null | string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
+export function getClientIpFromHeaders(headers: HeaderReader): null | string {
+  const forwardedFor = headers.get("x-forwarded-for");
 
   if (forwardedFor) {
     const firstIp = forwardedFor.split(",")[0]?.trim();
@@ -31,13 +33,13 @@ export function getClientIp(request: Request): null | string {
     }
   }
 
-  const realIp = request.headers.get("x-real-ip")?.trim();
+  const realIp = headers.get("x-real-ip")?.trim();
 
   if (realIp) {
     return realIp;
   }
 
-  const vercelForwardedFor = request.headers.get("x-vercel-forwarded-for")?.trim();
+  const vercelForwardedFor = headers.get("x-vercel-forwarded-for")?.trim();
 
   if (vercelForwardedFor) {
     return vercelForwardedFor;
@@ -46,20 +48,28 @@ export function getClientIp(request: Request): null | string {
   return null;
 }
 
+export function getClientIp(request: Request): null | string {
+  return getClientIpFromHeaders(request.headers);
+}
+
 function hashIp(ip: string): string {
   return createHash("sha256")
     .update(`${ip}:${getHashedIpSalt()}`)
     .digest("hex");
 }
 
-export function getHashedIp(request: Request): null | string {
-  const ip = getClientIp(request);
+export function getHashedIpFromHeaders(headers: HeaderReader): null | string {
+  const ip = getClientIpFromHeaders(headers);
 
   if (!ip || !hasHashedIpSalt()) {
     return null;
   }
 
   return hashIp(ip);
+}
+
+export function getHashedIp(request: Request): null | string {
+  return getHashedIpFromHeaders(request.headers);
 }
 
 function getUtcDateKey(now: Date): string {

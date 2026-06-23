@@ -20,6 +20,7 @@ const exampleEnvVariables = [
   "HASHED_IP_SALT",
   "KV_REST_API_URL",
   "KV_REST_API_TOKEN",
+  "OPS_READ_TOKEN",
   "SOFT_PAUSE_ENABLED",
   "HARD_PAUSE_ENABLED",
   "TTS_ENABLED",

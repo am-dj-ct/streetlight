@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { getLanguageRequestContext } from "../lib/request-context";
 import { appTitle, defaultDescription } from "../lib/site-metadata";
+import { recordSiteUsageFromHeaders } from "../lib/usage-metrics";
 
 export const metadata: Metadata = {
   description: defaultDescription,
@@ -27,6 +28,7 @@ export default async function RootLayout({
 }>) {
   const requestHeaders = await headers();
   const { languageCode } = getLanguageRequestContext({ requestHeaders });
+  await recordSiteUsageFromHeaders(requestHeaders);
 
   return (
     <html lang={languageCode}>

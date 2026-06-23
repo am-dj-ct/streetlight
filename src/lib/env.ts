@@ -104,6 +104,14 @@ export function hasKvConfig(): boolean {
   );
 }
 
+export function getOpsReadToken(): string {
+  return readEnv("OPS_READ_TOKEN");
+}
+
+export function hasOpsReadToken(): boolean {
+  return Boolean(readOptionalEnv("OPS_READ_TOKEN"));
+}
+
 export function isSoftPauseEnabled(): boolean {
   return readOptionalBooleanEnv("SOFT_PAUSE_ENABLED");
 }

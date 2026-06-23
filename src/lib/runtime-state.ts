@@ -9,6 +9,7 @@ import {
   hasOpenAiApiKey,
   hasOpenAiFallbackConfig,
   hasOpenAiFallbackCostConfig,
+  hasOpsReadToken,
   hasPartialOpenAiFallbackConfig,
   hasTurnstileSecret,
   hasTurnstileSiteKey,
@@ -33,6 +34,9 @@ export type RuntimeState = {
     openAiFallbackConfigured: boolean;
     openAiFallbackCostConfigured: boolean;
     openAiKeyConfigured: boolean;
+  };
+  usageDashboard: {
+    opsReadTokenConfigured: boolean;
   };
   chatMode: ChatMode;
   commitSha: string;
@@ -68,6 +72,9 @@ export function getRuntimeState(): RuntimeState {
     openAiFallbackCostConfigured: hasOpenAiFallbackCostConfig(),
     openAiKeyConfigured: hasOpenAiApiKey(),
   };
+  const usageDashboard = {
+    opsReadTokenConfigured: hasOpsReadToken(),
+  };
 
   return {
     abuseControls,
@@ -80,6 +87,7 @@ export function getRuntimeState(): RuntimeState {
         (hasLiveModelConfig() &&
           !hasPartialOpenAiFallbackConfig() &&
           hasAbuseControlsConfig &&
+          usageDashboard.opsReadTokenConfigured &&
           isTtsEnabled() &&
           hasAzureSpeechConfig() &&
           getTtsDailyCharacterLimit() !== null)),
@@ -87,5 +95,6 @@ export function getRuntimeState(): RuntimeState {
     ok: true,
     providerFallback,
     service: "access-tool",
+    usageDashboard,
   };
 }

@@ -26,6 +26,11 @@ import {
 } from "../../../lib/follow-up-suggestions";
 import { checkPerIpRateLimit, getHashedIp } from "../../../lib/rate-limit";
 import { logChatTurnMetadata } from "../../../lib/metadata-log";
+import {
+  recordChatRequestUsage,
+  recordChatTurnOutcomeUsage,
+  recordLlmTurnStartedUsage,
+} from "../../../lib/usage-metrics";
 import { buildMockChatTurn } from "../../../lib/mock-chat";
 import {
   recordDailySpendUsd,
@@ -446,7 +451,7 @@ export async function POST(request: Request) {
   const hashedIp = getHashedIp(request);
   let loggedTurnMetadata = false;
 
-  function logTurnMetadataOnce({
+  async function logTurnMetadataOnce({
     classifierCategory = "none",
     classifierResponseTimeMs = null,
     classifierStatus = "not_started",
@@ -500,11 +505,20 @@ export async function POST(request: Request) {
       suggestionsStatus,
       suggestionsUsage,
     });
+    await recordChatTurnOutcomeUsage({
+      buttonId: body.entryId,
+      classifierCategory,
+      language: body.language,
+      mainStatus,
+      modelMain: model,
+    });
   }
+
+  await recordChatRequestUsage({ hashedIp });
 
   try {
     if (isProductionMockMisconfigured()) {
-      logTurnMetadataOnce({
+      await logTurnMetadataOnce({
         mainStatus: "error_request_setup",
       });
 
@@ -554,7 +568,7 @@ export async function POST(request: Request) {
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
 
-          logTurnMetadataOnce({
+          await logTurnMetadataOnce({
             classifierCategory,
             classifierResponseTimeMs: 0,
             classifierStatus: "completed",
@@ -575,7 +589,7 @@ export async function POST(request: Request) {
     }
 
     if (isProductionDeploy && !hasAbuseControlsConfig) {
-      logTurnMetadataOnce({
+      await logTurnMetadataOnce({
         mainStatus: "blocked_abuse_controls",
       });
 
@@ -590,7 +604,7 @@ export async function POST(request: Request) {
     }
 
     if (isSoftPauseEnabled()) {
-      logTurnMetadataOnce({
+      await logTurnMetadataOnce({
         mainStatus: "blocked_soft_pause",
       });
 
@@ -611,7 +625,7 @@ export async function POST(request: Request) {
       });
 
       if (isProductionDeploy && turnstile.reason === "disabled") {
-        logTurnMetadataOnce({
+        await logTurnMetadataOnce({
           mainStatus: "blocked_abuse_controls",
         });
 
@@ -626,7 +640,7 @@ export async function POST(request: Request) {
       }
 
       if (!turnstile.allowed) {
-        logTurnMetadataOnce({
+        await logTurnMetadataOnce({
           mainStatus:
             turnstile.reason === "unavailable"
               ? "error_request_setup"
@@ -643,7 +657,7 @@ export async function POST(request: Request) {
     const rateLimit = await checkPerIpRateLimit(request);
 
     if (isProductionDeploy && rateLimit.reason === "disabled") {
-      logTurnMetadataOnce({
+      await logTurnMetadataOnce({
         mainStatus: "blocked_abuse_controls",
       });
 
@@ -658,7 +672,7 @@ export async function POST(request: Request) {
     }
 
     if (!rateLimit.allowed) {
-      logTurnMetadataOnce({
+      await logTurnMetadataOnce({
         mainStatus: "blocked_rate_limit",
       });
 
@@ -683,7 +697,7 @@ export async function POST(request: Request) {
     });
 
     if (!modelSelection.allowed) {
-      logTurnMetadataOnce({
+      await logTurnMetadataOnce({
         mainStatus: "blocked_daily_spend",
       });
 
@@ -701,6 +715,8 @@ export async function POST(request: Request) {
         },
       );
     }
+
+    await recordLlmTurnStartedUsage({ hashedIp });
 
     const anthropic = new Anthropic({
       apiKey: getAnthropicApiKey(),
@@ -874,7 +890,7 @@ export async function POST(request: Request) {
           }
 
           if (!sentAnyText) {
-            logTurnMetadataOnce({
+            await logTurnMetadataOnce({
               mainStatus: "error_no_text",
             });
 
@@ -1096,7 +1112,7 @@ export async function POST(request: Request) {
               }
             }
 
-            logTurnMetadataOnce({
+            await logTurnMetadataOnce({
               classifierCategory,
               classifierResponseTimeMs,
               classifierStatus: classifierCompleted
@@ -1125,7 +1141,7 @@ export async function POST(request: Request) {
             responseTimeMs,
           });
 
-          logTurnMetadataOnce({
+          await logTurnMetadataOnce({
             mainStatus: "error_stream",
             mainUsage,
           });
@@ -1176,7 +1192,7 @@ export async function POST(request: Request) {
       responseTimeMs,
     });
 
-    logTurnMetadataOnce({
+    await logTurnMetadataOnce({
       mainStatus: "error_request_setup",
     });
 

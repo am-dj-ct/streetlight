@@ -18,6 +18,7 @@
           "heading": "Waxa aan kaydinno: tirooyin, erayo ma aha.",
           "paragraphs": [
             "Waxaan kaydinnaa waxyaabo sida: intii jawaabtu qaadatay, badhanka aad taabatay, luqadda aad isticmaashay, iyo nooca su'aashu ahayd. Ma kaydinno waxa aad qortay ama waxa jawaabtu tiri.",
+            "Waxaan sidoo kale tirinnaa booqashooyinka goobta ee maalin kasta, codsiyada chat-ka ee maalin kasta, iyo inta kood oo cinwaan internet la qasay oo kala duwan isticmaalay goobta ama gaaray AI-ga. Kuwani waa tirooyin guud, ma aha liis dad.",
             "Akhrinta codka, waxaan kaydin karnaa wadarta tirada xarfo ee maalin kasta loo diray si cod loo sameeyo, si kharashku uusan u baxsan. Ma kaydinno erayada.",
             "Waxaan tan u kaydinnaa si aan u hubinno in qalabku shaqaynayo iyo si aan u ogaano haddii wax jaban yihiin."
           ]
@@ -33,6 +34,7 @@
           "paragraphs": [
             "Magacaaga ma weydiino. Email-kaaga ma weydiino. Lambarka taleefankaaga ma weydiino. Nidaam akoon ma lihin. Ma jirto hab aan ku ogaan karno cidda aad tahay.",
             "Waxaan aragnaa cinwaanka internetka ee qalabkaagu isticmaalayo. Waxaan u beddelnaa kood la qasay si aan u joojinno qof qalabka spam ku samaynaya. Dib uguma celin karno cinwaankaaga.",
+            "Koodkaas la qasay waxaan u isticmaalnaa xadeynta spam-ka iyo tirooyin maalinle ah oo indho-la'aan ah. Ma kaydinno cinwaankaaga internetka ee dhabta ah, bogag ku xiran, ama profile sheegaya waxa aad samaysay.",
             "Ka hor inta farriin la dirin, goobtu waxay Cloudflare Turnstile ka codsan kartaa inay hubiso in codsigu u eg yahay qof dhab ah oo isticmaalaya qalabka, ee uusan ahayn spam. Cloudflare waxay heshaa token hubin ah iyo cinwaanka internetka ee hubintaas. Cloudflare ma hesho farriintaada."
           ]
         },

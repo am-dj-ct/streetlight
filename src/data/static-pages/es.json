@@ -18,6 +18,7 @@
           "heading": "Lo que sí guardamos: números, no palabras.",
           "paragraphs": [
             "Guardamos cosas como: cuánto tardó la respuesta, qué botón tocaste, qué idioma usaste, qué tipo de pregunta fue. No guardamos lo que escribiste ni lo que dijo la respuesta.",
+            "También contamos las visitas diarias al sitio, las solicitudes diarias de chat y cuántos códigos revueltos diferentes de direcciones de internet usaron el sitio o llegaron a la IA. Son conteos agregados, no una lista de personas.",
             "Para la lectura en voz alta, podemos guardar el total diario de caracteres enviados para audio para que el costo no se dispare. No guardamos las palabras.",
             "Guardamos esto para asegurarnos de que la herramienta funcione y para saber si algo está roto."
           ]
@@ -33,6 +34,7 @@
           "paragraphs": [
             "No pedimos tu nombre. No pedimos tu email. No pedimos tu número de teléfono. No tenemos sistema de cuentas. No hay forma de que sepamos quién eres.",
             "Sí vemos la dirección de internet que está usando tu dispositivo. La convertimos en un código revuelto para poder evitar que alguien llene la herramienta de spam. No podemos convertirlo de vuelta en tu dirección.",
+            "Usamos ese código revuelto para límites contra spam y conteos diarios ciegos. No guardamos tu dirección de internet real, páginas vinculadas a ella ni un perfil de lo que hiciste.",
             "Antes de enviar un mensaje, el sitio puede pedirle a Cloudflare Turnstile que revise si la solicitud parece venir de una persona real usando la herramienta y no de spam. Cloudflare recibe un token de revisión y la dirección de internet para esa revisión. Cloudflare no recibe tu mensaje."
           ]
         },

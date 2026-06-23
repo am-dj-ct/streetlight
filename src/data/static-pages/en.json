@@ -18,6 +18,7 @@
           "heading": "What we do save: numbers, not words.",
           "paragraphs": [
             "We save things like: how long it took to answer, which button you tapped, what language you used, what kind of question it was. We don't save what you typed or what the answer said.",
+            "We also count daily site visits, daily chat requests, and how many different scrambled internet-address codes used the site or reached the AI. Those are aggregate counts, not a list of people.",
             "For read-aloud, we may save the daily total number of characters sent for audio so the bill cannot run away. We don't save the words.",
             "We save these to make sure the tool works and to know if something is broken."
           ]
@@ -33,6 +34,7 @@
           "paragraphs": [
             "We don't ask for your name. We don't ask for your email. We don't ask for your phone number. We don't have an account system. There's no way for us to know who you are.",
             "We do see the internet address your device is using. We turn that into a scrambled code so we can stop someone from spamming the tool. We can't unscramble it back into your address.",
+            "We use that scrambled code for spam limits and blind daily counts. We don't save your raw internet address, pages tied to it, or a profile of what you did.",
             "Before a message is sent, the site may ask Cloudflare Turnstile to check that the request looks like a real person using the tool and not spam. Cloudflare gets a check token and the internet address for that check. Cloudflare does not get your message."
           ]
         },

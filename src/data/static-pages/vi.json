@@ -18,6 +18,7 @@
           "heading": "Điều chúng tôi có lưu: con số, không phải lời bạn viết.",
           "paragraphs": [
             "Chúng tôi lưu những thứ như: mất bao lâu để trả lời, bạn bấm nút nào, bạn dùng ngôn ngữ nào, câu hỏi thuộc loại gì. Chúng tôi không lưu điều bạn đã gõ hoặc câu trả lời đã nói gì.",
+            "Chúng tôi cũng đếm số lượt truy cập trang mỗi ngày, số yêu cầu chat mỗi ngày, và có bao nhiêu mã địa chỉ internet đã xáo trộn khác nhau đã dùng trang hoặc đi đến AI. Đây là số đếm tổng hợp, không phải danh sách người dùng.",
             "Với đọc thành tiếng, chúng tôi có thể lưu tổng số ký tự hằng ngày được gửi để tạo âm thanh để chi phí không vượt khỏi tầm kiểm soát. Chúng tôi không lưu các từ.",
             "Chúng tôi lưu những thứ này để bảo đảm công cụ hoạt động và để biết nếu có gì bị hỏng."
           ]
@@ -33,6 +34,7 @@
           "paragraphs": [
             "Chúng tôi không hỏi tên bạn. Chúng tôi không hỏi email của bạn. Chúng tôi không hỏi số điện thoại của bạn. Chúng tôi không có hệ thống tài khoản. Không có cách nào để chúng tôi biết bạn là ai.",
             "Chúng tôi có thấy địa chỉ internet mà thiết bị của bạn đang dùng. Chúng tôi biến địa chỉ đó thành một mã đã xáo trộn để có thể ngăn người khác spam công cụ. Chúng tôi không thể giải mã nó trở lại thành địa chỉ của bạn.",
+            "Chúng tôi dùng mã đã xáo trộn đó cho giới hạn chống spam và số đếm hằng ngày ẩn danh. Chúng tôi không lưu địa chỉ internet thật của bạn, các trang gắn với địa chỉ đó, hoặc hồ sơ về việc bạn đã làm.",
             "Trước khi một tin nhắn được gửi, trang web có thể yêu cầu Cloudflare Turnstile kiểm tra xem yêu cầu có giống một người thật đang dùng công cụ hay không, chứ không phải spam. Cloudflare nhận một mã kiểm tra và địa chỉ internet cho lần kiểm tra đó. Cloudflare không nhận tin nhắn của bạn."
           ]
         },
