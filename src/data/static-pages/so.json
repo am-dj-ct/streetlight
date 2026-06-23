@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Asturnaanta",
-      "lastUpdated": "2026-05-10",
+      "lastUpdated": "2026-06-23",
       "sections": [
         {
           "heading": "Waxa aan kaydinno: waxba oo ku saabsan sheekadaada.",
@@ -39,8 +39,9 @@
         {
           "heading": "Meesha farriimahaagu tagaan.",
           "paragraphs": [
-            "Markaad fariin dirto, waxay tagtaa shirkad la yiraahdo Anthropic. Iyaga ayaa sameeya AI-ga kuu jawaabaya. Farriintaada waxay hayaan 7 maalmood, kadib way tirtiraan. Uma isticmaalaan in AI lagu tababaro. Mana la wadaagaan.",
-            "Waxaan doorannay Anthropic sababtoo ah xeerarkooda ku saabsan xogtaada way ka adag yihiin shirkado badan oo AI sameeya.",
+            "Markaad fariin dirto, badanaa waxay tagtaa shirkad la yiraahdo Anthropic. Iyaga ayaa sameeya AI-ga ugu weyn ee kuu jawaabaya. Farriintaada waxay hayaan 7 maalmood, kadib way tirtiraan. Uma isticmaalaan in AI lagu tababaro. Mana la wadaagaan.",
+            "Xaalado dhif ah, marka Anthropic si ballaaran u go'o oo kaydka la shiday, farriintaadu waxay beddelkeeda u tagi kartaa OpenAI. OpenAI ayaa sameeya jawaabta AI ee kaydka ah. Farriintaas kuma kaydinno server-radayada, umana isticmaalno in AI lagu tababaro.",
+            "Anthropic ayaa weli ugu horreeya sababtoo ah xeerarkooda ku saabsan xogtaada way ka adag yihiin shirkado badan oo AI sameeya. OpenAI waa kayd keliya xaalado go'itaan dhif ah, ka dib marka Anthropic fashilmo.",
             "Haddii aad taabato Cod dheer u akhri, qoraalka jawaabta waxaa loo diraa Microsoft Azure AI Speech si cod loo sameeyo. Haddii aadan taaban Cod dheer u akhri, halkaas looma diro. Codka ma kaydinno."
           ]
         },
@@ -103,7 +104,7 @@
         {
           "heading": "Sida uu u shaqeeyo.",
           "paragraphs": [
-            "Bogga waxaa ka dambeeya dhowr tallaabo oo AI ah. Sheekada ugu weyn waxay isticmaashaa moodallada Anthropic. Mar labaad oo yar ayaa hubisa haddii jawaabtu gasho qayb AI lagu yaqaan inuu ku qaldo, sida habraaca sharciga ama u-qalmitaanka gunnooyinka. Akhrinta codka waxay isticmaashaa Microsoft Azure AI Speech markaad taabato Cod dheer u akhri.",
+            "Bogga waxaa ka dambeeya dhowr tallaabo oo AI ah. Sheekada ugu weyn waxay marka hore isticmaashaa moodallada Anthropic. Xaalado dhif ah, haddii Anthropic aan la heli karin oo kaydka la habeeyay, OpenAI ayaa beddelkeeda jawaabi kara. Mar labaad oo yar ayaa hubisa haddii jawaabtu gasho qayb AI lagu yaqaan inuu ku qaldo, sida habraaca sharciga ama u-qalmitaanka gunnooyinka. Akhrinta codka waxay isticmaashaa Microsoft Azure AI Speech markaad taabato Cod dheer u akhri.",
             "Moodallo kala duwan ayaa wakhtiyo kala duwan la isticmaali karaa si qalabku ugu sii shaqeeyo miisaaniyad yar oo danta guud ah."
           ]
         },

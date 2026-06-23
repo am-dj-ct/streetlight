@@ -59,6 +59,13 @@ async function getEnvSnapshot() {
       fallbackMainModel: readEnvValue(contents, "FALLBACK_MAIN_MODEL") ?? "default: classifier model",
       cheapestMainModel: readEnvValue(contents, "CHEAPEST_MAIN_MODEL") ?? "unset",
       classifierModel: readEnvValue(contents, "CLASSIFIER_MODEL") ?? "unset",
+      openAiFallbackModel: readEnvValue(contents, "OPENAI_FALLBACK_MODEL") ?? "default: gpt-5.5",
+      openAiFallbackConfigured:
+        readEnvValue(contents, "OPENAI_API_KEY") &&
+        readEnvValue(contents, "OPENAI_FALLBACK_INPUT_COST_PER_MILLION_USD") &&
+        readEnvValue(contents, "OPENAI_FALLBACK_OUTPUT_COST_PER_MILLION_USD")
+          ? "yes"
+          : "no",
     };
   } catch {
     return {
@@ -67,6 +74,8 @@ async function getEnvSnapshot() {
       fallbackMainModel: "missing .env.local",
       cheapestMainModel: "missing .env.local",
       classifierModel: "missing .env.local",
+      openAiFallbackConfigured: "missing .env.local",
+      openAiFallbackModel: "missing .env.local",
     };
   }
 }
@@ -176,6 +185,8 @@ console.log(`- MAIN_MODEL: ${envSnapshot.mainModel}`);
 console.log(`- FALLBACK_MAIN_MODEL: ${envSnapshot.fallbackMainModel}`);
 console.log(`- CHEAPEST_MAIN_MODEL: ${envSnapshot.cheapestMainModel}`);
 console.log(`- CLASSIFIER_MODEL: ${envSnapshot.classifierModel}`);
+console.log(`- OPENAI_FALLBACK_MODEL: ${envSnapshot.openAiFallbackModel}`);
+console.log(`- OpenAI fallback configured: ${envSnapshot.openAiFallbackConfigured}`);
 console.log("");
 console.log("Language snapshot");
 console.log(`- /?lang=es html lang: ${languageSnapshot.homeLang}`);

@@ -239,16 +239,17 @@ Do this in order:
 
 1. Hard pause.
 2. Rotate the Anthropic API key.
-3. Rotate the Turnstile secret.
-4. Rotate the hashed-IP salt.
-5. Confirm env vars are updated in Vercel.
-6. Wait for redeploy.
-7. Run the smoke check:
+3. Rotate the OpenAI API key if the fallback is configured.
+4. Rotate the Turnstile secret.
+5. Rotate the hashed-IP salt.
+6. Confirm env vars are updated in Vercel.
+7. Wait for redeploy.
+8. Run the smoke check:
    - `/healthz` returns `{"ok":true,"service":"access-tool","chatMode":"live-model","deployEnv":"production","deployConfigOk":true,...}`
    - landing page loads
    - conversation page loads
    - sending a message works
-8. Only then consider unpausing.
+9. Only then consider unpausing.
 
 Reference:
 

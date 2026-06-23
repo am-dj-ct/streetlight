@@ -5,8 +5,11 @@ import { getLanguageRequestContext } from "../lib/request-context";
 import { appTitle, defaultDescription } from "../lib/site-metadata";
 
 export const metadata: Metadata = {
-  title: appTitle,
   description: defaultDescription,
+  icons: {
+    icon: "/icon.svg",
+  },
+  title: appTitle,
 };
 
 export const viewport: Viewport = {

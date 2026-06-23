@@ -44,6 +44,12 @@ const mainModel = envEntries.get("MAIN_MODEL") ?? "(unset)";
 const fallbackMainModel = envEntries.get("FALLBACK_MAIN_MODEL") ?? "(default: classifier model)";
 const cheapestMainModel = envEntries.get("CHEAPEST_MAIN_MODEL") ?? "(unset)";
 const classifierModel = envEntries.get("CLASSIFIER_MODEL") ?? "(unset)";
+const openAiFallbackModel = envEntries.get("OPENAI_FALLBACK_MODEL") ?? "(default: gpt-5.5)";
+const openAiFallbackConfigured = Boolean(
+  envEntries.get("OPENAI_API_KEY") &&
+    envEntries.get("OPENAI_FALLBACK_INPUT_COST_PER_MILLION_USD") &&
+    envEntries.get("OPENAI_FALLBACK_OUTPUT_COST_PER_MILLION_USD"),
+);
 const devMockChat = envEntries.get("DEV_MOCK_CHAT") === "true";
 
 console.log("Streetlight cost mode");
@@ -52,6 +58,8 @@ console.log(`MAIN_MODEL=${mainModel}`);
 console.log(`FALLBACK_MAIN_MODEL=${fallbackMainModel}`);
 console.log(`CHEAPEST_MAIN_MODEL=${cheapestMainModel}`);
 console.log(`CLASSIFIER_MODEL=${classifierModel}`);
+console.log(`OPENAI_FALLBACK_MODEL=${openAiFallbackModel}`);
+console.log(`OPENAI_FALLBACK_CONFIGURED=${openAiFallbackConfigured ? "true" : "false"}`);
 console.log(`DEV_MOCK_CHAT=${devMockChat ? "true" : "false"}`);
 console.log("");
 

@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Privacidad",
-      "lastUpdated": "2026-05-10",
+      "lastUpdated": "2026-06-23",
       "sections": [
         {
           "heading": "Lo que guardamos: nada sobre tu conversación.",
@@ -39,8 +39,9 @@
         {
           "heading": "A dónde van tus mensajes.",
           "paragraphs": [
-            "Cuando envías un mensaje, va a una compañía llamada Anthropic. Ellos hacen la IA que te responde. Conservan tu mensaje por 7 días y luego lo borran. No lo usan para entrenar IA. No lo comparten.",
-            "Elegimos Anthropic porque sus reglas sobre tus datos son más estrictas que las de la mayoría de las compañías que hacen IA.",
+            "Cuando envías un mensaje, normalmente va a una compañía llamada Anthropic. Ellos hacen la IA principal que te responde. Conservan tu mensaje por 7 días y luego lo borran. No lo usan para entrenar IA. No lo comparten.",
+            "En circunstancias poco comunes, durante una interrupción amplia de Anthropic, si el respaldo está activado, tu mensaje puede ir a OpenAI en su lugar. OpenAI hace la respuesta de respaldo de IA. No guardamos ese mensaje en nuestros servidores ni lo usamos para entrenar IA.",
+            "Anthropic sigue siendo la primera opción porque sus reglas sobre tus datos son más estrictas que las de la mayoría de las compañías que hacen IA. OpenAI solo es respaldo para interrupciones poco comunes, después de que Anthropic falla.",
             "Si tocas Leer en voz alta, el texto de la respuesta se envía a Microsoft Azure AI Speech para crear audio. Si no tocas Leer en voz alta, no se envía allí. No guardamos el audio."
           ]
         },
@@ -103,7 +104,7 @@
         {
           "heading": "Cómo funciona.",
           "paragraphs": [
-            "El sitio está construido con varios pasos de IA detrás de escena. La conversación principal usa modelos de Anthropic. Una segunda revisión más pequeña verifica si la respuesta cae en una categoría donde se sabe que la IA suele equivocarse, como procedimientos legales o elegibilidad para beneficios. La lectura en voz alta usa Microsoft Azure AI Speech cuando tocas Leer en voz alta.",
+            "El sitio está construido con varios pasos de IA detrás de escena. La conversación principal usa primero modelos de Anthropic. En circunstancias poco comunes, si Anthropic no está disponible y el respaldo está configurado, OpenAI puede responder en su lugar. Una segunda revisión más pequeña verifica si la respuesta cae en una categoría donde se sabe que la IA suele equivocarse, como procedimientos legales o elegibilidad para beneficios. La lectura en voz alta usa Microsoft Azure AI Speech cuando tocas Leer en voz alta.",
             "Se pueden usar distintos modelos en distintos momentos para mantener la herramienta funcionando dentro de un presupuesto pequeño de interés público."
           ]
         },

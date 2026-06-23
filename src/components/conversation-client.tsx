@@ -55,12 +55,14 @@ type TurnstileApi = {
       sitekey: string;
       size: "normal" | "flexible" | "compact";
       appearance?: "always" | "execute" | "interaction-only";
+      execution?: "execute" | "render";
       theme: "light";
       callback: (token: string) => void;
       "error-callback": () => void;
       "expired-callback": () => void;
     },
   ) => string;
+  execute: (widgetId?: string) => void;
   reset: (widgetId?: string) => void;
   remove: (widgetId: string) => void;
 };
@@ -731,10 +733,12 @@ export function ConversationClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isPreparingTurnstile, setIsPreparingTurnstile] = useState(false);
   // A send attempted while the previous turn's stream is still closing
   // (classifier + suggestions finish after the visible text) waits here and
   // fires as soon as the stream ends, instead of being silently dropped.
   const queuedDraftRef = useRef<string | null>(null);
+  const isPreparingTurnstileRef = useRef(false);
   const lastSendFailureMessageRef = useRef<string | null>(null);
   const [pendingClassifierMessageId, setPendingClassifierMessageId] = useState<string | null>(null);
   const [speechSupported, setSpeechSupported] = useState<boolean | null>(null);
@@ -761,6 +765,9 @@ export function ConversationClient({
   const [shareSupported, setShareSupported] = useState(false);
   const [turnstileScriptReady, setTurnstileScriptReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileTokenResolverRef = useRef<
+    ((token: string | null) => void) | null
+  >(null);
   const [isListening, setIsListening] = useState(false);
   const conversationHref = buildConversationHref({
     entryId,
@@ -1153,15 +1160,22 @@ export function ConversationClient({
       sitekey: turnstileSiteKey,
       size: "normal",
       appearance: "interaction-only",
+      execution: "execute",
       theme: "light",
       callback: (token) => {
         setTurnstileToken(token);
+        turnstileTokenResolverRef.current?.(token);
+        turnstileTokenResolverRef.current = null;
       },
       "error-callback": () => {
         setTurnstileToken(null);
+        turnstileTokenResolverRef.current?.(null);
+        turnstileTokenResolverRef.current = null;
       },
       "expired-callback": () => {
         setTurnstileToken(null);
+        turnstileTokenResolverRef.current?.(null);
+        turnstileTokenResolverRef.current = null;
       },
     });
 
@@ -1179,6 +1193,8 @@ export function ConversationClient({
       window.turnstile.remove(widgetId);
       turnstileWidgetIdRef.current = null;
       setTurnstileToken(null);
+      turnstileTokenResolverRef.current?.(null);
+      turnstileTokenResolverRef.current = null;
     };
   }, [turnstileScriptReady, turnstileSiteKey]);
 
@@ -1274,6 +1290,8 @@ export function ConversationClient({
 
   function resetTurnstileToken() {
     setTurnstileToken(null);
+    turnstileTokenResolverRef.current?.(null);
+    turnstileTokenResolverRef.current = null;
 
     if (
       !turnstileSiteKey ||
@@ -1285,6 +1303,63 @@ export function ConversationClient({
     }
 
     window.turnstile.reset(turnstileWidgetIdRef.current);
+  }
+
+  function setTurnstilePreparation(isPreparing: boolean) {
+    isPreparingTurnstileRef.current = isPreparing;
+    setIsPreparingTurnstile(isPreparing);
+  }
+
+  function getTurnstileTokenForSend(): Promise<string | null> {
+    if (!turnstileSiteKey) {
+      return Promise.resolve(null);
+    }
+
+    if (turnstileToken) {
+      return Promise.resolve(turnstileToken);
+    }
+
+    if (typeof window === "undefined") {
+      return Promise.resolve(null);
+    }
+
+    const turnstile = window.turnstile;
+    const widgetId = turnstileWidgetIdRef.current;
+
+    if (!turnstile || !widgetId) {
+      return Promise.resolve(null);
+    }
+
+    setTurnstilePreparation(true);
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeoutId: number | null = null;
+      const finish = (token: string | null) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+
+        turnstileTokenResolverRef.current = null;
+        setTurnstilePreparation(false);
+        resolve(token);
+      };
+
+      turnstileTokenResolverRef.current = finish;
+      timeoutId = window.setTimeout(() => finish(null), 8000);
+
+      try {
+        turnstile.execute(widgetId);
+      } catch {
+        finish(null);
+      }
+    });
   }
 
   function markSaveWarningSeen() {
@@ -1809,14 +1884,14 @@ export function ConversationClient({
     recognition.start();
   }
 
-  function sendMessage(text: string) {
+  async function sendMessage(text: string) {
     const trimmed = text.trim();
 
     if (!trimmed) {
       return;
     }
 
-    if (isStreaming) {
+    if (isStreaming || isPreparingTurnstileRef.current) {
       queuedDraftRef.current = trimmed;
       setDraft("");
       return;
@@ -1829,8 +1904,10 @@ export function ConversationClient({
       setIsListening(false);
     }
 
-    if (turnstileSiteKey && !turnstileToken) {
-      setErrorMessage(lastSendFailureMessageRef.current ?? copy.turnstileWait);
+    const verifiedTurnstileToken = await getTurnstileTokenForSend();
+
+    if (turnstileSiteKey && !verifiedTurnstileToken) {
+      setErrorMessage(lastSendFailureMessageRef.current ?? copy.sendFailure);
       return;
     }
 
@@ -1870,7 +1947,7 @@ export function ConversationClient({
             entryId,
             language: currentLanguageCode,
             messages: sentMessages,
-            turnstileToken: turnstileSiteKey ? turnstileToken : undefined,
+            turnstileToken: turnstileSiteKey ? verifiedTurnstileToken : undefined,
           }),
         });
 
@@ -2045,7 +2122,7 @@ export function ConversationClient({
 
     const queued = queuedDraftRef.current;
     queuedDraftRef.current = null;
-    sendMessage(queued);
+    void sendMessage(queued);
     // sendMessage is recreated every render; this effect only needs to fire on
     // the streaming -> idle transition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2060,7 +2137,7 @@ export function ConversationClient({
       return;
     }
 
-    sendMessage(suggestion);
+    void sendMessage(suggestion);
   }
 
   const referralActiveCategory =
@@ -2435,7 +2512,7 @@ export function ConversationClient({
             className="flex items-end gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              sendMessage(draft);
+              void sendMessage(draft);
             }}
           >
             <label className="flex-1" htmlFor="conversation-input">
@@ -2459,7 +2536,7 @@ export function ConversationClient({
                   }
 
                   event.preventDefault();
-                  sendMessage(draft);
+                  void sendMessage(draft);
                 }}
                 maxLength={maxClientMessageTextLength}
                 placeholder={copy.composerPlaceholder}
@@ -2486,7 +2563,7 @@ export function ConversationClient({
             <button
               type="submit"
               aria-label={copy.sendAssistiveLabel}
-              disabled={draft.trim().length === 0}
+              disabled={draft.trim().length === 0 || isPreparingTurnstile}
               className={`flex items-center justify-center rounded-[18px] bg-[#24594d] text-white shadow-[0_2px_8px_rgba(31,95,67,0.2)] transition-colors hover:bg-[#1d4a40] disabled:bg-[#9fb7ad] disabled:opacity-80 ${composerControlSizeClassName}`}
             >
               <SendIcon className="h-5 w-5" />

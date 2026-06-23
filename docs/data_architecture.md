@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-06-07
-**Last meaningful change:** 2026-06-07 (client-side DOCX/PDF export added to the save path; no server-side document content handling)
+**Last reviewed:** 2026-06-23
+**Last meaningful change:** 2026-06-23 (optional OpenAI Responses API fallback added for rare broad Anthropic outages; no server-side content persistence added)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -91,6 +91,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
+- In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
 
 **Mitigation:**
 - Hashed IP with daily TTL is the structural defense. After 24 hours there is nothing to subpoena even if compelled.
@@ -100,25 +101,29 @@ The architecture is designed to defend against eight specific threats. For each:
 
 **Residual risk accepted:**
 - A subpoena lands on Anthropic for the 7-day window. We cannot prevent that; the privacy explainer is honest about it.
+- A subpoena lands on OpenAI for a rare fallback turn. We cannot prevent that; the privacy explainer names OpenAI as the backup provider.
 - A fast subpoena (within 24 hours of a session) plus a salt-disclosure order plus a known IP could in theory show that a specific IP used the tool in a specific window. No content, no identity beyond the IP. Narrow scenario, minimal harm.
 
-### Threat 2: Anthropic Compromise
+### Threat 2: AI Provider Compromise
 
-**Scenario:** Anthropic suffers a breach, internal access incident, or regulatory action exposing customer data.
+**Scenario:** Anthropic, or OpenAI during a rare configured fallback turn, suffers a breach, internal access incident, or regulatory action exposing customer data.
 
 **Exposure:**
-- 7-day rolling window of conversation content on Anthropic's side is the worst-case exposure.
+- 7-day rolling window of conversation content on Anthropic's side is the normal-path worst-case exposure.
 - Anthropic sees: prompt content, response content, our API key, the source IP of the API call (Vercel's, not the user's).
 - Anthropic does not see: the user's actual IP, our hashed-IP salt, our metric logs, anything we do post-response.
 - Trust & safety classifier scores retained 7 years on Anthropic's side. Out of our control.
+- In rare circumstances when all configured Anthropic main-model attempts fail before emitting text and OpenAI fallback is enabled, OpenAI sees the prompt content, response content, our API key, and Vercel-side source metadata for that fallback turn. Streetlight still does not send the user's actual IP, hashed-IP salt, KV data, or metric logs.
 
 **Mitigation:**
 - Choosing Anthropic is itself a mitigation: 7-day default, no training use on commercial API, ZDR available, transparent published policy.
-- Privacy explainer is honest that this hop exists.
+- Anthropic remains the primary provider. OpenAI is optional and only tried after the Anthropic chain fails in rare outage conditions.
+- Privacy explainer is honest that both provider hops exist.
 - ZDR pursuit at month 9–10 closes most of this exposure forward.
 
 **Residual risk accepted:**
 - 7 days of content on Anthropic's side. Accepted because Anthropic is the cleanest available option, the alternative (no AI tool) is worse for users, and the privacy explainer doesn't hide it.
+- OpenAI provider-side handling for rare fallback turns. Accepted as an availability tradeoff for broad Anthropic outages, with no Streetlight-side content logging or persistence added.
 - 7-year classifier scores. Accepted as low-harm metadata (scores + timestamps + our org ID, no content).
 - Treating users as adults — they are informed in plain language and trusted to make their own call about what to type.
 
@@ -127,7 +132,7 @@ The architecture is designed to defend against eight specific threats. For each:
 **Scenario:** Vercel breach, deployment compromise, stolen Vercel auth token, platform-level vulnerability, or rogue Vercel employee accessing our project.
 
 **Exposure (going forward):**
-- Attacker can read environment variables: Anthropic API key, Turnstile secret, hashed-IP salt, Vercel KV credentials.
+- Attacker can read environment variables: Anthropic API key, optional OpenAI fallback API key, Turnstile secret, hashed-IP salt, Vercel KV credentials.
 - Attacker can deploy code, including stealth content-logging code.
 - Attacker can intercept live request traffic.
 - Attacker can exfiltrate Vercel KV: rate-limit counters, daily spend tracking, kill switch state. No content there.
@@ -156,8 +161,8 @@ The architecture is designed to defend against eight specific threats. For each:
 **Exposure:**
 - Budget drain capped by daily spend ceiling. Worst case: tool hits cap early, real users see "today's limit reached, try again tomorrow."
 - Scraping: contained by output token cap and daily cap.
-- Prompt injection: the only user-input-connected tool is Anthropic's server-side web search. No client tools, file system, shell, database writes, or arbitrary HTTP calls are connected to user input. System prompt is open-source, no secrets. Search is capped per turn, localized to Seattle / Washington, and query/source content is not logged.
-- Harassment / illegal content: handled by Anthropic's safety floor.
+- Prompt injection: the only user-input-connected tool is Anthropic's server-side web search. No client tools, file system, shell, database writes, or arbitrary HTTP calls are connected to user input. System prompt is open-source, no secrets. Search is capped per turn, localized to Seattle / Washington, and query/source content is not logged. The OpenAI fallback does not enable web search or tools.
+- Harassment / illegal content: handled by Anthropic's safety floor in the normal path and OpenAI's safety floor in the rare fallback path.
 - Infrastructure recon: Vercel platform protections, Turnstile.
 
 **Mitigation:**
@@ -222,9 +227,9 @@ The architecture is designed to defend against eight specific threats. For each:
 **Scenario:** Operator's laptop is stolen. GitHub gets compromised. Phishing succeeds against Vercel auth. Anthropic dashboard credentials leak. SSH key leaks. Terminal left unlocked.
 
 **Exposure (laptop / dev machine):**
-- Local `.env.local` files contain secrets: Anthropic API key, Turnstile secret, hashed-IP salt, Vercel KV credentials.
+- Local `.env.local` files contain secrets: Anthropic API key, optional OpenAI fallback API key, Turnstile secret, hashed-IP salt, Vercel KV credentials.
 - Local repo clone (open-source, no real loss).
-- Browser sessions to Vercel, Anthropic, GitHub.
+- Browser sessions to Vercel, Anthropic, OpenAI, GitHub.
 - No production user data on any machine because there is no production user data.
 
 **Exposure (GitHub):**
@@ -238,19 +243,22 @@ The architecture is designed to defend against eight specific threats. For each:
 **Exposure (Anthropic console):**
 - View usage and billing. Generate / revoke API keys. **Read the 7-day API request log on Anthropic's side — only path where conversation content is reachable.**
 
+**Exposure (OpenAI console, if fallback is configured):**
+- View usage and billing. Generate / revoke API keys. Provider-side request visibility is governed by OpenAI's platform controls and is a rare-fallback-only content path.
+
 **Mitigation:**
-- 2FA on everything: GitHub, Vercel, Anthropic console, recovery email.
+- 2FA on everything: GitHub, Vercel, Anthropic console, OpenAI console, recovery email.
 - Hardware security key as second factor where supported. SMS 2FA avoided.
 - `.gitignore` discipline plus pre-commit secret scanning (`gitleaks` or `trufflehog`).
 - No long-lived secrets in committed code. `.env.example` shows variable names with empty values.
-- Quarterly hashed-IP salt rotation, annual Anthropic and Turnstile rotation.
+- Quarterly hashed-IP salt rotation, annual Anthropic, OpenAI fallback, and Turnstile rotation.
 - Bus-factor person has minimum-viable credentials (Vercel team-member, Anthropic billing-only, GitHub collaborator) — enough to keep the tool running, not enough to fully compromise it.
 - Kill switch as failsafe.
-- Detection is human: Vercel deploy notifications (configure on every production deploy), Anthropic billing alerts (configure daily spend threshold), GitHub security alerts.
+- Detection is human: Vercel deploy notifications (configure on every production deploy), Anthropic billing alerts (configure daily spend threshold), OpenAI billing alerts if fallback is configured, GitHub security alerts.
 
 **Residual risk accepted:**
 - Sophisticated targeted phishing could compromise multiple credentials before detection. 2FA + hardware key is the highest-leverage mitigation.
-- Anthropic console compromise gives 7-day conversation log access. Accepted because Anthropic is the only LLM provider in the design.
+- Anthropic console compromise gives 7-day conversation log access. OpenAI console compromise may expose rare fallback-turn records if fallback is configured. Accepted because the privacy explainer names the provider hops and the architecture still removes Streetlight-controlled content storage.
 - Bus-factor doubles attack surface. Accepted tradeoff for continuity.
 
 ### Threat 8: Curious Operator
@@ -262,7 +270,8 @@ The architecture is designed to defend against eight specific threats. For each:
 - No debugging toggle. Option (a) was chosen specifically to close this surface. There is no env var, feature flag, or "temporary debug mode" that turns on content logging. The toggle does not exist.
 - No admin panel. No UI in the project shows recent traffic, recent conversations, or per-session detail.
 - Vercel runtime logs show metadata only.
-- **Anthropic dashboard shows 7-day request logs.** This is the one place where actual conversation content is reachable by an operator with valid credentials. Not under our architectural control — Anthropic provides this view to API customers.
+- **Anthropic dashboard shows 7-day request logs.** This is the normal-path place where actual conversation content is reachable by an operator with valid credentials. Not under our architectural control — Anthropic provides this view to API customers.
+- **OpenAI dashboard / platform controls may expose rare fallback-turn request records if fallback is configured.** This path exists only for the rare outage fallback and is governed by OpenAI's platform controls.
 
 **Mitigation:**
 - Architectural removal of temptation in our own infrastructure: done. Future-you cannot peek at our content logs because there are none.
@@ -272,7 +281,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - **Self-discipline on the Anthropic dashboard:** the residual mitigation. See Operator Commitments below.
 
 **Residual risk accepted:**
-- The Anthropic dashboard window is a privacy failure point that depends on operator self-discipline. Accepted because (a) the privacy explainer is honest about messages touching Anthropic, (b) pre-ZDR, this is the design as stated, and (c) the written commitment in this document is the structural anchor.
+- The provider dashboard window is a privacy failure point that depends on operator self-discipline. Accepted because (a) the privacy explainer is honest about messages touching Anthropic and, rarely, OpenAI, (b) pre-ZDR, this is the design as stated, and (c) the written commitment in this document is the structural anchor.
 - A future Claude Code session in good faith but without reading this doc could propose a logging change. The "no" list, ADR directory, ESLint rule, and CLAUDE.md cross-references are layered defenses. None is absolute. Combined posture is strong but not perfect.
 - A future-you under stress could rationalize "just this once." Hardening is designed to require deliberate, multi-step action rather than a single click.
 
@@ -335,9 +344,10 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 
 Every hop a user message takes from the moment they tap send to the moment a response renders. Text-only, paste-able into other chats.
 
-**Implementation note as of 2026-05-07:** The current codebase implements the
+**Implementation note as of 2026-06-23:** The current codebase implements the
 core V1 request path: browser memory state, backend `/api/chat`, the main
-Anthropic Messages API call, the Haiku classifier pass, the inline
+Anthropic Messages API call with Anthropic model fallback, optional rare OpenAI
+Responses API fallback after the Anthropic chain fails, the Haiku classifier pass, the inline
 weak-category UI note, KV-backed per-IP rate limiting, daily spend tracking,
 the soft/hard pause controls, Cloudflare Turnstile validation, and the fixed
 allowlisted per-turn metadata log in Vercel runtime logs.
@@ -364,11 +374,11 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Hop 3 — Vercel Edge / Serverless Function (`/api/chat`)
 
-- **Runs:** Next.js API route, serverless or edge function on Vercel. Validates Turnstile token server-side, applies per-IP rate limit check, applies daily spend cap check, selects model tier, constructs Anthropic API request, calls it, awaits response, fires off classifier pass, returns response to client.
-- **Has access to:** Full request body including conversation history with whatever PII the user pasted in, source IP (from headers), Anthropic API key (env var), Vercel KV credentials, model tier state.
+- **Runs:** Next.js API route, serverless or edge function on Vercel. Validates Turnstile token server-side, applies per-IP rate limit check, applies daily spend cap check, selects model tier, constructs Anthropic API requests, calls them, awaits response, optionally tries OpenAI only after all configured Anthropic main-model attempts fail before emitting text, fires off classifier pass, returns response to client.
+- **Has access to:** Full request body including conversation history with whatever PII the user pasted in, source IP (from headers), Anthropic API key (env var), optional OpenAI fallback API key (env var), Vercel KV credentials, model tier state.
 - **Logs by default:** Vercel runtime logs capture `console.log`/`console.error` output, request metadata (path, status, duration, region), uncaught exceptions including stack traces. **Critical: Vercel does not log request bodies by default.** Bodies appear in logs only if our code puts them there.
-- **Override:** Strict logging discipline (see Vercel section below). No `console.log` of message content, ever. Try/catch around Anthropic call logs only error class, status, response time. No `console.error(error)` directly on caught errors.
-- **What leaves this hop:** HTTPS POST to `https://api.anthropic.com/v1/messages` with conversation history, system prompt, model name, max_tokens, and the Anthropic server-side `web_search` tool definition capped at five searches per turn. If the model chooses to search, Anthropic executes the search. Search queries and search result URLs are not logged by Streetlight. Plus separate POSTs for the Haiku classifier and follow-up suggestion passes after the main response returns.
+- **Override:** Strict logging discipline (see Vercel section below). No `console.log` of message content, ever. Try/catch around Anthropic and OpenAI calls logs only safe metadata: error class, status, response time, model label. No request body, response body, or `console.error(error)` directly on caught errors.
+- **What leaves this hop:** HTTPS POST to `https://api.anthropic.com/v1/messages` with conversation history, system prompt, model name, max_tokens, and the Anthropic server-side `web_search` tool definition capped at five searches per turn. If the model chooses to search, Anthropic executes the search. Search queries and search result URLs are not logged by Streetlight. If all configured Anthropic main-model attempts fail before text is emitted and OpenAI fallback is fully configured, a single HTTPS POST to `https://api.openai.com/v1/responses` sends the conversation history and system instructions without web-search/tools. Plus separate POSTs for classifier and follow-up suggestion passes after the main response returns; those are Anthropic first with OpenAI fallback only if the Anthropic small pass fails.
 
 ### Hop 4 — Per-IP Rate Limit Check
 
@@ -386,11 +396,19 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Override:** System prompt instructs the model to keep web search queries general and not include names, addresses, phone numbers, case numbers, account numbers, exact copied letter text, or unusually specific private facts from the user's situation. We accept the published commercial-API defaults. ZDR pursued at month 9–10 alongside credits conversation.
 - **What leaves this hop:** Model completion and citation metadata, returned to our Vercel function.
 
+### Hop 5b — OpenAI API (Rare Fallback Only)
+
+- **Runs:** OpenAI's Responses API only when all configured Anthropic main-model attempts fail before any text is emitted and the OpenAI fallback is fully configured.
+- **Has access to:** Full conversation contents, our OpenAI API key (identifies our org), source metadata OpenAI chooses to process or log.
+- **Logs by default:** Governed by OpenAI platform behavior and account controls. Streetlight does not log request bodies, response bodies, or OpenAI error bodies.
+- **Override:** No OpenAI web search, tools, file access, or background workflow is enabled. The fallback is a single text response attempt intended for rare broad Anthropic outages.
+- **What leaves this hop:** Text completion and token usage metadata, returned to our Vercel function.
+
 ### Hop 6 — Vercel Receives Response, Fires Classifier and Follow-Up Suggestions
 
-- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt plus the latest user message and assistant response (label-only, returns one of: legal_procedure, medical_dosing, medical_decisionmaking, benefits_eligibility, immigration, drug_interactions, employment_rights, identity_documentation, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn.
+- **Runs:** Same Vercel function. Receives main model response. Fires a second Anthropic API call with Haiku 4.5 and the classifier prompt plus the latest user message and assistant response (label-only, returns one of: legal_procedure, medical_dosing, medical_decisionmaking, benefits_eligibility, immigration, drug_interactions, employment_rights, identity_documentation, specific_deadlines, specific_dollar_amounts, none). Fires a separate small Haiku follow-up-suggestion pass that returns JSON-only tappable suggestions for the next user turn. If an Anthropic small pass fails and OpenAI fallback is fully configured, retries that small pass through OpenAI.
 - **Has access to:** Latest user message, main model output (which may carry PII forward from the user's prompt), classifier prompt.
-- **Logs by default:** Same Vercel runtime log behavior as Hop 3. Same Anthropic 7-day retention as Hop 5.
+- **Logs by default:** Same Vercel runtime log behavior as Hop 3. Same Anthropic 7-day retention as Hop 5 for Anthropic passes. Rare OpenAI fallback small passes follow Hop 5b.
 - **Override:** Same logging discipline as Hop 3. No `console.log` of classifier input or output. We log only the classification result label.
 - **What leaves this hop:**
   - A metadata log entry: `{timestamp, model_main, model_classifier, classifier_category, main_tokens_in, main_tokens_out, main_web_fetch_requests, main_web_search_requests, classifier_tokens_in, classifier_tokens_out, suggestions_tokens_in, suggestions_tokens_out, main_response_time_ms, classifier_response_time_ms, suggestions_response_time_ms, main_status, classifier_status, suggestions_status, language, button_id, hashed_ip}`. No content, no search query, no source URL.
@@ -440,8 +458,10 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 1. User's browser (in-memory, optionally saved client-side by user).
 2. Vercel function (in-memory during request handling; not logged).
 3. Anthropic API — main model (7-day retention).
-4. Anthropic API — classifier and follow-up suggestion passes (7-day retention).
-5. Azure AI Speech — assistant response text only when the user taps read-aloud.
+4. OpenAI API — rare fallback only after Anthropic fails and fallback is enabled.
+5. Anthropic API — classifier and follow-up suggestion passes (7-day retention).
+6. OpenAI API — rare fallback for classifier/suggestion passes only if Anthropic small passes fail and fallback is enabled.
+7. Azure AI Speech — assistant response text only when the user taps read-aloud.
 
 Cloudflare Turnstile script-only mode does not see message bodies.
 
@@ -485,6 +505,36 @@ ZDR, when granted, does not support CORS. API calls must go through a backend pr
 - Trust & safety classifier scores still retained 7 years on Anthropic's side, even under ZDR.
 - Flagged violations still retained up to 2 years, even under ZDR.
 - These are accepted as low-harm metadata.
+
+---
+
+## OpenAI Fallback Data Handling
+
+OpenAI is not part of the normal path. It is an optional rare-fallback provider for broad Anthropic outages or equivalent Anthropic API failures.
+
+The fallback is disabled unless all of these are configured:
+
+- `OPENAI_API_KEY`
+- `OPENAI_FALLBACK_INPUT_COST_PER_MILLION_USD`
+- `OPENAI_FALLBACK_OUTPUT_COST_PER_MILLION_USD`
+
+`OPENAI_FALLBACK_MODEL` defaults to `gpt-5.5` and can be changed deliberately. The cost env vars are required so fallback turns are counted against the same daily spend cap before production health reports green.
+
+What the fallback does:
+
+- Main response: tries OpenAI only after all configured Anthropic main-model attempts fail before any text is emitted.
+- Classifier and follow-up suggestions: tries OpenAI only if the Anthropic small pass fails and the fallback is configured.
+- Logs only safe metadata: provider/model label, status code, response time, and stable error code.
+- Sends no web-search/tool config to OpenAI.
+
+What the fallback does not do:
+
+- It does not save messages on Streetlight servers.
+- It does not create a new database, queue, transcript store, or admin viewer.
+- It does not log OpenAI request bodies, response bodies, or error bodies.
+- It does not replace Anthropic as the primary provider.
+
+The user-facing privacy page names OpenAI as a rare outage backup. That wording is intentionally narrow: Anthropic remains first because its default data posture is the reason it was selected for V1.
 
 ---
 
@@ -740,10 +790,14 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 | Secret | Purpose | Storage | Rotation |
 |---|---|---|---|
 | Anthropic API key | Main + classifier + follow-up suggestion API calls | Vercel env var | Annual, or on suspected compromise |
+| OpenAI API key | Rare fallback after Anthropic main/small-pass failures | Vercel env var | Annual, or on suspected compromise |
 | `MAIN_MODEL` | Pins main model snapshot | Vercel env var | On deliberate model upgrade |
 | `FALLBACK_MAIN_MODEL` | Optional main-model fallback after 80% daily spend; defaults to classifier model when unset | Vercel env var | On deliberate model upgrade |
 | `CHEAPEST_MAIN_MODEL` | Optional cheapest Anthropic main-model tier after 95% daily spend | Vercel env var | On deliberate model upgrade |
 | `CLASSIFIER_MODEL` | Pins classifier snapshot | Vercel env var | On deliberate model upgrade |
+| `OPENAI_FALLBACK_MODEL` | Pins rare OpenAI fallback model; defaults to `gpt-5.5` | Vercel env var | On deliberate fallback model upgrade |
+| `OPENAI_FALLBACK_INPUT_COST_PER_MILLION_USD` | Required cost accounting for OpenAI fallback input tokens | Vercel env var | On OpenAI pricing/model change |
+| `OPENAI_FALLBACK_OUTPUT_COST_PER_MILLION_USD` | Required cost accounting for OpenAI fallback output tokens | Vercel env var | On OpenAI pricing/model change |
 | Turnstile secret | CAPTCHA validation | Vercel env var | Annual, or on suspected compromise |
 | Hashed-IP salt | One-way hashing for rate limit | Vercel env var | **Quarterly**, or on suspected compromise |
 | Vercel KV credentials | Auto-managed by Vercel | Vercel internal | Auto |
@@ -764,12 +818,12 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 
 ### Access
 
-- **Operator (builder):** full Vercel project, full Anthropic console, full GitHub repo.
+- **Operator (builder):** full Vercel project, full Anthropic console, OpenAI console if fallback is configured, full GitHub repo.
 - **Bus-factor person:** Vercel team-member (read env vars, flip kill switch, cannot delete project), Anthropic billing-only (see spend, cannot generate keys), GitHub collaborator (cannot force-push to main).
 
 ### Rotation Procedure
 
-**Anthropic API key / Turnstile secret:**
+**Anthropic API key / OpenAI API key / Turnstile secret:**
 1. Generate new value in respective console.
 2. Update Vercel env var.
 3. Wait for redeploy.
@@ -921,6 +975,10 @@ These commitments are the residual mitigation for risks the architecture cannot 
 
 > I will not read Anthropic's API request logs to satisfy curiosity about how the tool is being used. I read them only when investigating a specific operational issue (billing anomaly, abuse incident, suspected breach), and I record what I read and why in an incident log file. The 7-day window on Anthropic's side is a privacy exposure that depends on this discipline. The architecture removes every other path to user content; this is the path the architecture cannot remove.
 
+### On the OpenAI Dashboard
+
+> I will not read OpenAI provider-side request records to satisfy curiosity about how the tool is being used. OpenAI is a rare outage fallback only. If I inspect provider-side request records for a specific operational issue, I record what I read and why in an incident log file.
+
 ### On Drift
 
 > I will re-read this document in full at the start of every quarterly review. I will re-read it before any of the 10 trigger conditions land. I will resist proposals — from partners, from funders, from future Claude Code sessions, from myself — that contradict the "no" list, the threat model, or the privacy explainer's claims. When a proposal seems compelling enough to override these, the override happens through a dated ADR with explicit reasoning, not through a quiet code change.
@@ -969,9 +1027,11 @@ Before a message is sent, the site may ask Cloudflare Turnstile to check that th
 
 ## Where your messages go.
 
-When you send a message, it goes to a company called Anthropic. They make the AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.
+When you send a message, it usually goes to a company called Anthropic. They make the main AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.
 
-We picked Anthropic because their rules about your data are stricter than most companies that make AI.
+In rare circumstances, during a broad Anthropic outage, if the backup is turned on, your message may go to OpenAI instead. OpenAI makes the backup AI response. We don't save that message on our servers or use it to train AI.
+
+Anthropic stays first because their rules about your data are stricter than most companies that make AI. OpenAI is only a backup for rare outages, after Anthropic fails.
 
 If you tap Play aloud, the answer text is sent to Microsoft Azure AI Speech to make audio. If you don't tap Play aloud, it is not sent there. We don't save the audio.
 
@@ -1022,7 +1082,7 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 - **No paid tier, no subscription, no upgrade flow.** Public utility.
 - **No API offered to third parties.** Other projects fork the open-source code; they do not consume our API.
 - **No federation, no multi-tenancy, no white-labeling.** One tool. Other organizations fork and run their own deployments.
-- **No phone home, no telemetry to the operator.** The deployed tool does not send signals back beyond named hops (Anthropic, Azure AI Speech for explicit read-aloud, Vercel native logs).
+- **No phone home, no telemetry to the operator.** The deployed tool does not send signals back beyond named hops (Anthropic, rare OpenAI fallback when configured, Azure AI Speech for explicit read-aloud, Vercel native logs).
 - **No ML or analytics on classifier categories beyond aggregate counts.** Categories counted in metadata for quarterly review. Not fed into a learning loop.
 
 ---
@@ -1124,6 +1184,13 @@ One-line summary of every decision in this document, dated for traceability.
 - Save/export can generate TXT, DOCX, and PDF files in the browser.
 - DOCX and PDF generation stay client-side; conversation content is not sent to a new server route or third-party document service.
 - Export controls are disabled while an answer is streaming so partial answers are not saved.
+
+**2026-06-23 — rare OpenAI outage fallback:**
+
+- Anthropic remains the primary provider. OpenAI Responses API is optional and only tried after all configured Anthropic main-model attempts fail before text is emitted.
+- Classifier and follow-up suggestion passes remain Anthropic first, with OpenAI fallback only if the Anthropic small pass fails.
+- OpenAI fallback is disabled unless the API key and explicit input/output cost env vars are configured, so fallback spend is counted before production health reports green.
+- No request bodies, response bodies, or provider error bodies are logged. The privacy/about pages name OpenAI as a rare outage backup.
 
 ---
 

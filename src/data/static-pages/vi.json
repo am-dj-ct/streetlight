@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Quyền riêng tư",
-      "lastUpdated": "2026-05-10",
+      "lastUpdated": "2026-06-23",
       "sections": [
         {
           "heading": "Điều chúng tôi lưu: không có gì về cuộc trò chuyện của bạn.",
@@ -39,8 +39,9 @@
         {
           "heading": "Tin nhắn của bạn đi đâu.",
           "paragraphs": [
-            "Khi bạn gửi tin nhắn, nó đi đến một công ty tên là Anthropic. Họ tạo ra AI trả lời bạn. Họ giữ tin nhắn của bạn trong 7 ngày, rồi xóa. Họ không dùng nó để huấn luyện AI. Họ không chia sẻ nó.",
-            "Chúng tôi chọn Anthropic vì quy định của họ về dữ liệu của bạn chặt chẽ hơn hầu hết các công ty làm AI.",
+            "Khi bạn gửi tin nhắn, thường nó đi đến một công ty tên là Anthropic. Họ tạo ra AI chính trả lời bạn. Họ giữ tin nhắn của bạn trong 7 ngày, rồi xóa. Họ không dùng nó để huấn luyện AI. Họ không chia sẻ nó.",
+            "Trong một số ít trường hợp, khi Anthropic bị gián đoạn rộng và phần dự phòng được bật, tin nhắn của bạn có thể được gửi đến OpenAI thay thế. OpenAI tạo câu trả lời AI dự phòng. Chúng tôi không lưu tin nhắn đó trên máy chủ của chúng tôi hoặc dùng nó để huấn luyện AI.",
+            "Anthropic vẫn là lựa chọn đầu tiên vì quy định của họ về dữ liệu của bạn chặt chẽ hơn hầu hết các công ty làm AI. OpenAI chỉ là dự phòng cho những sự cố hiếm gặp, sau khi Anthropic không hoạt động.",
             "Nếu bạn bấm Đọc thành tiếng, văn bản câu trả lời sẽ được gửi đến Microsoft Azure AI Speech để tạo âm thanh. Nếu bạn không bấm Đọc thành tiếng, nó không được gửi đến đó. Chúng tôi không lưu âm thanh."
           ]
         },
@@ -103,7 +104,7 @@
         {
           "heading": "Cách nó hoạt động.",
           "paragraphs": [
-            "Trang này được xây dựng với vài bước AI khác nhau phía sau. Cuộc trò chuyện chính dùng các mô hình của Anthropic. Một lượt kiểm tra nhỏ thứ hai xem câu trả lời có rơi vào loại mà AI thường được biết là hay sai không, như thủ tục pháp lý hoặc điều kiện nhận phúc lợi. Đọc thành tiếng dùng Microsoft Azure AI Speech khi bạn bấm Đọc thành tiếng.",
+            "Trang này được xây dựng với vài bước AI khác nhau phía sau. Cuộc trò chuyện chính dùng các mô hình của Anthropic trước. Trong một số ít trường hợp, nếu Anthropic không hoạt động và phần dự phòng đã được cấu hình, OpenAI có thể trả lời thay thế. Một lượt kiểm tra nhỏ thứ hai xem câu trả lời có rơi vào loại mà AI thường được biết là hay sai không, như thủ tục pháp lý hoặc điều kiện nhận phúc lợi. Đọc thành tiếng dùng Microsoft Azure AI Speech khi bạn bấm Đọc thành tiếng.",
             "Các mô hình khác nhau có thể được dùng vào các thời điểm khác nhau để giữ cho công cụ hoạt động trong một ngân sách nhỏ vì lợi ích công cộng."
           ]
         },

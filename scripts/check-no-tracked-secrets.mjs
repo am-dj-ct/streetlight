@@ -31,6 +31,10 @@ const secretPatterns = [
     pattern: /^ANTHROPIC_API_KEY=sk-/m,
   },
   {
+    label: "populated OPENAI_API_KEY assignment",
+    pattern: /^OPENAI_API_KEY=sk-/m,
+  },
+  {
     label: "populated KV_REST_API_TOKEN assignment",
     pattern: /^KV_REST_API_TOKEN=.+/m,
   },

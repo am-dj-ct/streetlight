@@ -50,6 +50,10 @@ export function getAnthropicApiKey(): string {
   return readEnv("ANTHROPIC_API_KEY");
 }
 
+export function getOpenAiApiKey(): string {
+  return readEnv("OPENAI_API_KEY");
+}
+
 export function getMainModel(): string {
   return readEnv("MAIN_MODEL");
 }
@@ -64,6 +68,10 @@ export function getFallbackMainModel(): string {
 
 export function getCheapestMainModel(): null | string {
   return readOptionalEnv("CHEAPEST_MAIN_MODEL");
+}
+
+export function getOpenAiFallbackModel(): string {
+  return readOptionalEnv("OPENAI_FALLBACK_MODEL") ?? "gpt-5.5";
 }
 
 export function getTurnstileSecretKey(): string {
@@ -132,6 +140,14 @@ export function getCheapestMainModelOutputCostPerMillionUsd(): null | number {
   return readOptionalNumberEnv("CHEAPEST_MAIN_MODEL_OUTPUT_COST_PER_MILLION_USD");
 }
 
+export function getOpenAiFallbackInputCostPerMillionUsd(): null | number {
+  return readOptionalNumberEnv("OPENAI_FALLBACK_INPUT_COST_PER_MILLION_USD");
+}
+
+export function getOpenAiFallbackOutputCostPerMillionUsd(): null | number {
+  return readOptionalNumberEnv("OPENAI_FALLBACK_OUTPUT_COST_PER_MILLION_USD");
+}
+
 export function getClassifierModelInputCostPerMillionUsd(): null | number {
   return readOptionalNumberEnv("CLASSIFIER_MODEL_INPUT_COST_PER_MILLION_USD");
 }
@@ -158,6 +174,25 @@ export function hasLiveModelConfig(): boolean {
       readOptionalEnv("MAIN_MODEL") &&
       readOptionalEnv("CLASSIFIER_MODEL"),
   );
+}
+
+export function hasOpenAiApiKey(): boolean {
+  return Boolean(readOptionalEnv("OPENAI_API_KEY"));
+}
+
+export function hasOpenAiFallbackCostConfig(): boolean {
+  return Boolean(
+    getOpenAiFallbackInputCostPerMillionUsd() !== null &&
+      getOpenAiFallbackOutputCostPerMillionUsd() !== null,
+  );
+}
+
+export function hasOpenAiFallbackConfig(): boolean {
+  return hasOpenAiApiKey() && hasOpenAiFallbackCostConfig();
+}
+
+export function hasPartialOpenAiFallbackConfig(): boolean {
+  return hasOpenAiApiKey() && !hasOpenAiFallbackConfig();
 }
 
 export function getDeployEnvironment(): string {

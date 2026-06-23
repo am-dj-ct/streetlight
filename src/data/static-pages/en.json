@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Privacy",
-      "lastUpdated": "2026-05-10",
+      "lastUpdated": "2026-06-23",
       "sections": [
         {
           "heading": "What we save: nothing about your conversation.",
@@ -39,8 +39,9 @@
         {
           "heading": "Where your messages go.",
           "paragraphs": [
-            "When you send a message, it goes to a company called Anthropic. They make the AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.",
-            "We picked Anthropic because their rules about your data are stricter than most companies that make AI.",
+            "When you send a message, it usually goes to a company called Anthropic. They make the main AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.",
+            "In rare circumstances, during a broad Anthropic outage, if the backup is turned on, your message may go to OpenAI instead. OpenAI makes the backup AI response. We don't save that message on our servers or use it to train AI.",
+            "Anthropic stays first because their rules about your data are stricter than most companies that make AI. OpenAI is only a backup for rare outages, after Anthropic fails.",
             "If you tap Play aloud, the answer text is sent to Microsoft Azure AI Speech to make audio. If you don't tap Play aloud, it is not sent there. We don't save the audio."
           ]
         },
@@ -103,7 +104,7 @@
         {
           "heading": "How it works.",
           "paragraphs": [
-            "The site is built with a few different AI steps behind the scenes. The main conversation uses Anthropic models. A second smaller pass checks whether the answer falls into a category AI is known to get wrong, like legal procedure or benefits eligibility. Read-aloud uses Microsoft Azure AI Speech when you tap Play aloud.",
+            "The site is built with a few different AI steps behind the scenes. The main conversation uses Anthropic models first. In rare circumstances, if Anthropic is unavailable and the backup is configured, OpenAI can answer instead. A second smaller pass checks whether the answer falls into a category AI is known to get wrong, like legal procedure or benefits eligibility. Read-aloud uses Microsoft Azure AI Speech when you tap Play aloud.",
             "Different models may be used at different times to keep the tool working within a small public-interest budget."
           ]
         },

@@ -11,6 +11,8 @@ import {
   getFallbackMainModelOutputCostPerMillionUsd,
   getMainModelInputCostPerMillionUsd,
   getMainModelOutputCostPerMillionUsd,
+  getOpenAiFallbackInputCostPerMillionUsd,
+  getOpenAiFallbackOutputCostPerMillionUsd,
   hasKvConfig,
 } from "./env";
 
@@ -41,7 +43,8 @@ type SpendLimitResult =
       reason: "limit_reached";
     };
 
-export type MainModelTier = "primary" | "fallback" | "cheapest";
+export type MainModelTier = "primary" | "fallback" | "cheapest" | "openai_fallback";
+export type AuxiliaryModelTier = "classifier" | "openai_fallback";
 
 type MainModelSelectionResult =
   | {
@@ -143,6 +146,13 @@ function getMainModelCostPair(tier: MainModelTier) {
     output: getClassifierModelOutputCostPerMillionUsd(),
   });
 
+  if (tier === "openai_fallback") {
+    return getConfiguredCostPair({
+      input: getOpenAiFallbackInputCostPerMillionUsd(),
+      output: getOpenAiFallbackOutputCostPerMillionUsd(),
+    });
+  }
+
   if (tier === "primary") {
     return getConfiguredCostPair({
       input: getMainModelInputCostPerMillionUsd(),
@@ -165,6 +175,20 @@ function getMainModelCostPair(tier: MainModelTier) {
       output: getCheapestMainModelOutputCostPerMillionUsd(),
     }) ?? classifierCosts
   );
+}
+
+function getAuxiliaryModelCostPair(tier: AuxiliaryModelTier) {
+  if (tier === "openai_fallback") {
+    return getConfiguredCostPair({
+      input: getOpenAiFallbackInputCostPerMillionUsd(),
+      output: getOpenAiFallbackOutputCostPerMillionUsd(),
+    });
+  }
+
+  return getConfiguredCostPair({
+    input: getClassifierModelInputCostPerMillionUsd(),
+    output: getClassifierModelOutputCostPerMillionUsd(),
+  });
 }
 
 async function getCurrentSpendUsd(key: string): Promise<number> {
@@ -281,14 +305,18 @@ export async function selectMainModelForSpend({
 }
 
 export async function recordDailySpendUsd({
+  classifierModelTier = "classifier",
   classifierUsage,
   mainModelTier,
   mainUsage,
+  suggestionsModelTier = "classifier",
   suggestionsUsage,
 }: {
+  classifierModelTier?: AuxiliaryModelTier;
   classifierUsage: UsageShape;
   mainModelTier: MainModelTier;
   mainUsage: UsageShape;
+  suggestionsModelTier?: AuxiliaryModelTier;
   suggestionsUsage?: null | UsageShape;
 }): Promise<null | {
   classifierCostUsd: number;
@@ -301,13 +329,13 @@ export async function recordDailySpendUsd({
   }
 
   const mainCostPair = getMainModelCostPair(mainModelTier);
-  const classifierInputCostPerMillionUsd = getClassifierModelInputCostPerMillionUsd();
-  const classifierOutputCostPerMillionUsd = getClassifierModelOutputCostPerMillionUsd();
+  const classifierCostPair = getAuxiliaryModelCostPair(classifierModelTier);
+  const suggestionsCostPair = getAuxiliaryModelCostPair(suggestionsModelTier);
 
   if (
     mainCostPair === null ||
-    classifierInputCostPerMillionUsd === null ||
-    classifierOutputCostPerMillionUsd === null
+    classifierCostPair === null ||
+    suggestionsCostPair === null
   ) {
     return null;
   }
@@ -320,14 +348,14 @@ export async function recordDailySpendUsd({
   const serverToolCostUsd = calculateServerToolCostUsd(mainUsage);
   const classifierCostUsd = calculateUsageCostUsd(
     classifierUsage,
-    classifierInputCostPerMillionUsd,
-    classifierOutputCostPerMillionUsd,
+    classifierCostPair.inputCostPerMillionUsd,
+    classifierCostPair.outputCostPerMillionUsd,
   );
   const suggestionsCostUsd = suggestionsUsage
     ? calculateUsageCostUsd(
         suggestionsUsage,
-        classifierInputCostPerMillionUsd,
-        classifierOutputCostPerMillionUsd,
+        suggestionsCostPair.inputCostPerMillionUsd,
+        suggestionsCostPair.outputCostPerMillionUsd,
       )
     : 0;
   const totalCostUsd =

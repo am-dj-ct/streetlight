@@ -6,6 +6,10 @@ import {
   hasHashedIpSalt,
   hasKvConfig,
   hasLiveModelConfig,
+  hasOpenAiApiKey,
+  hasOpenAiFallbackConfig,
+  hasOpenAiFallbackCostConfig,
+  hasPartialOpenAiFallbackConfig,
   hasTurnstileSecret,
   hasTurnstileSiteKey,
   isDevMockChatEnabled,
@@ -24,6 +28,11 @@ export type RuntimeState = {
     turnstileEnabled: boolean;
     turnstileSecretConfigured: boolean;
     turnstileSiteKeyConfigured: boolean;
+  };
+  providerFallback: {
+    openAiFallbackConfigured: boolean;
+    openAiFallbackCostConfigured: boolean;
+    openAiKeyConfigured: boolean;
   };
   chatMode: ChatMode;
   commitSha: string;
@@ -54,6 +63,11 @@ export function getRuntimeState(): RuntimeState {
     abuseControls.hashedIpSaltConfigured &&
     abuseControls.kvConfigured &&
     hasTurnstileConfig;
+  const providerFallback = {
+    openAiFallbackConfigured: hasOpenAiFallbackConfig(),
+    openAiFallbackCostConfigured: hasOpenAiFallbackCostConfig(),
+    openAiKeyConfigured: hasOpenAiApiKey(),
+  };
 
   return {
     abuseControls,
@@ -64,12 +78,14 @@ export function getRuntimeState(): RuntimeState {
       !isProductionTtsMockMisconfigured() &&
       (deployEnv !== "production" ||
         (hasLiveModelConfig() &&
+          !hasPartialOpenAiFallbackConfig() &&
           hasAbuseControlsConfig &&
           isTtsEnabled() &&
           hasAzureSpeechConfig() &&
           getTtsDailyCharacterLimit() !== null)),
     deployEnv,
     ok: true,
+    providerFallback,
     service: "access-tool",
   };
 }

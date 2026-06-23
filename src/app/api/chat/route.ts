@@ -8,8 +8,11 @@ import {
   getClassifierModel,
   getFallbackMainModel,
   getMainModel,
+  getOpenAiApiKey,
+  getOpenAiFallbackModel,
   hasHashedIpSalt,
   hasKvConfig,
+  hasOpenAiFallbackConfig,
   hasTurnstileSecret,
   hasTurnstileSiteKey,
   isDevMockChatEnabled,
@@ -27,10 +30,15 @@ import { buildMockChatTurn } from "../../../lib/mock-chat";
 import {
   recordDailySpendUsd,
   selectMainModelForSpend,
+  type AuxiliaryModelTier,
   type MainModelTier,
 } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
 import { validateTurnstileToken } from "../../../lib/turnstile";
+import {
+  createOpenAiTextResponse,
+  OpenAiFallbackError,
+} from "../../../lib/openai-fallback";
 import {
   isChatRequestBody,
   maxChatRequestBodyBytes,
@@ -236,6 +244,74 @@ function isRetryableMainModelError(error: unknown): boolean {
   }
 
   return status === 408 || status >= 500;
+}
+
+function getOpenAiErrorStatus(error: unknown): null | number {
+  return error instanceof OpenAiFallbackError ? error.status : null;
+}
+
+function getOpenAiFallbackModelLabel(model: string): string {
+  return `openai:${model}`;
+}
+
+function buildOpenAiInputMessages(
+  messages: {
+    content: string;
+    role: "assistant" | "user";
+  }[],
+) {
+  return messages.map((message) => ({
+    content: message.content,
+    role: message.role,
+  }));
+}
+
+async function createOpenAiMainFallback({
+  entryId,
+  messages,
+}: {
+  entryId: ChatRequestBody["entryId"];
+  messages: {
+    content: string;
+    role: "assistant" | "user";
+  }[];
+}) {
+  return createOpenAiTextResponse({
+    apiKey: getOpenAiApiKey(),
+    input: buildOpenAiInputMessages(messages),
+    instructions: getSystemPrompt(entryId),
+    maxOutputTokens: 900,
+    model: getOpenAiFallbackModel(),
+  });
+}
+
+async function createOpenAiClassifierFallback({
+  assistantResponse,
+  latestUserMessage,
+}: {
+  assistantResponse: string;
+  latestUserMessage: string;
+}) {
+  return createOpenAiTextResponse({
+    apiKey: getOpenAiApiKey(),
+    input: buildClassifierInput({
+      assistantResponse,
+      latestUserMessage,
+    }),
+    instructions: classifierPrompt,
+    maxOutputTokens: 20,
+    model: getOpenAiFallbackModel(),
+  });
+}
+
+async function createOpenAiSuggestionsFallback(responseText: string) {
+  return createOpenAiTextResponse({
+    apiKey: getOpenAiApiKey(),
+    input: responseText,
+    instructions: followUpSuggestionsPrompt,
+    maxOutputTokens: 160,
+    model: getOpenAiFallbackModel(),
+  });
 }
 
 function getStreamEventErrorDescription(event: unknown): string {
@@ -637,6 +713,7 @@ export async function POST(request: Request) {
       selectedModel: modelSelection.model,
       selectedTier: modelSelection.tier,
     });
+    const anthropicAuxiliaryModel = classifierModel;
     const encoder = new TextEncoder();
 
     const readable = new ReadableStream({
@@ -644,6 +721,7 @@ export async function POST(request: Request) {
         let sentAnyText = false;
         let responseText = "";
         let classifierCategory: WeakCategory = "none";
+        let classifierCompleted = false;
         let classifierResponseTimeMs: null | number = null;
         let classifierUsage: AnthropicUsage | null = null;
         let suggestionsResponseTimeMs: null | number = null;
@@ -651,6 +729,8 @@ export async function POST(request: Request) {
         let suggestionsStatus: "completed" | "error_suggestions" | "not_started" =
           "not_started";
         let mainUsage: AnthropicUsage | null = null;
+        let classifierModelTier: AuxiliaryModelTier = "classifier";
+        let suggestionsModelTier: AuxiliaryModelTier = "classifier";
         let finalMessageContent: readonly unknown[] = [];
 
         try {
@@ -753,6 +833,46 @@ export async function POST(request: Request) {
             }
           }
 
+          if (!sentAnyText && hasOpenAiFallbackConfig()) {
+            const openAiFallbackModel = getOpenAiFallbackModel();
+            const fallbackStartedAt = Date.now();
+
+            try {
+              const openAiResponse = await createOpenAiMainFallback({
+                entryId: body.entryId,
+                messages,
+              });
+
+              model = getOpenAiFallbackModelLabel(openAiFallbackModel);
+              mainModelTier = "openai_fallback";
+              mainUsage = openAiResponse.usage;
+              sentAnyText = true;
+              responseText += openAiResponse.text;
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "delta", text: openAiResponse.text })}\n\n`,
+                ),
+              );
+
+              console.error({
+                code: "openai_main_model_fallback_after_anthropic",
+                model,
+                responseTimeMs: Date.now() - fallbackStartedAt,
+              });
+            } catch (error: unknown) {
+              console.error({
+                code: "openai_main_model_fallback_failed",
+                errorType:
+                  error instanceof OpenAiFallbackError
+                    ? error.name
+                    : "UnknownError",
+                model: getOpenAiFallbackModelLabel(openAiFallbackModel),
+                responseTimeMs: Date.now() - fallbackStartedAt,
+                status: getOpenAiErrorStatus(error) ?? 500,
+              });
+            }
+          }
+
           if (!sentAnyText) {
             logTurnMetadataOnce({
               mainStatus: "error_no_text",
@@ -783,7 +903,7 @@ export async function POST(request: Request) {
             try {
               const classifierStartedAt = Date.now();
               const classifierResponse = await anthropic.messages.create({
-                model: classifierModel,
+                model: anthropicAuxiliaryModel,
                 max_tokens: 20,
                 system: classifierPrompt,
                 messages: [
@@ -803,6 +923,7 @@ export async function POST(request: Request) {
                 .trim();
               const category = parseWeakCategory(classifierText);
               classifierCategory = category;
+              classifierCompleted = true;
               classifierResponseTimeMs = Date.now() - classifierStartedAt;
               classifierUsage = classifierResponse.usage;
 
@@ -820,15 +941,53 @@ export async function POST(request: Request) {
                 errorType: apiError?.name ?? "UnknownError",
                 status: apiError?.status ?? 500,
                 modelMain: model,
-                modelClassifier: classifierModel,
+                modelClassifier: anthropicAuxiliaryModel,
                 responseTimeMs,
               });
+
+              if (hasOpenAiFallbackConfig()) {
+                const openAiFallbackModel = getOpenAiFallbackModel();
+                const fallbackStartedAt = Date.now();
+
+                try {
+                  const classifierResponse = await createOpenAiClassifierFallback({
+                    assistantResponse: responseText,
+                    latestUserMessage: latestUserMessageText,
+                  });
+                  const category = parseWeakCategory(classifierResponse.text);
+
+                  classifierModel = getOpenAiFallbackModelLabel(openAiFallbackModel);
+                  classifierModelTier = "openai_fallback";
+                  classifierCategory = category;
+                  classifierCompleted = true;
+                  classifierResponseTimeMs = Date.now() - fallbackStartedAt;
+                  classifierUsage = classifierResponse.usage;
+
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ type: "classifier", category })}\n\n`,
+                    ),
+                  );
+                } catch (fallbackError: unknown) {
+                  console.error({
+                    code: "openai_classifier_fallback_failed",
+                    errorType:
+                      fallbackError instanceof OpenAiFallbackError
+                        ? fallbackError.name
+                        : "UnknownError",
+                    modelMain: model,
+                    modelClassifier: getOpenAiFallbackModelLabel(openAiFallbackModel),
+                    responseTimeMs: Date.now() - fallbackStartedAt,
+                    status: getOpenAiErrorStatus(fallbackError) ?? 500,
+                  });
+                }
+              }
             }
 
             try {
               const suggestionsStartedAt = Date.now();
               const suggestionsResponse = await anthropic.messages.create({
-                model: classifierModel,
+                model: anthropicAuxiliaryModel,
                 max_tokens: 160,
                 system: followUpSuggestionsPrompt,
                 messages: [
@@ -866,9 +1025,48 @@ export async function POST(request: Request) {
                 errorType: apiError?.name ?? "UnknownError",
                 status: apiError?.status ?? 500,
                 modelMain: model,
-                modelClassifier: classifierModel,
+                modelClassifier: anthropicAuxiliaryModel,
                 responseTimeMs,
               });
+
+              if (hasOpenAiFallbackConfig()) {
+                const openAiFallbackModel = getOpenAiFallbackModel();
+                const fallbackStartedAt = Date.now();
+
+                try {
+                  const suggestionsResponse =
+                    await createOpenAiSuggestionsFallback(responseText);
+                  const suggestions = parseFollowUpSuggestions(
+                    suggestionsResponse.text,
+                  );
+
+                  classifierModel = getOpenAiFallbackModelLabel(openAiFallbackModel);
+                  suggestionsModelTier = "openai_fallback";
+                  suggestionsResponseTimeMs = Date.now() - fallbackStartedAt;
+                  suggestionsUsage = suggestionsResponse.usage;
+                  suggestionsStatus = "completed";
+
+                  if (suggestions.length > 0) {
+                    controller.enqueue(
+                      encoder.encode(
+                        `data: ${JSON.stringify({ type: "suggestions", suggestions })}\n\n`,
+                      ),
+                    );
+                  }
+                } catch (fallbackError: unknown) {
+                  console.error({
+                    code: "openai_suggestions_fallback_failed",
+                    errorType:
+                      fallbackError instanceof OpenAiFallbackError
+                        ? fallbackError.name
+                        : "UnknownError",
+                    modelMain: model,
+                    modelClassifier: getOpenAiFallbackModelLabel(openAiFallbackModel),
+                    responseTimeMs: Date.now() - fallbackStartedAt,
+                    status: getOpenAiErrorStatus(fallbackError) ?? 500,
+                  });
+                }
+              }
             }
 
             if (mainUsage) {
@@ -881,9 +1079,11 @@ export async function POST(request: Request) {
                 };
 
                 await recordDailySpendUsd({
+                  classifierModelTier,
                   mainModelTier,
                   mainUsage,
                   classifierUsage: classifierUsage ?? emptyUsage,
+                  suggestionsModelTier,
                   suggestionsUsage,
                 });
               } catch {
@@ -899,7 +1099,9 @@ export async function POST(request: Request) {
             logTurnMetadataOnce({
               classifierCategory,
               classifierResponseTimeMs,
-              classifierStatus: classifierUsage ? "completed" : "error_classifier",
+              classifierStatus: classifierCompleted
+                ? "completed"
+                : "error_classifier",
               classifierUsage,
               mainStatus: "completed",
               mainUsage,
