@@ -20,9 +20,9 @@ function methodNotAllowed() {
 
 function getDays(request: Request): number {
   const url = new URL(request.url);
-  const parsed = Number(url.searchParams.get("days") ?? 14);
+  const parsed = Number(url.searchParams.get("days") ?? 1);
 
-  return Number.isFinite(parsed) ? parsed : 14;
+  return Number.isFinite(parsed) ? parsed : 1;
 }
 
 export async function GET(request: Request) {
