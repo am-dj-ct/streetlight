@@ -12,6 +12,14 @@ const markerRetentionBufferSeconds = 24 * 60 * 60;
 const usageVersion = "v1";
 
 type UsageFieldMap = Record<string, number>;
+type UniqueScope =
+  | "chat"
+  | "chat_submit"
+  | "conversation_page"
+  | "llm"
+  | "prompt_button"
+  | "site";
+export type FunnelClickEventType = "chat_submit_click" | "prompt_button_click";
 
 export type UsageDaySummary = {
   chat: {
@@ -22,6 +30,17 @@ export type UsageDaySummary = {
     statuses: Record<string, number>;
   };
   date: string;
+  funnel: {
+    chatSubmitClicks: number;
+    chatSubmitEntries: Record<string, number>;
+    chatSubmitUnique: number;
+    conversationEntries: Record<string, number>;
+    conversationPageUnique: number;
+    conversationPageViews: number;
+    promptButtonClicks: number;
+    promptButtonEntries: Record<string, number>;
+    promptButtonUnique: number;
+  };
   llm: {
     turns: number;
     unique: number;
@@ -70,7 +89,7 @@ function getSeenMarkerKey({
 }: {
   dateKey: string;
   hashedIp: string;
-  scope: "chat" | "llm" | "site";
+  scope: UniqueScope;
 }): string {
   return `usage:${usageVersion}:seen:${scope}:${dateKey}:${hashedIp}`;
 }
@@ -101,7 +120,7 @@ async function incrementUnique({
   field: string;
   hashedIp: null | string;
   now: Date;
-  scope: "chat" | "llm" | "site";
+  scope: UniqueScope;
 }): Promise<void> {
   if (!hashedIp) {
     return;
@@ -155,6 +174,103 @@ export async function recordSiteUsageFromHeaders(
       now,
       scope: "site",
     });
+  });
+}
+
+export async function recordConversationPageViewUsage({
+  entryId,
+  headers,
+  language,
+}: {
+  entryId: ConversationEntryId;
+  headers: HeaderReader;
+  language: string;
+}): Promise<boolean> {
+  if (!hasHashedIpSalt()) {
+    return false;
+  }
+
+  return recordUsage(async () => {
+    const now = new Date();
+    const dateKey = getUtcDateKey(now);
+    const hashedIp = getHashedIpFromHeaders(headers);
+
+    await Promise.all([
+      incrementField(dateKey, "funnel.conversation_page.views"),
+      incrementField(
+        dateKey,
+        `funnel.conversation_page.entry.${sanitizeFieldPart(entryId)}`,
+      ),
+      incrementField(
+        dateKey,
+        `funnel.conversation_page.language.${sanitizeFieldPart(language)}`,
+      ),
+      incrementUnique({
+        dateKey,
+        field: "funnel.conversation_page.unique",
+        hashedIp,
+        now,
+        scope: "conversation_page",
+      }),
+    ]);
+  });
+}
+
+export async function recordFunnelClickUsage({
+  entryId,
+  eventType,
+  hashedIp,
+  language,
+}: {
+  entryId: ConversationEntryId;
+  eventType: FunnelClickEventType;
+  hashedIp: null | string;
+  language: string;
+}): Promise<boolean> {
+  return recordUsage(async () => {
+    const now = new Date();
+    const dateKey = getUtcDateKey(now);
+
+    if (eventType === "prompt_button_click") {
+      await Promise.all([
+        incrementField(dateKey, "funnel.prompt_button.clicks"),
+        incrementField(
+          dateKey,
+          `funnel.prompt_button.entry.${sanitizeFieldPart(entryId)}`,
+        ),
+        incrementField(
+          dateKey,
+          `funnel.prompt_button.language.${sanitizeFieldPart(language)}`,
+        ),
+        incrementUnique({
+          dateKey,
+          field: "funnel.prompt_button.unique",
+          hashedIp,
+          now,
+          scope: "prompt_button",
+        }),
+      ]);
+      return;
+    }
+
+    await Promise.all([
+      incrementField(dateKey, "funnel.chat_submit.clicks"),
+      incrementField(
+        dateKey,
+        `funnel.chat_submit.entry.${sanitizeFieldPart(entryId)}`,
+      ),
+      incrementField(
+        dateKey,
+        `funnel.chat_submit.language.${sanitizeFieldPart(language)}`,
+      ),
+      incrementUnique({
+        dateKey,
+        field: "funnel.chat_submit.unique",
+        hashedIp,
+        now,
+        scope: "chat_submit",
+      }),
+    ]);
   });
 }
 
@@ -289,6 +405,21 @@ async function getUsageDaySummary(dateKey: string): Promise<UsageDaySummary> {
       unique: numberFromField(fields["chat.unique"]),
     },
     date: dateKey,
+    funnel: {
+      chatSubmitClicks: numberFromField(fields["funnel.chat_submit.clicks"]),
+      chatSubmitEntries: pickPrefix(fields, "funnel.chat_submit.entry."),
+      chatSubmitUnique: numberFromField(fields["funnel.chat_submit.unique"]),
+      conversationEntries: pickPrefix(fields, "funnel.conversation_page.entry."),
+      conversationPageUnique: numberFromField(
+        fields["funnel.conversation_page.unique"],
+      ),
+      conversationPageViews: numberFromField(
+        fields["funnel.conversation_page.views"],
+      ),
+      promptButtonClicks: numberFromField(fields["funnel.prompt_button.clicks"]),
+      promptButtonEntries: pickPrefix(fields, "funnel.prompt_button.entry."),
+      promptButtonUnique: numberFromField(fields["funnel.prompt_button.unique"]),
+    },
     llm: {
       categories: pickPrefix(fields, "llm.category."),
       models: pickPrefix(fields, "llm.model."),
@@ -322,6 +453,17 @@ export async function getUsageSummary({
           unique: 0,
         },
         date: dateKey,
+        funnel: {
+          chatSubmitClicks: 0,
+          chatSubmitEntries: {},
+          chatSubmitUnique: 0,
+          conversationEntries: {},
+          conversationPageUnique: 0,
+          conversationPageViews: 0,
+          promptButtonClicks: 0,
+          promptButtonEntries: {},
+          promptButtonUnique: 0,
+        },
         llm: {
           categories: {},
           models: {},

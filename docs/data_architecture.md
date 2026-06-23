@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-06-23
-**Last meaningful change:** 2026-06-23 (optional OpenAI Responses API fallback added for rare broad Anthropic outages; no server-side content persistence added)
+**Last meaningful change:** 2026-06-23 (optional OpenAI Responses API fallback added for rare broad Anthropic outages; blind aggregate funnel counters added; no server-side content persistence added)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -89,7 +89,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - We have no user identity. A subpoena ("records for John Doe") cannot be linked to anything in our system.
 - We have no conversation content. Nothing to hand over.
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
-- Blind usage counters in Vercel KV: daily site visits, chat requests, LLM turns, and daily unique salted-IP counts. The per-day unique markers expire shortly after the day ends; aggregate counts remain for operational review.
+- Blind usage counters in Vercel KV: daily site visits, homepage prompt clicks, conversation page views, chat submit clicks, chat requests, LLM turns, and daily unique salted-IP counts. The per-day unique markers expire shortly after the day ends; aggregate counts remain for operational review.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
 - In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
@@ -391,10 +391,10 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 
 ### Hop 4b — Blind Usage Counters
 
-- **Runs:** Inside Vercel during page render and `/api/chat` handling.
-- **Has access to:** Salted hashed IP, current UTC date, route class (`site`, `chat`, or `llm`), button id, language, final status, model label, classifier category, and spend counter.
+- **Runs:** Inside Vercel during page render, prompt-button click event handling, and `/api/chat` handling.
+- **Has access to:** Salted hashed IP, current UTC date, metric class (`site`, `prompt_button`, `conversation_page`, `chat_submit`, `chat`, or `llm`), button id, language, final status, model label, classifier category, and spend counter.
 - **Logs by default:** Vercel KV operation metadata only. Counter keys contain metric names and UTC dates. Short-lived unique marker keys contain salted hashes, never raw IPs.
-- **Override:** Stores one daily hash of aggregate fields such as `site.views`, `site.unique`, `chat.requests`, `chat.status.completed`, `llm.turns`, `llm.unique`, `llm.model.<label>`. Stores no request path, user agent, raw IP, message text, answer text, source URLs, session ID, cookie, or per-user timeline. Per-day unique marker keys expire shortly after UTC midnight; aggregate counters expire after 180 days.
+- **Override:** Stores one daily hash of aggregate fields such as `site.views`, `site.unique`, `funnel.prompt_button.clicks`, `funnel.conversation_page.views`, `funnel.chat_submit.clicks`, `chat.requests`, `chat.status.completed`, `llm.turns`, `llm.unique`, `llm.model.<label>`. Stores no request path, user agent, raw IP, message text, answer text, source URLs, session ID, cookie, or per-user timeline. Per-day unique marker keys expire shortly after UTC midnight; aggregate counters expire after 180 days.
 - **What leaves this hop:** Counts are available only through the token-protected `/api/ops/usage` JSON endpoint and `/ops/usage` dashboard. Both return aggregate counts only.
 
 ### Hop 5 — Anthropic API (Main Model — Sonnet 4.6 by default)
@@ -1017,7 +1017,7 @@ Your messages, the answers you get, and read-aloud audio are not saved on our se
 
 ## What we do save: numbers, not words.
 
-We save things like: how long it took to answer, which button you tapped, what language you used, what kind of question it was. We don't save what you typed or what the answer said.
+We save things like: how long it took to answer, which button you tapped, whether the chat page loaded, whether the send button was tapped, what language you used, what kind of question it was. We don't save what you typed or what the answer said.
 
 For read-aloud, we may save the daily total number of characters sent for audio so the bill cannot run away. We don't save the words.
 
@@ -1078,7 +1078,7 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 
 - **No backups.** Nothing is stored that could be backed up. No database, no user content, no per-user state.
 - **No monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom. Detection is human. Slower than automated; accepted because monitoring tools introduce vendors with content access and a surveillance-shaped surface.
-- **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count daily visits, chat requests, and LLM turns without raw IPs, paths, user agents, cookies, content, or per-person timelines.
+- **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count daily visits, homepage prompt clicks, conversation page views, chat submit clicks, chat requests, and LLM turns without raw IPs, paths, user agents, cookies, content, or per-person timelines.
 - **No A/B testing or experimentation framework.** One version ships. Improvements deploy for everyone after partner review.
 - **No accounts, no login, no email, no phone collection.** No user table, no session table, no auth code. Adding any is a fundamental shift.
 - **No admin panel.** Vercel's dashboard is the only admin surface.
@@ -1201,6 +1201,13 @@ One-line summary of every decision in this document, dated for traceability.
 - Classifier and follow-up suggestion passes remain Anthropic first, with OpenAI fallback only if the Anthropic small pass fails.
 - OpenAI fallback is disabled unless the API key and explicit input/output cost env vars are configured, so fallback spend is counted before production health reports green.
 - No request bodies, response bodies, or provider error bodies are logged. The privacy/about pages name OpenAI as a rare outage backup.
+
+**2026-06-23 — blind funnel counters:**
+
+- Streetlight-owned Vercel KV counters now count daily homepage prompt clicks, conversation page views, and manual chat submit clicks.
+- Each funnel step has daily aggregate totals and daily salted-IP unique counts, with per-day unique markers expiring shortly after UTC midnight.
+- The counters store no raw IPs, paths, user agents, cookies, messages, answers, session IDs, or per-person timelines.
+- The `/ops/usage` dashboard displays the funnel alongside existing site views, chat requests, LLM turns, classifier categories, model labels, and spend.
 
 ---
 

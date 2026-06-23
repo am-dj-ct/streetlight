@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CrisisFooter } from "./crisis-footer";
 import { PhoneAction } from "./phone-action";
+import { trackUsageEvent } from "./tracked-conversation-link";
 import { copyTextToClipboard } from "../lib/browser-copy";
 import { getConversationContentEntry } from "../lib/conversation-content";
 import {
@@ -1886,11 +1887,19 @@ export function ConversationClient({
     recognition.start();
   }
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, trackSubmit = false) {
     const trimmed = text.trim();
 
     if (!trimmed) {
       return;
+    }
+
+    if (trackSubmit) {
+      trackUsageEvent({
+        entryId,
+        eventType: "chat_submit_click",
+        language: currentLanguageCode,
+      });
     }
 
     if (isStreaming || isPreparingTurnstileRef.current) {
@@ -2518,7 +2527,7 @@ export function ConversationClient({
             className="flex items-end gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              void sendMessage(draft);
+              void sendMessage(draft, true);
             }}
           >
             <label className="flex-1" htmlFor="conversation-input">
@@ -2542,7 +2551,7 @@ export function ConversationClient({
                   }
 
                   event.preventDefault();
-                  void sendMessage(draft);
+                  void sendMessage(draft, true);
                 }}
                 maxLength={maxClientMessageTextLength}
                 placeholder={copy.composerPlaceholder}

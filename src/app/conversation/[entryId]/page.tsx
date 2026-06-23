@@ -9,6 +9,7 @@ import {
 } from "../../../lib/conversation-shell";
 import { getPageRequestContext } from "../../../lib/request-context";
 import { makeTitle } from "../../../lib/site-metadata";
+import { recordConversationPageViewUsage } from "../../../lib/usage-metrics";
 
 type ConversationPageProps = {
   params: Promise<{
@@ -62,6 +63,12 @@ export default async function ConversationPage({
   if (!seed) {
     notFound();
   }
+
+  await recordConversationPageViewUsage({
+    entryId: seed.id,
+    headers: requestHeaders,
+    language: currentLanguage.code,
+  });
 
   return (
     <>

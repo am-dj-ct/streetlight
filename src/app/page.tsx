@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { CrisisFooter } from "../components/crisis-footer";
 import { LanguageStripLinks } from "../components/language-strip-links";
 import { LocalDevBadge } from "../components/local-dev-badge";
+import { TrackedConversationLink } from "../components/tracked-conversation-link";
 import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getPageRequestContext } from "../lib/request-context";
 import { buildConversationHref, buildHomeHref } from "../lib/routes";
@@ -81,29 +81,33 @@ export default async function Home({ searchParams }: HomePageProps) {
 
           <div className="mt-5 grid gap-2.5 lg:grid-cols-2 lg:gap-3">
             {promptButtons.map((button) => (
-              <Link
+              <TrackedConversationLink
                 key={button.id}
+                entryId={button.id}
                 href={buildConversationHref({
                   entryId: button.id,
                   languageCode: currentLanguage.code,
                 })}
+                languageCode={currentLanguage.code}
                 className="flex min-h-16 w-full items-center rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)] sm:px-5"
               >
                 {button.label}
-              </Link>
+              </TrackedConversationLink>
             ))}
 
             {alternateActions.map((action) => (
-              <Link
+              <TrackedConversationLink
                 key={action.id}
+                entryId={action.id}
                 href={buildConversationHref({
                   entryId: action.id,
                   languageCode: currentLanguage.code,
                 })}
+                languageCode={currentLanguage.code}
                 className="flex min-h-16 w-full items-center rounded-lg border border-[#b7c7bd] bg-white px-4 py-3 text-left text-[17px] font-semibold leading-6 text-[#1d2a22] shadow-[0_1px_0_rgba(29,42,34,0.08)] sm:px-5"
               >
                 {action.label}
-              </Link>
+              </TrackedConversationLink>
             ))}
           </div>
         </section>

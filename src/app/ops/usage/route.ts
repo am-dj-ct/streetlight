@@ -28,10 +28,6 @@ function getSecureCookieFlag(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
 }
 
-function sumRecord(values: Record<string, number>): number {
-  return Object.values(values).reduce((sum, value) => sum + value, 0);
-}
-
 function topItems(values: Record<string, number>, limit = 4): string {
   const items = Object.entries(values)
     .filter(([, value]) => value > 0)
@@ -45,6 +41,10 @@ function topItems(values: Record<string, number>, limit = 4): string {
   return items
     .map(([key, value]) => `${escapeHtml(key)} (${value})`)
     .join(", ");
+}
+
+function formatCountWithUnique(count: number, unique: number): string {
+  return `${count} (${unique} unique)`;
 }
 
 function formatCurrency(value: number): string {
@@ -153,12 +153,21 @@ function buildRows(days: UsageDaySummary[]): string {
     .map(
       (day) => `<tr>
         <td>${escapeHtml(day.date)}</td>
-        <td>${day.site.unique}</td>
-        <td>${day.site.views}</td>
-        <td>${day.chat.unique}</td>
-        <td>${day.chat.requests}</td>
-        <td>${day.llm.unique}</td>
-        <td>${day.llm.turns}</td>
+        <td>${formatCountWithUnique(day.site.views, day.site.unique)}</td>
+        <td>${formatCountWithUnique(
+          day.funnel.promptButtonClicks,
+          day.funnel.promptButtonUnique,
+        )}</td>
+        <td>${formatCountWithUnique(
+          day.funnel.conversationPageViews,
+          day.funnel.conversationPageUnique,
+        )}</td>
+        <td>${formatCountWithUnique(
+          day.funnel.chatSubmitClicks,
+          day.funnel.chatSubmitUnique,
+        )}</td>
+        <td>${formatCountWithUnique(day.chat.requests, day.chat.unique)}</td>
+        <td>${formatCountWithUnique(day.llm.turns, day.llm.unique)}</td>
         <td>${topItems(day.chat.statuses)}</td>
         <td>${topItems(day.llm.categories)}</td>
         <td>${topItems(day.llm.models)}</td>
@@ -172,15 +181,22 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
   const totals = summary.days.reduce(
     (result, day) => ({
       chatRequests: result.chatRequests + day.chat.requests,
-      chatStatuses: result.chatStatuses + sumRecord(day.chat.statuses),
+      chatSubmitClicks:
+        result.chatSubmitClicks + day.funnel.chatSubmitClicks,
+      conversationPageViews:
+        result.conversationPageViews + day.funnel.conversationPageViews,
       llmTurns: result.llmTurns + day.llm.turns,
+      promptButtonClicks:
+        result.promptButtonClicks + day.funnel.promptButtonClicks,
       siteViews: result.siteViews + day.site.views,
       spendUsd: result.spendUsd + day.spendUsd,
     }),
     {
       chatRequests: 0,
-      chatStatuses: 0,
+      chatSubmitClicks: 0,
+      conversationPageViews: 0,
       llmTurns: 0,
+      promptButtonClicks: 0,
       siteViews: 0,
       spendUsd: 0,
     },
@@ -274,9 +290,11 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     <p>Aggregate counts only. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       <div class="metric"><span>Site views</span><strong>${totals.siteViews}</strong></div>
+      <div class="metric"><span>Prompt clicks</span><strong>${totals.promptButtonClicks}</strong></div>
+      <div class="metric"><span>Conversation views</span><strong>${totals.conversationPageViews}</strong></div>
+      <div class="metric"><span>Submit clicks</span><strong>${totals.chatSubmitClicks}</strong></div>
       <div class="metric"><span>Chat requests</span><strong>${totals.chatRequests}</strong></div>
       <div class="metric"><span>LLM turns</span><strong>${totals.llmTurns}</strong></div>
-      <div class="metric"><span>Tracked outcomes</span><strong>${totals.chatStatuses}</strong></div>
       <div class="metric"><span>Spend</span><strong>${formatCurrency(totals.spendUsd)}</strong></div>
     </section>
     <div class="table-wrap">
@@ -284,11 +302,11 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
         <thead>
           <tr>
             <th>Date</th>
-            <th>Site unique</th>
             <th>Site views</th>
-            <th>Chat unique</th>
+            <th>Prompt clicks</th>
+            <th>Conversation views</th>
+            <th>Submit clicks</th>
             <th>Chat requests</th>
-            <th>LLM unique</th>
             <th>LLM turns</th>
             <th>Outcomes</th>
             <th>Categories</th>
