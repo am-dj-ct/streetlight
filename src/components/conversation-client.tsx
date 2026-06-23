@@ -107,6 +107,8 @@ type SpeechRecognitionInstance = {
   stop: () => void;
 };
 
+const turnstileSendTimeoutMs = 30000;
+
 type ConversationClientProps = {
   currentLanguageCode: SupportedLanguageCode;
   currentLanguageLabel: string;
@@ -1352,7 +1354,7 @@ export function ConversationClient({
       };
 
       turnstileTokenResolverRef.current = finish;
-      timeoutId = window.setTimeout(() => finish(null), 8000);
+      timeoutId = window.setTimeout(() => finish(null), turnstileSendTimeoutMs);
 
       try {
         turnstile.execute(widgetId);
