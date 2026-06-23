@@ -2181,9 +2181,13 @@ export function ConversationClient({
             <span aria-hidden="true">{"<"}</span>
           </Link>
 
-          <p className="truncate text-center text-[18px] font-semibold text-[#171a18]">
+          <Link
+            href={buildHomeHref(currentLanguageCode)}
+            aria-label={copy.homeLabel}
+            className="truncate text-center text-[18px] font-semibold text-[#171a18]"
+          >
             {appTitle}
-          </p>
+          </Link>
 
           <button
             type="button"
