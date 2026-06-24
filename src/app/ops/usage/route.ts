@@ -214,9 +214,9 @@ function buildPanelHtml({
   subtitle?: string;
   title: string;
 }): string {
-  return `<section class="panel"><h2>${escapeHtml(title)}</h2>${
+  return `<details class="panel"><summary><span class="panel-title">${escapeHtml(title)}</span><span class="panel-action"><span class="open-label">Show</span><span class="close-label">Hide</span></span></summary><div class="panel-body">${
     subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""
-  }${body}</section>`;
+  }${body}</div></details>`;
 }
 
 function buildFunnelRows(totals: UsageDashboardTotals): string {
@@ -514,27 +514,68 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     }
     .insights {
       display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      margin-bottom: 24px;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      margin-bottom: 16px;
     }
     .panel {
       border: 1px solid #d4ded7;
       background: #ffffff;
       border-radius: 8px;
-      padding: 16px;
+      overflow: hidden;
     }
-    .panel h2 {
-      font-size: 16px;
-      margin: 0 0 4px;
+    .panel summary {
+      align-items: center;
+      cursor: pointer;
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      list-style: none;
+      min-height: 38px;
+      padding: 0 10px;
     }
-    .panel h3 {
+    .panel summary::-webkit-details-marker {
+      display: none;
+    }
+    .panel summary:focus-visible {
+      outline: 2px solid #245f4f;
+      outline-offset: -2px;
+    }
+    .panel-title {
+      color: #263d36;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .panel-action {
+      border: 1px solid #d4ded7;
+      border-radius: 999px;
+      color: #405047;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      white-space: nowrap;
+    }
+    .close-label {
+      display: none;
+    }
+    .panel[open] .open-label {
+      display: none;
+    }
+    .panel[open] .close-label {
+      display: inline;
+    }
+    .panel-body {
+      border-top: 1px solid #edf1ee;
+      padding: 12px;
+    }
+    .panel-body h3 {
       color: #263d36;
       font-size: 12px;
       margin: 14px 0 8px;
       text-transform: uppercase;
     }
-    .panel p {
+    .panel-body p {
       color: #586761;
       font-size: 13px;
       line-height: 1.4;
