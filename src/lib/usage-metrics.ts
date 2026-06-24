@@ -33,12 +33,15 @@ export type UsageDaySummary = {
   funnel: {
     chatSubmitClicks: number;
     chatSubmitEntries: Record<string, number>;
+    chatSubmitLanguages: Record<string, number>;
     chatSubmitUnique: number;
     conversationEntries: Record<string, number>;
+    conversationLanguages: Record<string, number>;
     conversationPageUnique: number;
     conversationPageViews: number;
     promptButtonClicks: number;
     promptButtonEntries: Record<string, number>;
+    promptButtonLanguages: Record<string, number>;
     promptButtonUnique: number;
   };
   llm: {
@@ -408,8 +411,13 @@ async function getUsageDaySummary(dateKey: string): Promise<UsageDaySummary> {
     funnel: {
       chatSubmitClicks: numberFromField(fields["funnel.chat_submit.clicks"]),
       chatSubmitEntries: pickPrefix(fields, "funnel.chat_submit.entry."),
+      chatSubmitLanguages: pickPrefix(fields, "funnel.chat_submit.language."),
       chatSubmitUnique: numberFromField(fields["funnel.chat_submit.unique"]),
       conversationEntries: pickPrefix(fields, "funnel.conversation_page.entry."),
+      conversationLanguages: pickPrefix(
+        fields,
+        "funnel.conversation_page.language.",
+      ),
       conversationPageUnique: numberFromField(
         fields["funnel.conversation_page.unique"],
       ),
@@ -418,6 +426,7 @@ async function getUsageDaySummary(dateKey: string): Promise<UsageDaySummary> {
       ),
       promptButtonClicks: numberFromField(fields["funnel.prompt_button.clicks"]),
       promptButtonEntries: pickPrefix(fields, "funnel.prompt_button.entry."),
+      promptButtonLanguages: pickPrefix(fields, "funnel.prompt_button.language."),
       promptButtonUnique: numberFromField(fields["funnel.prompt_button.unique"]),
     },
     llm: {
@@ -456,12 +465,15 @@ export async function getUsageSummary({
         funnel: {
           chatSubmitClicks: 0,
           chatSubmitEntries: {},
+          chatSubmitLanguages: {},
           chatSubmitUnique: 0,
           conversationEntries: {},
+          conversationLanguages: {},
           conversationPageUnique: 0,
           conversationPageViews: 0,
           promptButtonClicks: 0,
           promptButtonEntries: {},
+          promptButtonLanguages: {},
           promptButtonUnique: 0,
         },
         llm: {

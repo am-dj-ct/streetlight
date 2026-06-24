@@ -8,6 +8,54 @@ import {
   getUsageSummary,
   type UsageDaySummary,
 } from "../../../lib/usage-metrics";
+import { getAlternateActions, getPromptButtons } from "../../../lib/buttons";
+import { languageOptions } from "../../../lib/languages";
+
+type UsageDashboardTotals = {
+  chatLanguages: Record<string, number>;
+  chatRequests: number;
+  chatStatuses: Record<string, number>;
+  chatUnique: number;
+  chatSubmitClicks: number;
+  chatSubmitLanguages: Record<string, number>;
+  chatSubmitUnique: number;
+  conversationPageViews: number;
+  conversationLanguages: Record<string, number>;
+  conversationPageUnique: number;
+  llmCategories: Record<string, number>;
+  llmModels: Record<string, number>;
+  llmTurns: number;
+  llmUnique: number;
+  promptButtonClicks: number;
+  promptButtonEntries: Record<string, number>;
+  promptButtonLanguages: Record<string, number>;
+  promptButtonUnique: number;
+  siteUnique: number;
+  siteViews: number;
+  spendUsd: number;
+};
+
+const conversationLabelById: ReadonlyMap<string, string> = new Map(
+  [...getPromptButtons("en"), ...getAlternateActions("en")].map((entry) => [
+    entry.id,
+    entry.label,
+  ]),
+);
+const languageLabelByCode: ReadonlyMap<string, string> = new Map(
+  languageOptions.map((language) => [language.code, language.label]),
+);
+const statusLabels: Record<string, string> = {
+  blocked_abuse_controls: "Blocked: abuse controls misconfigured",
+  blocked_daily_spend: "Blocked: daily spend cap",
+  blocked_rate_limit: "Blocked: rate limit",
+  blocked_soft_pause: "Blocked: soft pause",
+  blocked_turnstile: "Blocked: human check",
+  completed: "Completed",
+  error_no_text: "Error: no text",
+  error_request_setup: "Error: request setup",
+  error_stream: "Error: stream",
+  not_started: "Not started",
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -28,7 +76,58 @@ function getSecureCookieFlag(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
 }
 
-function topItems(values: Record<string, number>, limit = 4): string {
+function humanizeKey(value: string): string {
+  return value
+    .replace(/^openai:/, "OpenAI fallback: ")
+    .replace(/[-_:.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function labelConversationEntry(value: string): string {
+  return conversationLabelById.get(value) ?? humanizeKey(value);
+}
+
+function labelLanguage(value: string): string {
+  return languageLabelByCode.get(value) ?? humanizeKey(value);
+}
+
+function labelStatus(value: string): string {
+  return statusLabels[value] ?? humanizeKey(value);
+}
+
+function labelModel(value: string): string {
+  return value.startsWith("openai:") ? humanizeKey(value) : value;
+}
+
+function addRecords(
+  left: Record<string, number>,
+  right: Record<string, number>,
+): Record<string, number> {
+  const result = { ...left };
+
+  for (const [key, value] of Object.entries(right)) {
+    result[key] = (result[key] ?? 0) + value;
+  }
+
+  return result;
+}
+
+function filterRecord(
+  values: Record<string, number>,
+  predicate: (key: string, value: number) => boolean,
+): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(values).filter(([key, value]) => predicate(key, value)),
+  );
+}
+
+function topItems(
+  values: Record<string, number>,
+  limit = 4,
+  labelValue: (value: string) => string = humanizeKey,
+): string {
   const items = Object.entries(values)
     .filter(([, value]) => value > 0)
     .sort((left, right) => right[1] - left[1])
@@ -39,12 +138,48 @@ function topItems(values: Record<string, number>, limit = 4): string {
   }
 
   return items
-    .map(([key, value]) => `${escapeHtml(key)} (${value})`)
+    .map(([key, value]) => `${escapeHtml(labelValue(key))} (${value})`)
     .join(", ");
+}
+
+function buildBreakdownList({
+  labelValue = humanizeKey,
+  limit = 6,
+  values,
+}: {
+  labelValue?: (value: string) => string;
+  limit?: number;
+  values: Record<string, number>;
+}): string {
+  const items = Object.entries(values)
+    .filter(([, value]) => value > 0)
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, limit);
+
+  if (items.length === 0) {
+    return '<p class="empty">None</p>';
+  }
+
+  return `<ol class="breakdown-list">${items
+    .map(
+      ([key, value]) =>
+        `<li><span>${escapeHtml(labelValue(key))}</span><strong>${value}</strong></li>`,
+    )
+    .join("")}</ol>`;
 }
 
 function formatCountWithUnique(count: number, unique: number): string {
   return `${count} (${unique} unique)`;
+}
+
+function formatPercent(numerator: number, denominator: number): string {
+  if (denominator <= 0) {
+    return "n/a";
+  }
+
+  const percentage = (numerator / denominator) * 100;
+
+  return `${percentage >= 10 ? percentage.toFixed(0) : percentage.toFixed(1)}%`;
 }
 
 function formatCurrency(value: number): string {
@@ -68,6 +203,61 @@ function buildMetricHtml({
   return `<div class="metric"><span>${label}</span><strong>${value}</strong>${
     unique === undefined ? "" : `<small>${unique} unique</small>`
   }</div>`;
+}
+
+function buildPanelHtml({
+  body,
+  subtitle,
+  title,
+}: {
+  body: string;
+  subtitle?: string;
+  title: string;
+}): string {
+  return `<section class="panel"><h2>${escapeHtml(title)}</h2>${
+    subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""
+  }${body}</section>`;
+}
+
+function buildFunnelRows(totals: UsageDashboardTotals): string {
+  const rows = [
+    {
+      from: totals.siteViews,
+      label: "Site to prompt",
+      to: totals.promptButtonClicks,
+    },
+    {
+      from: totals.promptButtonClicks,
+      label: "Prompt to conversation",
+      to: totals.conversationPageViews,
+    },
+    {
+      from: totals.conversationPageViews,
+      label: "Conversation to submit",
+      to: totals.chatSubmitClicks,
+    },
+    {
+      from: totals.chatSubmitClicks,
+      label: "Submit to chat request",
+      to: totals.chatRequests,
+    },
+    {
+      from: totals.chatRequests,
+      label: "Chat request to LLM",
+      to: totals.llmTurns,
+    },
+  ];
+
+  return rows
+    .map(
+      (row) => `<tr>
+        <td>${escapeHtml(row.label)}</td>
+        <td>${row.to} / ${row.from}</td>
+        <td>${formatPercent(row.to, row.from)}</td>
+        <td>${Math.max(row.from - row.to, 0)}</td>
+      </tr>`,
+    )
+    .join("");
 }
 
 function buildLoginHtml({
@@ -192,22 +382,42 @@ function buildRows(days: UsageDaySummary[]): string {
 }
 
 function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string {
-  const totals = summary.days.reduce(
+  const totals = summary.days.reduce<UsageDashboardTotals>(
     (result, day) => ({
+      chatLanguages: addRecords(result.chatLanguages, day.chat.languages),
       chatRequests: result.chatRequests + day.chat.requests,
+      chatStatuses: addRecords(result.chatStatuses, day.chat.statuses),
       chatUnique: result.chatUnique + day.chat.unique,
       chatSubmitClicks:
         result.chatSubmitClicks + day.funnel.chatSubmitClicks,
+      chatSubmitLanguages: addRecords(
+        result.chatSubmitLanguages,
+        day.funnel.chatSubmitLanguages,
+      ),
       chatSubmitUnique:
         result.chatSubmitUnique + day.funnel.chatSubmitUnique,
       conversationPageViews:
         result.conversationPageViews + day.funnel.conversationPageViews,
+      conversationLanguages: addRecords(
+        result.conversationLanguages,
+        day.funnel.conversationLanguages,
+      ),
       conversationPageUnique:
         result.conversationPageUnique + day.funnel.conversationPageUnique,
+      llmCategories: addRecords(result.llmCategories, day.llm.categories),
+      llmModels: addRecords(result.llmModels, day.llm.models),
       llmTurns: result.llmTurns + day.llm.turns,
       llmUnique: result.llmUnique + day.llm.unique,
       promptButtonClicks:
         result.promptButtonClicks + day.funnel.promptButtonClicks,
+      promptButtonEntries: addRecords(
+        result.promptButtonEntries,
+        day.funnel.promptButtonEntries,
+      ),
+      promptButtonLanguages: addRecords(
+        result.promptButtonLanguages,
+        day.funnel.promptButtonLanguages,
+      ),
       promptButtonUnique:
         result.promptButtonUnique + day.funnel.promptButtonUnique,
       siteUnique: result.siteUnique + day.site.unique,
@@ -215,20 +425,32 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       spendUsd: result.spendUsd + day.spendUsd,
     }),
     {
+      chatLanguages: {},
       chatRequests: 0,
+      chatStatuses: {},
       chatUnique: 0,
       chatSubmitClicks: 0,
+      chatSubmitLanguages: {},
       chatSubmitUnique: 0,
       conversationPageViews: 0,
+      conversationLanguages: {},
       conversationPageUnique: 0,
+      llmCategories: {},
+      llmModels: {},
       llmTurns: 0,
       llmUnique: 0,
       promptButtonClicks: 0,
+      promptButtonEntries: {},
+      promptButtonLanguages: {},
       promptButtonUnique: 0,
       siteUnique: 0,
       siteViews: 0,
       spendUsd: 0,
     },
+  );
+  const blockedOrErrorStatuses = filterRecord(
+    totals.chatStatuses,
+    (key) => key !== "completed",
   );
 
   return `<!doctype html>
@@ -290,31 +512,105 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       font-size: 13px;
       margin-top: 4px;
     }
+    .insights {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      margin-bottom: 24px;
+    }
+    .panel {
+      border: 1px solid #d4ded7;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h2 {
+      font-size: 16px;
+      margin: 0 0 4px;
+    }
+    .panel h3 {
+      color: #263d36;
+      font-size: 12px;
+      margin: 14px 0 8px;
+      text-transform: uppercase;
+    }
+    .panel p {
+      color: #586761;
+      font-size: 13px;
+      line-height: 1.4;
+      margin: 0 0 12px;
+    }
+    .breakdown-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .breakdown-list li {
+      align-items: baseline;
+      border-bottom: 1px solid #edf1ee;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      padding: 7px 0;
+    }
+    .breakdown-list li:last-child {
+      border-bottom: 0;
+    }
+    .breakdown-list span {
+      color: #1d2a22;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .breakdown-list strong {
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .empty {
+      color: #586761;
+      font-size: 14px;
+      margin: 0;
+    }
+    .funnel-table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .funnel-table th, .funnel-table td {
+      border-bottom: 1px solid #edf1ee;
+      font-size: 13px;
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .funnel-table th {
+      color: #586761;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
     .table-wrap {
       overflow-x: auto;
       border: 1px solid #d4ded7;
       background: #ffffff;
       border-radius: 8px;
     }
-    table {
+    .table-wrap table {
       border-collapse: collapse;
       min-width: 1120px;
       width: 100%;
     }
-    th, td {
+    .table-wrap th, .table-wrap td {
       border-bottom: 1px solid #e5ebe7;
       padding: 10px 12px;
       text-align: left;
       vertical-align: top;
       font-size: 14px;
     }
-    th {
+    .table-wrap th {
       background: #eef4ef;
       color: #263d36;
       font-size: 12px;
       text-transform: uppercase;
     }
-    tr:last-child td {
+    .table-wrap tr:last-child td {
       border-bottom: 0;
     }
   </style>
@@ -357,6 +653,66 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       ${buildMetricHtml({
         label: "Spend",
         value: formatCurrency(totals.spendUsd),
+      })}
+    </section>
+    <section class="insights">
+      ${buildPanelHtml({
+        body: `<table class="funnel-table">
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Moved</th>
+              <th>Rate</th>
+              <th>Dropoff</th>
+            </tr>
+          </thead>
+          <tbody>${buildFunnelRows(totals)}</tbody>
+        </table>`,
+        subtitle: "Counts, not people. Direct links can make later steps higher than earlier steps.",
+        title: "Dropoff",
+      })}
+      ${buildPanelHtml({
+        body: `<h3>Prompt clicks</h3>${buildBreakdownList({
+          labelValue: labelLanguage,
+          values: totals.promptButtonLanguages,
+        })}<h3>Chat requests</h3>${buildBreakdownList({
+          labelValue: labelLanguage,
+          values: totals.chatLanguages,
+        })}`,
+        subtitle: "Aggregate language counts for early intent and actual chat requests.",
+        title: "Language",
+      })}
+      ${buildPanelHtml({
+        body: buildBreakdownList({
+          labelValue: labelConversationEntry,
+          values: totals.promptButtonEntries,
+        }),
+        subtitle: "Which first-screen prompts people choose.",
+        title: "Starting buttons",
+      })}
+      ${buildPanelHtml({
+        body: buildBreakdownList({
+          labelValue: labelStatus,
+          values: blockedOrErrorStatuses,
+        }),
+        subtitle: "Blocks and failures before or during a chat turn.",
+        title: "Blocks and errors",
+      })}
+      ${buildPanelHtml({
+        body: buildBreakdownList({
+          labelValue: humanizeKey,
+          values: totals.llmCategories,
+        }),
+        subtitle: "Classifier labels from completed or provider-reached turns.",
+        title: "Weak categories",
+      })}
+      ${buildPanelHtml({
+        body: buildBreakdownList({
+          labelValue: labelModel,
+          values: totals.llmModels,
+        }),
+        subtitle: "Shows primary, Anthropic fallback, and rare OpenAI fallback model usage.",
+        title: "Models",
       })}
     </section>
     <div class="table-wrap">

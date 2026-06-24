@@ -22,6 +22,8 @@ Each step stores daily aggregate totals and daily salted-IP unique counts. Per-d
 
 The `/ops/usage` dashboard shows the funnel alongside existing site views, chat requests, LLM turns, classifier categories, model labels, and spend.
 
+The dashboard may derive operational views from those same aggregate counters: dropoff rates, language breakdowns, starting-button breakdowns, blocked/error status summaries, weak-category summaries, and model/provider usage summaries. These are display calculations over aggregate records, not additional per-user tracking.
+
 ## Consequences
 
 Positive:
@@ -29,6 +31,7 @@ Positive:
 - Launch operations can distinguish a homepage-only visit from a conversation page load, a manual submit attempt, a chat request, and an LLM turn.
 - The dashboard can surface breakage before users send detailed bug reports.
 - The design stays inside the existing Vercel KV counter architecture and does not add a third-party analytics vendor.
+- More launch questions can be answered from one place without opening provider logs or adding a session timeline.
 
 Tradeoffs:
 
