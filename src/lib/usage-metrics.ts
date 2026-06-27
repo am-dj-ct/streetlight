@@ -595,9 +595,11 @@ async function getUsagePeriodUniqueSummary(): Promise<UsageSummary["periodUnique
 async function getUsagePeriodCountSummary(): Promise<UsageSummary["periodCounts"]> {
   const fields =
     (await kv.hgetall<UsageFieldMap>(getUsagePeriodKey()).catch(() => null)) ?? {};
+  const siteViews = numberFromField(fields["site.views"]);
+  const siteUnique = numberFromField(fields["site.unique"]);
 
   return {
-    siteViews: numberFromField(fields["site.views"]),
+    siteViews: Math.max(siteViews, siteUnique),
     trackingStartedDate: periodUniqueTrackingStartedDateKey,
   };
 }

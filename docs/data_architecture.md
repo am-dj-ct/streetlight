@@ -1214,6 +1214,7 @@ One-line summary of every decision in this document, dated for traceability.
 
 - `/ops/usage` and `/api/ops/usage` default to the launch window beginning 2026-06-24 instead of only the current day.
 - The dashboard's top-card homepage view count and top-card unique counts use clean range-level counters instead of summing polluted daily site-view history. These counters start after the 2026-06-27 dashboard fix and intentionally do not backfill polluted historical site-view rows.
+- Because the clean homepage count field was added after the clean unique marker, the displayed homepage count is floored at the clean unique count so the aggregate cannot show fewer homepage views than unique homepage visitors.
 - `site.views` now counts homepage renders only, not every route under the root layout.
 - Page counters skip obvious bots, link preview agents, monitors, and prefetches before incrementing, without storing user agents or request paths.
 
