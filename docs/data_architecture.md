@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-06-23
-**Last meaningful change:** 2026-06-27 (usage dashboard defaults to launch-window aggregation; top cards use range-level unique counters; site view counter narrowed to homepage renders with transient automated-request filtering; no server-side content persistence added)
+**Last meaningful change:** 2026-06-27 (usage dashboard defaults to launch-window aggregation; top cards use clean range-level unique counters started after the dashboard fix; site view counter narrowed to homepage renders with transient automated-request filtering; no server-side content persistence added)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -89,7 +89,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - We have no user identity. A subpoena ("records for John Doe") cannot be linked to anything in our system.
 - We have no conversation content. Nothing to hand over.
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
-- Blind usage counters in Vercel KV: daily homepage visits, homepage prompt clicks, conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, and range-level unique salted-IP counts for the dashboard's aggregate cards. The per-day unique markers expire shortly after the day ends; range-level unique markers expire with aggregate usage retention.
+- Blind usage counters in Vercel KV: daily homepage visits, homepage prompt clicks, conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, and clean range-level unique salted-IP counts for the dashboard's aggregate cards. The per-day unique markers expire shortly after the day ends; range-level unique markers expire with aggregate usage retention.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
 - In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
@@ -1213,7 +1213,7 @@ One-line summary of every decision in this document, dated for traceability.
 **2026-06-27 — launch-window dashboard and homepage-only site counter:**
 
 - `/ops/usage` and `/api/ops/usage` default to the launch window beginning 2026-06-24 instead of only the current day.
-- The dashboard's top-card unique counts use range-level salted-IP markers instead of summing daily unique counts. If pre-fix daily history is the only available source, the dashboard displays a conservative `+` floor rather than pretending to know the exact historical dedupe.
+- The dashboard's top-card unique counts use clean range-level salted-IP markers instead of summing daily unique counts. These counters start after the 2026-06-27 dashboard fix and intentionally do not backfill polluted historical daily unique rows.
 - `site.views` now counts homepage renders only, not every route under the root layout.
 - Page counters skip obvious bots, link preview agents, monitors, and prefetches before incrementing, without storing user agents or request paths.
 

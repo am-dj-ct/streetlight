@@ -37,12 +37,12 @@ type UsageDashboardTotals = {
 };
 
 type AggregateUniqueDisplays = {
-  chat: number | string;
-  chatSubmit: number | string;
-  conversationPage: number | string;
-  llm: number | string;
-  promptButton: number | string;
-  site: number | string;
+  chat: number;
+  chatSubmit: number;
+  conversationPage: number;
+  llm: number;
+  promptButton: number;
+  site: number;
 };
 
 const conversationLabelById: ReadonlyMap<string, string> = new Map(
@@ -206,13 +206,15 @@ function buildMetricHtml({
   label,
   value,
   unique,
+  uniqueLabel = "unique",
 }: {
   label: string;
   value: number | string;
-  unique?: number | string;
+  unique?: number;
+  uniqueLabel?: string;
 }): string {
   return `<div class="metric"><span>${label}</span><strong>${value}</strong>${
-    unique === undefined ? "" : `<small>${unique} unique</small>`
+    unique === undefined ? "" : `<small>${unique} ${escapeHtml(uniqueLabel)}</small>`
   }</div>`;
 }
 
@@ -392,74 +394,16 @@ function buildRows(days: UsageDaySummary[]): string {
     .join("\n");
 }
 
-function getUniqueDisplay({
-  dailyMaximum,
-  periodUnique,
-}: {
-  dailyMaximum: number;
-  periodUnique: number;
-}): number | string {
-  return periodUnique >= dailyMaximum ? periodUnique : `${dailyMaximum}+`;
-}
-
 function getAggregateUniqueDisplays(
   summary: Awaited<ReturnType<typeof getUsageSummary>>,
 ): AggregateUniqueDisplays {
-  const rangeStartDate = summary.days.at(-1)?.date ?? "";
-  const usePeriodUnique = rangeStartDate === summary.periodUnique.startDate;
-  const dailyMaximums = summary.days.reduce(
-    (result, day) => ({
-      chat: Math.max(result.chat, day.chat.unique),
-      chatSubmit: Math.max(
-        result.chatSubmit,
-        day.funnel.chatSubmitUnique,
-      ),
-      conversationPage: Math.max(
-        result.conversationPage,
-        day.funnel.conversationPageUnique,
-      ),
-      llm: Math.max(result.llm, day.llm.unique),
-      promptButton: Math.max(
-        result.promptButton,
-        day.funnel.promptButtonUnique,
-      ),
-      site: Math.max(result.site, day.site.unique),
-    }),
-    {
-      chat: 0,
-      chatSubmit: 0,
-      conversationPage: 0,
-      llm: 0,
-      promptButton: 0,
-      site: 0,
-    },
-  );
-
   return {
-    chat: getUniqueDisplay({
-      dailyMaximum: dailyMaximums.chat,
-      periodUnique: usePeriodUnique ? summary.periodUnique.chat : 0,
-    }),
-    chatSubmit: getUniqueDisplay({
-      dailyMaximum: dailyMaximums.chatSubmit,
-      periodUnique: usePeriodUnique ? summary.periodUnique.chatSubmit : 0,
-    }),
-    conversationPage: getUniqueDisplay({
-      dailyMaximum: dailyMaximums.conversationPage,
-      periodUnique: usePeriodUnique ? summary.periodUnique.conversationPage : 0,
-    }),
-    llm: getUniqueDisplay({
-      dailyMaximum: dailyMaximums.llm,
-      periodUnique: usePeriodUnique ? summary.periodUnique.llm : 0,
-    }),
-    promptButton: getUniqueDisplay({
-      dailyMaximum: dailyMaximums.promptButton,
-      periodUnique: usePeriodUnique ? summary.periodUnique.promptButton : 0,
-    }),
-    site: getUniqueDisplay({
-      dailyMaximum: dailyMaximums.site,
-      periodUnique: usePeriodUnique ? summary.periodUnique.site : 0,
-    }),
+    chat: summary.periodUnique.chat,
+    chatSubmit: summary.periodUnique.chatSubmit,
+    conversationPage: summary.periodUnique.conversationPage,
+    llm: summary.periodUnique.llm,
+    promptButton: summary.periodUnique.promptButton,
+    site: summary.periodUnique.site,
   };
 }
 
@@ -541,6 +485,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     oldestDate && newestDate && oldestDate !== newestDate
       ? `${oldestDate} through ${newestDate}`
       : newestDate;
+  const aggregateUniqueLabel = `unique since ${summary.periodUnique.trackingStartedDate}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -748,36 +693,44 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 <body>
   <main>
     <h1>Streetlight Usage</h1>
-    <p>Aggregate counts for ${escapeHtml(rangeLabel)}. No raw IPs, user agents, messages, answers, paths, or session records.</p>
+    <p>Aggregate counts for ${escapeHtml(rangeLabel)}. Top-card uniques use the clean aggregate counter started ${escapeHtml(
+      summary.periodUnique.trackingStartedDate,
+    )}. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
         label: "Site views",
         unique: aggregateUnique.site,
+        uniqueLabel: aggregateUniqueLabel,
         value: totals.siteViews,
       })}
       ${buildMetricHtml({
         label: "Prompt clicks",
         unique: aggregateUnique.promptButton,
+        uniqueLabel: aggregateUniqueLabel,
         value: totals.promptButtonClicks,
       })}
       ${buildMetricHtml({
         label: "Conversation views",
         unique: aggregateUnique.conversationPage,
+        uniqueLabel: aggregateUniqueLabel,
         value: totals.conversationPageViews,
       })}
       ${buildMetricHtml({
         label: "Submit clicks",
         unique: aggregateUnique.chatSubmit,
+        uniqueLabel: aggregateUniqueLabel,
         value: totals.chatSubmitClicks,
       })}
       ${buildMetricHtml({
         label: "Chat requests",
         unique: aggregateUnique.chat,
+        uniqueLabel: aggregateUniqueLabel,
         value: totals.chatRequests,
       })}
       ${buildMetricHtml({
         label: "LLM turns",
         unique: aggregateUnique.llm,
+        uniqueLabel: aggregateUniqueLabel,
         value: totals.llmTurns,
       })}
       ${buildMetricHtml({

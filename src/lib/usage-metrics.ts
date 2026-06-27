@@ -9,6 +9,8 @@ import {
 
 const aggregateRetentionSeconds = 180 * 24 * 60 * 60;
 const markerRetentionBufferSeconds = 24 * 60 * 60;
+const periodUniqueVersion = "v2";
+const periodUniqueTrackingStartedDateKey = "2026-06-27";
 const usageVersion = "v1";
 const usageLaunchDateKey = "2026-06-24";
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
@@ -70,6 +72,7 @@ export type UsageSummary = {
     promptButton: number;
     site: number;
     startDate: string;
+    trackingStartedDate: string;
   };
   retentionDays: number;
 };
@@ -111,7 +114,7 @@ function getUsageDayKey(dateKey: string): string {
 }
 
 function getUsagePeriodKey(): string {
-  return `usage:${usageVersion}:period:${usageLaunchDateKey}`;
+  return `usage:${usageVersion}:period_unique:${periodUniqueVersion}:${periodUniqueTrackingStartedDateKey}`;
 }
 
 function getSeenMarkerKey({
@@ -133,7 +136,7 @@ function getPeriodSeenMarkerKey({
   hashedIp: string;
   scope: UniqueScope;
 }): string {
-  return `usage:${usageVersion}:period_seen:${scope}:${usageLaunchDateKey}:${hashedIp}`;
+  return `usage:${usageVersion}:period_seen:${periodUniqueVersion}:${scope}:${periodUniqueTrackingStartedDateKey}:${hashedIp}`;
 }
 
 function sanitizeFieldPart(value: string): string {
@@ -580,6 +583,7 @@ async function getUsagePeriodUniqueSummary(): Promise<UsageSummary["periodUnique
     promptButton: numberFromField(fields["funnel.prompt_button.unique"]),
     site: numberFromField(fields["site.unique"]),
     startDate: usageLaunchDateKey,
+    trackingStartedDate: periodUniqueTrackingStartedDateKey,
   };
 }
 
@@ -637,6 +641,7 @@ export async function getUsageSummary({
         promptButton: 0,
         site: 0,
         startDate: usageLaunchDateKey,
+        trackingStartedDate: periodUniqueTrackingStartedDateKey,
       },
       retentionDays: aggregateRetentionSeconds / 24 / 60 / 60,
     };
