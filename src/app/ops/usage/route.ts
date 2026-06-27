@@ -36,6 +36,15 @@ type UsageDashboardTotals = {
   spendUsd: number;
 };
 
+type AggregateUniqueDisplays = {
+  chat: number | string;
+  chatSubmit: number | string;
+  conversationPage: number | string;
+  llm: number | string;
+  promptButton: number | string;
+  site: number | string;
+};
+
 const conversationLabelById: ReadonlyMap<string, string> = new Map(
   [...getPromptButtons("en"), ...getAlternateActions("en")].map((entry) => [
     entry.id,
@@ -200,7 +209,7 @@ function buildMetricHtml({
 }: {
   label: string;
   value: number | string;
-  unique?: number;
+  unique?: number | string;
 }): string {
   return `<div class="metric"><span>${label}</span><strong>${value}</strong>${
     unique === undefined ? "" : `<small>${unique} unique</small>`
@@ -383,6 +392,77 @@ function buildRows(days: UsageDaySummary[]): string {
     .join("\n");
 }
 
+function getUniqueDisplay({
+  dailyMaximum,
+  periodUnique,
+}: {
+  dailyMaximum: number;
+  periodUnique: number;
+}): number | string {
+  return periodUnique >= dailyMaximum ? periodUnique : `${dailyMaximum}+`;
+}
+
+function getAggregateUniqueDisplays(
+  summary: Awaited<ReturnType<typeof getUsageSummary>>,
+): AggregateUniqueDisplays {
+  const rangeStartDate = summary.days.at(-1)?.date ?? "";
+  const usePeriodUnique = rangeStartDate === summary.periodUnique.startDate;
+  const dailyMaximums = summary.days.reduce(
+    (result, day) => ({
+      chat: Math.max(result.chat, day.chat.unique),
+      chatSubmit: Math.max(
+        result.chatSubmit,
+        day.funnel.chatSubmitUnique,
+      ),
+      conversationPage: Math.max(
+        result.conversationPage,
+        day.funnel.conversationPageUnique,
+      ),
+      llm: Math.max(result.llm, day.llm.unique),
+      promptButton: Math.max(
+        result.promptButton,
+        day.funnel.promptButtonUnique,
+      ),
+      site: Math.max(result.site, day.site.unique),
+    }),
+    {
+      chat: 0,
+      chatSubmit: 0,
+      conversationPage: 0,
+      llm: 0,
+      promptButton: 0,
+      site: 0,
+    },
+  );
+
+  return {
+    chat: getUniqueDisplay({
+      dailyMaximum: dailyMaximums.chat,
+      periodUnique: usePeriodUnique ? summary.periodUnique.chat : 0,
+    }),
+    chatSubmit: getUniqueDisplay({
+      dailyMaximum: dailyMaximums.chatSubmit,
+      periodUnique: usePeriodUnique ? summary.periodUnique.chatSubmit : 0,
+    }),
+    conversationPage: getUniqueDisplay({
+      dailyMaximum: dailyMaximums.conversationPage,
+      periodUnique: usePeriodUnique ? summary.periodUnique.conversationPage : 0,
+    }),
+    llm: getUniqueDisplay({
+      dailyMaximum: dailyMaximums.llm,
+      periodUnique: usePeriodUnique ? summary.periodUnique.llm : 0,
+    }),
+    promptButton: getUniqueDisplay({
+      dailyMaximum: dailyMaximums.promptButton,
+      periodUnique: usePeriodUnique ? summary.periodUnique.promptButton : 0,
+    }),
+    site: getUniqueDisplay({
+      dailyMaximum: dailyMaximums.site,
+      periodUnique: usePeriodUnique ? summary.periodUnique.site : 0,
+    }),
+  };
+}
+
 function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string {
   const totals = summary.days.reduce<UsageDashboardTotals>(
     (result, day) => ({
@@ -450,6 +530,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       spendUsd: 0,
     },
   );
+  const aggregateUnique = getAggregateUniqueDisplays(summary);
   const blockedOrErrorStatuses = filterRecord(
     totals.chatStatuses,
     (key) => key !== "completed",
@@ -671,32 +752,32 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     <section class="summary">
       ${buildMetricHtml({
         label: "Site views",
-        unique: totals.siteUnique,
+        unique: aggregateUnique.site,
         value: totals.siteViews,
       })}
       ${buildMetricHtml({
         label: "Prompt clicks",
-        unique: totals.promptButtonUnique,
+        unique: aggregateUnique.promptButton,
         value: totals.promptButtonClicks,
       })}
       ${buildMetricHtml({
         label: "Conversation views",
-        unique: totals.conversationPageUnique,
+        unique: aggregateUnique.conversationPage,
         value: totals.conversationPageViews,
       })}
       ${buildMetricHtml({
         label: "Submit clicks",
-        unique: totals.chatSubmitUnique,
+        unique: aggregateUnique.chatSubmit,
         value: totals.chatSubmitClicks,
       })}
       ${buildMetricHtml({
         label: "Chat requests",
-        unique: totals.chatUnique,
+        unique: aggregateUnique.chat,
         value: totals.chatRequests,
       })}
       ${buildMetricHtml({
         label: "LLM turns",
-        unique: totals.llmUnique,
+        unique: aggregateUnique.llm,
         value: totals.llmTurns,
       })}
       ${buildMetricHtml({

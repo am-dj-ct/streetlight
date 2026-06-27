@@ -62,6 +62,15 @@ export type UsageDaySummary = {
 export type UsageSummary = {
   days: UsageDaySummary[];
   generatedAt: string;
+  periodUnique: {
+    chat: number;
+    chatSubmit: number;
+    conversationPage: number;
+    llm: number;
+    promptButton: number;
+    site: number;
+    startDate: string;
+  };
   retentionDays: number;
 };
 
@@ -101,6 +110,10 @@ function getUsageDayKey(dateKey: string): string {
   return `usage:${usageVersion}:day:${dateKey}`;
 }
 
+function getUsagePeriodKey(): string {
+  return `usage:${usageVersion}:period:${usageLaunchDateKey}`;
+}
+
 function getSeenMarkerKey({
   dateKey,
   hashedIp,
@@ -111,6 +124,16 @@ function getSeenMarkerKey({
   scope: UniqueScope;
 }): string {
   return `usage:${usageVersion}:seen:${scope}:${dateKey}:${hashedIp}`;
+}
+
+function getPeriodSeenMarkerKey({
+  hashedIp,
+  scope,
+}: {
+  hashedIp: string;
+  scope: UniqueScope;
+}): string {
+  return `usage:${usageVersion}:period_seen:${scope}:${usageLaunchDateKey}:${hashedIp}`;
 }
 
 function sanitizeFieldPart(value: string): string {
@@ -151,6 +174,13 @@ async function incrementField(
   await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
 }
 
+async function incrementPeriodField(field: string, amount = 1): Promise<void> {
+  const key = getUsagePeriodKey();
+
+  await kv.hincrby(key, field, amount);
+  await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
+}
+
 async function incrementUnique({
   dateKey,
   field,
@@ -181,6 +211,30 @@ async function incrementUnique({
   }
 }
 
+async function incrementPeriodUnique({
+  field,
+  hashedIp,
+  scope,
+}: {
+  field: string;
+  hashedIp: null | string;
+  scope: UniqueScope;
+}): Promise<void> {
+  if (!hashedIp) {
+    return;
+  }
+
+  const markerKey = getPeriodSeenMarkerKey({ hashedIp, scope });
+  const result = await kv.set(markerKey, "1", {
+    ex: aggregateRetentionSeconds,
+    nx: true,
+  });
+
+  if (result === "OK") {
+    await incrementPeriodField(field);
+  }
+}
+
 async function recordUsage(
   callback: () => Promise<void>,
 ): Promise<boolean> {
@@ -208,14 +262,21 @@ export async function recordSiteUsageFromHeaders(
     const dateKey = getUtcDateKey(now);
     const hashedIp = getHashedIpFromHeaders(headers);
 
-    await incrementField(dateKey, "site.views");
-    await incrementUnique({
-      dateKey,
-      field: "site.unique",
-      hashedIp,
-      now,
-      scope: "site",
-    });
+    await Promise.all([
+      incrementField(dateKey, "site.views"),
+      incrementUnique({
+        dateKey,
+        field: "site.unique",
+        hashedIp,
+        now,
+        scope: "site",
+      }),
+      incrementPeriodUnique({
+        field: "site.unique",
+        hashedIp,
+        scope: "site",
+      }),
+    ]);
   });
 }
 
@@ -252,6 +313,11 @@ export async function recordConversationPageViewUsage({
         field: "funnel.conversation_page.unique",
         hashedIp,
         now,
+        scope: "conversation_page",
+      }),
+      incrementPeriodUnique({
+        field: "funnel.conversation_page.unique",
+        hashedIp,
         scope: "conversation_page",
       }),
     ]);
@@ -291,6 +357,11 @@ export async function recordFunnelClickUsage({
           now,
           scope: "prompt_button",
         }),
+        incrementPeriodUnique({
+          field: "funnel.prompt_button.unique",
+          hashedIp,
+          scope: "prompt_button",
+        }),
       ]);
       return;
     }
@@ -310,6 +381,11 @@ export async function recordFunnelClickUsage({
         field: "funnel.chat_submit.unique",
         hashedIp,
         now,
+        scope: "chat_submit",
+      }),
+      incrementPeriodUnique({
+        field: "funnel.chat_submit.unique",
+        hashedIp,
         scope: "chat_submit",
       }),
     ]);
@@ -333,6 +409,11 @@ export async function recordChatRequestUsage({
       now,
       scope: "chat",
     });
+    await incrementPeriodUnique({
+      field: "chat.unique",
+      hashedIp,
+      scope: "chat",
+    });
   });
 }
 
@@ -351,6 +432,11 @@ export async function recordLlmTurnStartedUsage({
       field: "llm.unique",
       hashedIp,
       now,
+      scope: "llm",
+    });
+    await incrementPeriodUnique({
+      field: "llm.unique",
+      hashedIp,
       scope: "llm",
     });
   });
@@ -482,6 +568,21 @@ async function getUsageDaySummary(dateKey: string): Promise<UsageDaySummary> {
   };
 }
 
+async function getUsagePeriodUniqueSummary(): Promise<UsageSummary["periodUnique"]> {
+  const fields =
+    (await kv.hgetall<UsageFieldMap>(getUsagePeriodKey()).catch(() => null)) ?? {};
+
+  return {
+    chat: numberFromField(fields["chat.unique"]),
+    chatSubmit: numberFromField(fields["funnel.chat_submit.unique"]),
+    conversationPage: numberFromField(fields["funnel.conversation_page.unique"]),
+    llm: numberFromField(fields["llm.unique"]),
+    promptButton: numberFromField(fields["funnel.prompt_button.unique"]),
+    site: numberFromField(fields["site.unique"]),
+    startDate: usageLaunchDateKey,
+  };
+}
+
 export async function getUsageSummary({
   days,
 }: {
@@ -528,6 +629,15 @@ export async function getUsageSummary({
         spendUsd: 0,
       })),
       generatedAt: new Date().toISOString(),
+      periodUnique: {
+        chat: 0,
+        chatSubmit: 0,
+        conversationPage: 0,
+        llm: 0,
+        promptButton: 0,
+        site: 0,
+        startDate: usageLaunchDateKey,
+      },
       retentionDays: aggregateRetentionSeconds / 24 / 60 / 60,
     };
   }
@@ -535,6 +645,7 @@ export async function getUsageSummary({
   return {
     days: await Promise.all(dateKeys.map((dateKey) => getUsageDaySummary(dateKey))),
     generatedAt: new Date().toISOString(),
+    periodUnique: await getUsagePeriodUniqueSummary(),
     retentionDays: aggregateRetentionSeconds / 24 / 60 / 60,
   };
 }
