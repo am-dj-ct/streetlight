@@ -18,7 +18,7 @@ Add Streetlight-owned blind funnel counters in Vercel KV for three additional st
 - conversation page views
 - manual chat submit clicks
 
-Each step stores daily aggregate totals and daily salted-IP unique counts. Per-day unique markers expire shortly after UTC midnight. The dashboard also keeps range-level salted-IP unique markers so top-card aggregate uniques are not just summed daily uniques. Aggregate counters and range-level unique markers expire after 180 days. The counters do not store raw IPs, request paths, user agents, cookies, messages, answers, session IDs, or per-person timelines.
+Each step stores daily aggregate totals and daily salted-IP unique counts. Per-day unique markers expire shortly after UTC midnight. The dashboard also keeps a clean range-level homepage-view count and clean range-level salted-IP unique counters so top-card aggregate numbers are not summed from polluted daily site-view history. Aggregate counters and range-level markers expire after 180 days. The counters do not store raw IPs, request paths, user agents, cookies, messages, answers, session IDs, or per-person timelines.
 
 `site.views` counts homepage renders, not every page render. Usage counters may use request headers transiently to skip obvious bots, link preview agents, uptime monitors, and prefetches before incrementing a counter; those headers are not stored.
 
@@ -38,7 +38,8 @@ Positive:
 Tradeoffs:
 
 - The dashboard now records more aggregate behavioral counts than the earlier minimum.
-- Daily unique counts require short-lived salted-IP marker keys, and aggregate unique cards require longer-lived salted-IP marker keys. Raw IPs are never stored, and both marker types expire.
+- Daily unique counts require short-lived salted-IP marker keys, and top-card aggregate unique cards require longer-lived salted-IP marker keys. Raw IPs are never stored, and both marker types expire.
+- The top-card homepage view count starts with the clean counter window instead of backfilling historical site-view rows.
 
 Rejected alternatives:
 

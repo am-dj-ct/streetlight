@@ -64,6 +64,10 @@ export type UsageDaySummary = {
 export type UsageSummary = {
   days: UsageDaySummary[];
   generatedAt: string;
+  periodCounts: {
+    siteViews: number;
+    trackingStartedDate: string;
+  };
   periodUnique: {
     chat: number;
     chatSubmit: number;
@@ -274,6 +278,7 @@ export async function recordSiteUsageFromHeaders(
         now,
         scope: "site",
       }),
+      incrementPeriodField("site.views"),
       incrementPeriodUnique({
         field: "site.unique",
         hashedIp,
@@ -587,6 +592,16 @@ async function getUsagePeriodUniqueSummary(): Promise<UsageSummary["periodUnique
   };
 }
 
+async function getUsagePeriodCountSummary(): Promise<UsageSummary["periodCounts"]> {
+  const fields =
+    (await kv.hgetall<UsageFieldMap>(getUsagePeriodKey()).catch(() => null)) ?? {};
+
+  return {
+    siteViews: numberFromField(fields["site.views"]),
+    trackingStartedDate: periodUniqueTrackingStartedDateKey,
+  };
+}
+
 export async function getUsageSummary({
   days,
 }: {
@@ -633,6 +648,10 @@ export async function getUsageSummary({
         spendUsd: 0,
       })),
       generatedAt: new Date().toISOString(),
+      periodCounts: {
+        siteViews: 0,
+        trackingStartedDate: periodUniqueTrackingStartedDateKey,
+      },
       periodUnique: {
         chat: 0,
         chatSubmit: 0,
@@ -650,6 +669,7 @@ export async function getUsageSummary({
   return {
     days: await Promise.all(dateKeys.map((dateKey) => getUsageDaySummary(dateKey))),
     generatedAt: new Date().toISOString(),
+    periodCounts: await getUsagePeriodCountSummary(),
     periodUnique: await getUsagePeriodUniqueSummary(),
     retentionDays: aggregateRetentionSeconds / 24 / 60 / 60,
   };

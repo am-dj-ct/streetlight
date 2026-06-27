@@ -475,6 +475,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     },
   );
   const aggregateUnique = getAggregateUniqueDisplays(summary);
+  const cleanHomepageViews = summary.periodCounts.siteViews;
   const blockedOrErrorStatuses = filterRecord(
     totals.chatStatuses,
     (key) => key !== "completed",
@@ -693,15 +694,15 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 <body>
   <main>
     <h1>Streetlight Usage</h1>
-    <p>Aggregate counts for ${escapeHtml(rangeLabel)}. Top-card uniques use the clean aggregate counter started ${escapeHtml(
+    <p>Daily table covers ${escapeHtml(rangeLabel)}. Homepage views use a clean home-page counter started ${escapeHtml(
       summary.periodUnique.trackingStartedDate,
-    )}. No raw IPs, user agents, messages, answers, paths, or session records.</p>
+    )}; other top-card totals cover the launch window. Earlier site-view rows are legacy context. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
-        label: "Site views",
+        label: "Homepage views",
         unique: aggregateUnique.site,
         uniqueLabel: aggregateUniqueLabel,
-        value: totals.siteViews,
+        value: cleanHomepageViews,
       })}
       ${buildMetricHtml({
         label: "Prompt clicks",
@@ -803,7 +804,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
         <thead>
           <tr>
             <th>Date</th>
-            <th>Site views</th>
+            <th>Daily site views</th>
             <th>Prompt clicks</th>
             <th>Conversation views</th>
             <th>Submit clicks</th>
