@@ -5,6 +5,7 @@ import {
   makeOpsSessionCookie,
 } from "../../../lib/ops-auth";
 import {
+  getDefaultUsageDays,
   getUsageSummary,
   type UsageDaySummary,
 } from "../../../lib/usage-metrics";
@@ -67,7 +68,8 @@ function escapeHtml(value: string): string {
 
 function getDays(request: Request): number {
   const url = new URL(request.url);
-  const parsed = Number(url.searchParams.get("days") ?? 1);
+  const daysParam = url.searchParams.get("days");
+  const parsed = daysParam ? Number(daysParam) : getDefaultUsageDays();
 
   return Number.isFinite(parsed) ? parsed : 1;
 }
@@ -452,6 +454,12 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     totals.chatStatuses,
     (key) => key !== "completed",
   );
+  const newestDate = summary.days[0]?.date ?? "";
+  const oldestDate = summary.days.at(-1)?.date ?? newestDate;
+  const rangeLabel =
+    oldestDate && newestDate && oldestDate !== newestDate
+      ? `${oldestDate} through ${newestDate}`
+      : newestDate;
 
   return `<!doctype html>
 <html lang="en">
@@ -659,7 +667,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 <body>
   <main>
     <h1>Streetlight Usage</h1>
-    <p>Aggregate counts only. No raw IPs, user agents, messages, answers, paths, or session records.</p>
+    <p>Aggregate counts for ${escapeHtml(rangeLabel)}. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
         label: "Site views",

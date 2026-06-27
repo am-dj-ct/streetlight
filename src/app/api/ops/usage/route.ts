@@ -3,7 +3,10 @@ import {
   isOpsRequestAuthorized,
   opsUnauthorizedResponse,
 } from "../../../../lib/ops-auth";
-import { getUsageSummary } from "../../../../lib/usage-metrics";
+import {
+  getDefaultUsageDays,
+  getUsageSummary,
+} from "../../../../lib/usage-metrics";
 
 function methodNotAllowed() {
   return NextResponse.json(
@@ -20,7 +23,8 @@ function methodNotAllowed() {
 
 function getDays(request: Request): number {
   const url = new URL(request.url);
-  const parsed = Number(url.searchParams.get("days") ?? 1);
+  const daysParam = url.searchParams.get("days");
+  const parsed = daysParam ? Number(daysParam) : getDefaultUsageDays();
 
   return Number.isFinite(parsed) ? parsed : 1;
 }

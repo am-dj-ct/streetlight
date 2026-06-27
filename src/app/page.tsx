@@ -8,6 +8,7 @@ import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getPageRequestContext } from "../lib/request-context";
 import { buildConversationHref, buildHomeHref } from "../lib/routes";
 import { appTitle, defaultDescription } from "../lib/site-metadata";
+import { recordSiteUsageFromHeaders } from "../lib/usage-metrics";
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -44,6 +45,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   });
   const promptButtons = getPromptButtons(currentLanguage.code);
   const alternateActions = getAlternateActions(currentLanguage.code);
+  await recordSiteUsageFromHeaders(requestHeaders);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124] print:h-auto print:overflow-visible">

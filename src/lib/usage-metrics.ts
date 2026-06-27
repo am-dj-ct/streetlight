@@ -10,6 +10,8 @@ import {
 const aggregateRetentionSeconds = 180 * 24 * 60 * 60;
 const markerRetentionBufferSeconds = 24 * 60 * 60;
 const usageVersion = "v1";
+const usageLaunchDateKey = "2026-06-24";
+const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
 type UsageFieldMap = Record<string, number>;
 type UniqueScope =
@@ -63,6 +65,20 @@ export type UsageSummary = {
   retentionDays: number;
 };
 
+export function getDefaultUsageDays(now = new Date()): number {
+  const launchDate = new Date(`${usageLaunchDateKey}T00:00:00.000Z`);
+  const todayUtc = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+  const elapsedDays = Math.floor(
+    (todayUtc - launchDate.getTime()) / millisecondsPerDay,
+  );
+
+  return Math.max(1, elapsedDays + 1);
+}
+
 function getUtcDateKey(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
@@ -99,6 +115,29 @@ function getSeenMarkerKey({
 
 function sanitizeFieldPart(value: string): string {
   return value.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 120) || "unknown";
+}
+
+function isLikelyAutomatedRequest(headers: HeaderReader): boolean {
+  const userAgent = headers.get("user-agent")?.toLowerCase() ?? "";
+  const purpose = headers.get("purpose")?.toLowerCase() ?? "";
+  const secPurpose = headers.get("sec-purpose")?.toLowerCase() ?? "";
+  const nextRouterPrefetch = headers.get("next-router-prefetch");
+
+  if (
+    purpose.includes("prefetch") ||
+    secPurpose.includes("prefetch") ||
+    nextRouterPrefetch === "1"
+  ) {
+    return true;
+  }
+
+  if (!userAgent) {
+    return true;
+  }
+
+  return /bot|crawler|spider|preview|facebookexternalhit|slackbot|discordbot|telegrambot|linkedinbot|twitterbot|whatsapp|embedly|pinterest|headlesschrome|curl|wget|python-requests|go-http-client|uptime|monitor/i.test(
+    userAgent,
+  );
 }
 
 async function incrementField(
@@ -160,7 +199,7 @@ async function recordUsage(
 export async function recordSiteUsageFromHeaders(
   headers: HeaderReader,
 ): Promise<boolean> {
-  if (!hasHashedIpSalt()) {
+  if (!hasHashedIpSalt() || isLikelyAutomatedRequest(headers)) {
     return false;
   }
 
@@ -189,7 +228,7 @@ export async function recordConversationPageViewUsage({
   headers: HeaderReader;
   language: string;
 }): Promise<boolean> {
-  if (!hasHashedIpSalt()) {
+  if (!hasHashedIpSalt() || isLikelyAutomatedRequest(headers)) {
     return false;
   }
 

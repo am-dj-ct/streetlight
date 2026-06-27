@@ -20,6 +20,8 @@ Add Streetlight-owned blind funnel counters in Vercel KV for three additional st
 
 Each step stores daily aggregate totals and daily salted-IP unique counts. Per-day unique markers expire shortly after UTC midnight. Aggregate counters expire after 180 days. The counters do not store raw IPs, request paths, user agents, cookies, messages, answers, session IDs, or per-person timelines.
 
+`site.views` counts homepage renders, not every page render. Usage counters may use request headers transiently to skip obvious bots, link preview agents, uptime monitors, and prefetches before incrementing a counter; those headers are not stored.
+
 The `/ops/usage` dashboard shows the funnel alongside existing site views, chat requests, LLM turns, classifier categories, model labels, and spend.
 
 The dashboard may derive operational views from those same aggregate counters: dropoff rates, language breakdowns, starting-button breakdowns, blocked/error status summaries, weak-category summaries, and model/provider usage summaries. These are display calculations over aggregate records, not additional per-user tracking.
