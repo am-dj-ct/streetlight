@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { CrisisFooter } from "../components/crisis-footer";
+import { HomeUsageTracker } from "../components/home-usage-tracker";
 import { LanguageStripLinks } from "../components/language-strip-links";
 import { LocalDevBadge } from "../components/local-dev-badge";
 import { TrackedConversationLink } from "../components/tracked-conversation-link";
@@ -8,7 +9,6 @@ import { getAlternateActions, getPromptButtons } from "../lib/buttons";
 import { getPageRequestContext } from "../lib/request-context";
 import { buildConversationHref, buildHomeHref } from "../lib/routes";
 import { appTitle, defaultDescription } from "../lib/site-metadata";
-import { recordSiteUsageFromHeaders } from "../lib/usage-metrics";
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -45,10 +45,10 @@ export default async function Home({ searchParams }: HomePageProps) {
   });
   const promptButtons = getPromptButtons(currentLanguage.code);
   const alternateActions = getAlternateActions(currentLanguage.code);
-  await recordSiteUsageFromHeaders(requestHeaders);
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-[#f7f8f4] text-[#202124] print:h-auto print:overflow-visible">
+      <HomeUsageTracker languageCode={currentLanguage.code} />
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4 sm:max-w-2xl sm:px-6 lg:max-w-4xl lg:px-8 lg:pt-7 print:overflow-visible">
         <header className="pb-4">
           <div className="sm:flex sm:items-start sm:justify-between sm:gap-4">

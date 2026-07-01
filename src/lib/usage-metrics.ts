@@ -11,6 +11,8 @@ const aggregateRetentionSeconds = 180 * 24 * 60 * 60;
 const markerRetentionBufferSeconds = 24 * 60 * 60;
 const cleanConversationViewVersion = "v1";
 const cleanConversationViewTrackingStartedDateKey = "2026-07-01";
+const cleanHomepageViewVersion = "v1";
+const cleanHomepageViewTrackingStartedDateKey = "2026-07-01";
 const periodUniqueVersion = "v2";
 const periodUniqueTrackingStartedDateKey = "2026-06-27";
 const usageVersion = "v1";
@@ -70,6 +72,7 @@ export type UsageSummary = {
     conversationPageUnique: number;
     conversationPageViews: number;
     conversationTrackingStartedDate: string;
+    siteUnique: number;
     siteViews: number;
     trackingStartedDate: string;
   };
@@ -130,6 +133,10 @@ function getCleanConversationViewPeriodKey(): string {
   return `usage:${usageVersion}:clean_conversation_views:${cleanConversationViewVersion}:${cleanConversationViewTrackingStartedDateKey}`;
 }
 
+function getCleanHomepageViewPeriodKey(): string {
+  return `usage:${usageVersion}:clean_homepage_views:${cleanHomepageViewVersion}:${cleanHomepageViewTrackingStartedDateKey}`;
+}
+
 function getSeenMarkerKey({
   dateKey,
   hashedIp,
@@ -154,6 +161,10 @@ function getPeriodSeenMarkerKey({
 
 function getCleanConversationViewSeenMarkerKey(hashedIp: string): string {
   return `usage:${usageVersion}:clean_conversation_view_seen:${cleanConversationViewVersion}:${cleanConversationViewTrackingStartedDateKey}:${hashedIp}`;
+}
+
+function getCleanHomepageViewSeenMarkerKey(hashedIp: string): string {
+  return `usage:${usageVersion}:clean_homepage_view_seen:${cleanHomepageViewVersion}:${cleanHomepageViewTrackingStartedDateKey}:${hashedIp}`;
 }
 
 function sanitizeFieldPart(value: string): string {
@@ -216,6 +227,32 @@ async function incrementCleanConversationView({
   }
 
   const markerKey = getCleanConversationViewSeenMarkerKey(hashedIp);
+  const result = await kv.set(markerKey, "1", {
+    ex: aggregateRetentionSeconds,
+    nx: true,
+  });
+
+  if (result === "OK") {
+    await kv.hincrby(key, "unique", 1);
+    await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
+  }
+}
+
+async function incrementCleanHomepageView({
+  hashedIp,
+}: {
+  hashedIp: null | string;
+}): Promise<void> {
+  const key = getCleanHomepageViewPeriodKey();
+
+  await kv.hincrby(key, "views", 1);
+  await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
+
+  if (!hashedIp) {
+    return;
+  }
+
+  const markerKey = getCleanHomepageViewSeenMarkerKey(hashedIp);
   const result = await kv.set(markerKey, "1", {
     ex: aggregateRetentionSeconds,
     nx: true,
@@ -296,7 +333,7 @@ async function recordUsage(
   }
 }
 
-export async function recordSiteUsageFromHeaders(
+export async function recordHomepageViewUsageFromHeaders(
   headers: HeaderReader,
 ): Promise<boolean> {
   if (!hasHashedIpSalt() || isLikelyAutomatedRequest(headers)) {
@@ -317,12 +354,7 @@ export async function recordSiteUsageFromHeaders(
         now,
         scope: "site",
       }),
-      incrementPeriodField("site.views"),
-      incrementPeriodUnique({
-        field: "site.unique",
-        hashedIp,
-        scope: "site",
-      }),
+      incrementCleanHomepageView({ hashedIp }),
     ]);
   });
 }
@@ -633,14 +665,16 @@ async function getUsagePeriodUniqueSummary(): Promise<UsageSummary["periodUnique
 }
 
 async function getUsagePeriodCountSummary(): Promise<UsageSummary["periodCounts"]> {
-  const fields =
-    (await kv.hgetall<UsageFieldMap>(getUsagePeriodKey()).catch(() => null)) ?? {};
+  const cleanHomepageFields =
+    (await kv
+      .hgetall<UsageFieldMap>(getCleanHomepageViewPeriodKey())
+      .catch(() => null)) ?? {};
   const cleanConversationFields =
     (await kv
       .hgetall<UsageFieldMap>(getCleanConversationViewPeriodKey())
       .catch(() => null)) ?? {};
-  const siteViews = numberFromField(fields["site.views"]);
-  const siteUnique = numberFromField(fields["site.unique"]);
+  const siteViews = numberFromField(cleanHomepageFields.views);
+  const siteUnique = numberFromField(cleanHomepageFields.unique);
   const conversationPageViews = numberFromField(cleanConversationFields.views);
   const conversationPageUnique = numberFromField(cleanConversationFields.unique);
 
@@ -651,8 +685,9 @@ async function getUsagePeriodCountSummary(): Promise<UsageSummary["periodCounts"
       conversationPageUnique,
     ),
     conversationTrackingStartedDate: cleanConversationViewTrackingStartedDateKey,
+    siteUnique,
     siteViews: Math.max(siteViews, siteUnique),
-    trackingStartedDate: periodUniqueTrackingStartedDateKey,
+    trackingStartedDate: cleanHomepageViewTrackingStartedDateKey,
   };
 }
 
@@ -706,8 +741,9 @@ export async function getUsageSummary({
         conversationPageUnique: 0,
         conversationPageViews: 0,
         conversationTrackingStartedDate: cleanConversationViewTrackingStartedDateKey,
+        siteUnique: 0,
         siteViews: 0,
-        trackingStartedDate: periodUniqueTrackingStartedDateKey,
+        trackingStartedDate: cleanHomepageViewTrackingStartedDateKey,
       },
       periodUnique: {
         chat: 0,

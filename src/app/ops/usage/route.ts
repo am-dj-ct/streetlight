@@ -493,6 +493,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       ? `${oldestDate} through ${newestDate}`
       : newestDate;
   const aggregateUniqueLabel = `unique since ${summary.periodUnique.trackingStartedDate}`;
+  const homepageUniqueLabel = `unique since ${summary.periodCounts.trackingStartedDate}`;
   const conversationUniqueLabel = `unique since ${summary.periodCounts.conversationTrackingStartedDate}`;
 
   return `<!doctype html>
@@ -701,16 +702,16 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 <body>
   <main>
     <h1>Streetlight Usage</h1>
-    <p>Daily table covers ${escapeHtml(rangeLabel)}. Homepage views use a clean home-page counter started ${escapeHtml(
-      summary.periodUnique.trackingStartedDate,
+    <p>Daily table covers ${escapeHtml(rangeLabel)}. Homepage views use a clean browser-open counter started ${escapeHtml(
+      summary.periodCounts.trackingStartedDate,
     )}; conversation views use a clean page-open counter started ${escapeHtml(
       summary.periodCounts.conversationTrackingStartedDate,
     )}. Earlier site-view and conversation-view rows are legacy context. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
         label: "Homepage views",
-        unique: aggregateUnique.site,
-        uniqueLabel: aggregateUniqueLabel,
+        unique: summary.periodCounts.siteUnique,
+        uniqueLabel: homepageUniqueLabel,
         value: cleanHomepageViews,
       })}
       ${buildMetricHtml({

@@ -11,16 +11,25 @@ import { getHashedIp } from "../../../../lib/rate-limit";
 import {
   recordConversationPageViewUsage,
   recordFunnelClickUsage,
+  recordHomepageViewUsageFromHeaders,
   type FunnelClickEventType,
 } from "../../../../lib/usage-metrics";
 
-type UsageEventType = FunnelClickEventType | "conversation_page_view";
+type ConversationUsageEventType = FunnelClickEventType | "conversation_page_view";
+type UsageEventType = ConversationUsageEventType | "homepage_view";
 
-type UsageEventBody = {
+type ConversationUsageEventBody = {
   entryId: ConversationEntryId;
-  eventType: UsageEventType;
+  eventType: ConversationUsageEventType;
   language: SupportedLanguageCode;
 };
+
+type HomepageUsageEventBody = {
+  eventType: "homepage_view";
+  language: SupportedLanguageCode;
+};
+
+type UsageEventBody = ConversationUsageEventBody | HomepageUsageEventBody;
 
 function isUsageEventType(
   value: null | string | undefined,
@@ -37,10 +46,17 @@ function isUsageEventBody(value: unknown): value is UsageEventBody {
     return false;
   }
 
-  const candidate = value as Partial<UsageEventBody>;
+  const candidate = value as Partial<UsageEventBody> & {
+    entryId?: unknown;
+  };
+
+  if (candidate.eventType === "homepage_view") {
+    return isSupportedLanguageCode(candidate.language);
+  }
 
   return (
     isUsageEventType(candidate.eventType) &&
+    typeof candidate.entryId === "string" &&
     isConversationEntryId(candidate.entryId) &&
     isSupportedLanguageCode(candidate.language)
   );
@@ -72,7 +88,9 @@ export async function POST(request: Request) {
     return noStoreResponse(400);
   }
 
-  if (body.eventType === "conversation_page_view") {
+  if (body.eventType === "homepage_view") {
+    await recordHomepageViewUsageFromHeaders(request.headers);
+  } else if (body.eventType === "conversation_page_view") {
     await recordConversationPageViewUsage({
       entryId: body.entryId,
       headers: request.headers,

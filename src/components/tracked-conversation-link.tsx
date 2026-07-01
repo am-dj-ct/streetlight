@@ -8,22 +8,22 @@ import type { SupportedLanguageCode } from "../lib/languages";
 export type TrackedUsageEventType =
   | "chat_submit_click"
   | "conversation_page_view"
+  | "homepage_view"
   | "prompt_button_click";
 
-export function trackUsageEvent({
-  entryId,
-  eventType,
-  language,
-}: {
-  entryId: ConversationEntryId;
-  eventType: TrackedUsageEventType;
-  language: SupportedLanguageCode;
-}) {
-  const body = JSON.stringify({
-    entryId,
-    eventType,
-    language,
-  });
+type TrackedUsageEvent =
+  | {
+      entryId: ConversationEntryId;
+      eventType: Exclude<TrackedUsageEventType, "homepage_view">;
+      language: SupportedLanguageCode;
+    }
+  | {
+      eventType: "homepage_view";
+      language: SupportedLanguageCode;
+    };
+
+export function trackUsageEvent(event: TrackedUsageEvent) {
+  const body = JSON.stringify(event);
 
   try {
     const blob = new Blob([body], { type: "application/json" });

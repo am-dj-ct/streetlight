@@ -14,13 +14,14 @@ Streetlight needs enough usage visibility to tell whether the public flow is fun
 
 Add Streetlight-owned blind funnel counters in Vercel KV for three additional steps:
 
+- client-confirmed homepage visits
 - homepage prompt button clicks
 - client-confirmed conversation page views
 - manual chat submit clicks
 
 Each step stores daily aggregate totals and daily salted-IP unique counts. Per-day unique markers expire shortly after UTC midnight. The dashboard also keeps clean range-level homepage-view and conversation-view counts plus clean range-level salted-IP unique counters so top-card aggregate numbers are not summed from polluted daily page-view history. Aggregate counters and range-level markers expire after 180 days. The counters do not store raw IPs, request paths, user agents, cookies, messages, answers, session IDs, or per-person timelines.
 
-`site.views` counts homepage renders, not every page render. Conversation page views are emitted only after the client conversation UI mounts, and tracked conversation links disable route prefetch. Usage counters may use request headers transiently to skip obvious bots, link preview agents, uptime monitors, and prefetches before incrementing a counter; those headers are not stored.
+`site.views` counts client-confirmed homepage opens, not every page render. Homepage and conversation page views are emitted only after the client UI mounts, and tracked conversation links disable route prefetch. Usage counters may use request headers transiently to skip obvious bots, link preview agents, uptime monitors, and prefetches before incrementing a counter; those headers are not stored.
 
 The `/ops/usage` dashboard shows the funnel alongside existing site views, chat requests, LLM turns, classifier categories, model labels, and spend.
 
