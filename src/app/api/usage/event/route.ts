@@ -9,20 +9,27 @@ import {
 } from "../../../../lib/languages";
 import { getHashedIp } from "../../../../lib/rate-limit";
 import {
+  recordConversationPageViewUsage,
   recordFunnelClickUsage,
   type FunnelClickEventType,
 } from "../../../../lib/usage-metrics";
 
+type UsageEventType = FunnelClickEventType | "conversation_page_view";
+
 type UsageEventBody = {
   entryId: ConversationEntryId;
-  eventType: FunnelClickEventType;
+  eventType: UsageEventType;
   language: SupportedLanguageCode;
 };
 
-function isFunnelClickEventType(
+function isUsageEventType(
   value: null | string | undefined,
-): value is FunnelClickEventType {
-  return value === "chat_submit_click" || value === "prompt_button_click";
+): value is UsageEventType {
+  return (
+    value === "chat_submit_click" ||
+    value === "conversation_page_view" ||
+    value === "prompt_button_click"
+  );
 }
 
 function isUsageEventBody(value: unknown): value is UsageEventBody {
@@ -33,7 +40,7 @@ function isUsageEventBody(value: unknown): value is UsageEventBody {
   const candidate = value as Partial<UsageEventBody>;
 
   return (
-    isFunnelClickEventType(candidate.eventType) &&
+    isUsageEventType(candidate.eventType) &&
     isConversationEntryId(candidate.entryId) &&
     isSupportedLanguageCode(candidate.language)
   );
@@ -65,12 +72,20 @@ export async function POST(request: Request) {
     return noStoreResponse(400);
   }
 
-  await recordFunnelClickUsage({
-    entryId: body.entryId,
-    eventType: body.eventType,
-    hashedIp: getHashedIp(request),
-    language: body.language,
-  });
+  if (body.eventType === "conversation_page_view") {
+    await recordConversationPageViewUsage({
+      entryId: body.entryId,
+      headers: request.headers,
+      language: body.language,
+    });
+  } else {
+    await recordFunnelClickUsage({
+      entryId: body.entryId,
+      eventType: body.eventType,
+      hashedIp: getHashedIp(request),
+      language: body.language,
+    });
+  }
 
   return noStoreResponse(204);
 }

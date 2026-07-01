@@ -476,6 +476,12 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
   );
   const aggregateUnique = getAggregateUniqueDisplays(summary);
   const cleanHomepageViews = summary.periodCounts.siteViews;
+  const cleanConversationPageViews = summary.periodCounts.conversationPageViews;
+  const funnelTotals: UsageDashboardTotals = {
+    ...totals,
+    conversationPageViews: cleanConversationPageViews,
+    siteViews: cleanHomepageViews,
+  };
   const blockedOrErrorStatuses = filterRecord(
     totals.chatStatuses,
     (key) => key !== "completed",
@@ -487,6 +493,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       ? `${oldestDate} through ${newestDate}`
       : newestDate;
   const aggregateUniqueLabel = `unique since ${summary.periodUnique.trackingStartedDate}`;
+  const conversationUniqueLabel = `unique since ${summary.periodCounts.conversationTrackingStartedDate}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -696,7 +703,9 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     <h1>Streetlight Usage</h1>
     <p>Daily table covers ${escapeHtml(rangeLabel)}. Homepage views use a clean home-page counter started ${escapeHtml(
       summary.periodUnique.trackingStartedDate,
-    )}; other top-card totals cover the launch window. Earlier site-view rows are legacy context. No raw IPs, user agents, messages, answers, paths, or session records.</p>
+    )}; conversation views use a clean page-open counter started ${escapeHtml(
+      summary.periodCounts.conversationTrackingStartedDate,
+    )}. Earlier site-view and conversation-view rows are legacy context. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
         label: "Homepage views",
@@ -712,9 +721,9 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       })}
       ${buildMetricHtml({
         label: "Conversation views",
-        unique: aggregateUnique.conversationPage,
-        uniqueLabel: aggregateUniqueLabel,
-        value: totals.conversationPageViews,
+        unique: summary.periodCounts.conversationPageUnique,
+        uniqueLabel: conversationUniqueLabel,
+        value: cleanConversationPageViews,
       })}
       ${buildMetricHtml({
         label: "Submit clicks",
@@ -750,9 +759,9 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
               <th>Dropoff</th>
             </tr>
           </thead>
-          <tbody>${buildFunnelRows(totals)}</tbody>
+          <tbody>${buildFunnelRows(funnelTotals)}</tbody>
         </table>`,
-        subtitle: "Counts, not people. Direct links can make later steps higher than earlier steps.",
+        subtitle: "Homepage and conversation steps use clean counters; direct links can make later steps higher than earlier steps.",
         title: "Dropoff",
       })}
       ${buildPanelHtml({

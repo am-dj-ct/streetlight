@@ -7,6 +7,7 @@ import type { SupportedLanguageCode } from "../lib/languages";
 
 export type TrackedUsageEventType =
   | "chat_submit_click"
+  | "conversation_page_view"
   | "prompt_button_click";
 
 export function trackUsageEvent({
@@ -61,6 +62,7 @@ export function TrackedConversationLink({
     <Link
       href={href}
       className={className}
+      prefetch={false}
       onClick={() =>
         trackUsageEvent({
           entryId,

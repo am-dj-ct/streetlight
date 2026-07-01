@@ -780,6 +780,14 @@ export function ConversationClient({
   const hasOpenSheet =
     showLanguageSheet || showSaveModal || showVoiceSettings || isReferralSheetOpen;
 
+  useEffect(() => {
+    trackUsageEvent({
+      entryId,
+      eventType: "conversation_page_view",
+      language: currentLanguageCode,
+    });
+  }, [currentLanguageCode, entryId]);
+
   function scrollThreadElementToTop(element: HTMLElement) {
     const thread = threadRef.current;
 

@@ -9,6 +9,8 @@ import {
 
 const aggregateRetentionSeconds = 180 * 24 * 60 * 60;
 const markerRetentionBufferSeconds = 24 * 60 * 60;
+const cleanConversationViewVersion = "v1";
+const cleanConversationViewTrackingStartedDateKey = "2026-07-01";
 const periodUniqueVersion = "v2";
 const periodUniqueTrackingStartedDateKey = "2026-06-27";
 const usageVersion = "v1";
@@ -65,6 +67,9 @@ export type UsageSummary = {
   days: UsageDaySummary[];
   generatedAt: string;
   periodCounts: {
+    conversationPageUnique: number;
+    conversationPageViews: number;
+    conversationTrackingStartedDate: string;
     siteViews: number;
     trackingStartedDate: string;
   };
@@ -121,6 +126,10 @@ function getUsagePeriodKey(): string {
   return `usage:${usageVersion}:period_unique:${periodUniqueVersion}:${periodUniqueTrackingStartedDateKey}`;
 }
 
+function getCleanConversationViewPeriodKey(): string {
+  return `usage:${usageVersion}:clean_conversation_views:${cleanConversationViewVersion}:${cleanConversationViewTrackingStartedDateKey}`;
+}
+
 function getSeenMarkerKey({
   dateKey,
   hashedIp,
@@ -141,6 +150,10 @@ function getPeriodSeenMarkerKey({
   scope: UniqueScope;
 }): string {
   return `usage:${usageVersion}:period_seen:${periodUniqueVersion}:${scope}:${periodUniqueTrackingStartedDateKey}:${hashedIp}`;
+}
+
+function getCleanConversationViewSeenMarkerKey(hashedIp: string): string {
+  return `usage:${usageVersion}:clean_conversation_view_seen:${cleanConversationViewVersion}:${cleanConversationViewTrackingStartedDateKey}:${hashedIp}`;
 }
 
 function sanitizeFieldPart(value: string): string {
@@ -186,6 +199,32 @@ async function incrementPeriodField(field: string, amount = 1): Promise<void> {
 
   await kv.hincrby(key, field, amount);
   await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
+}
+
+async function incrementCleanConversationView({
+  hashedIp,
+}: {
+  hashedIp: null | string;
+}): Promise<void> {
+  const key = getCleanConversationViewPeriodKey();
+
+  await kv.hincrby(key, "views", 1);
+  await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
+
+  if (!hashedIp) {
+    return;
+  }
+
+  const markerKey = getCleanConversationViewSeenMarkerKey(hashedIp);
+  const result = await kv.set(markerKey, "1", {
+    ex: aggregateRetentionSeconds,
+    nx: true,
+  });
+
+  if (result === "OK") {
+    await kv.hincrby(key, "unique", 1);
+    await kv.expire(key, aggregateRetentionSeconds).catch(() => undefined);
+  }
 }
 
 async function incrementUnique({
@@ -328,6 +367,7 @@ export async function recordConversationPageViewUsage({
         hashedIp,
         scope: "conversation_page",
       }),
+      incrementCleanConversationView({ hashedIp }),
     ]);
   });
 }
@@ -595,10 +635,22 @@ async function getUsagePeriodUniqueSummary(): Promise<UsageSummary["periodUnique
 async function getUsagePeriodCountSummary(): Promise<UsageSummary["periodCounts"]> {
   const fields =
     (await kv.hgetall<UsageFieldMap>(getUsagePeriodKey()).catch(() => null)) ?? {};
+  const cleanConversationFields =
+    (await kv
+      .hgetall<UsageFieldMap>(getCleanConversationViewPeriodKey())
+      .catch(() => null)) ?? {};
   const siteViews = numberFromField(fields["site.views"]);
   const siteUnique = numberFromField(fields["site.unique"]);
+  const conversationPageViews = numberFromField(cleanConversationFields.views);
+  const conversationPageUnique = numberFromField(cleanConversationFields.unique);
 
   return {
+    conversationPageUnique,
+    conversationPageViews: Math.max(
+      conversationPageViews,
+      conversationPageUnique,
+    ),
+    conversationTrackingStartedDate: cleanConversationViewTrackingStartedDateKey,
     siteViews: Math.max(siteViews, siteUnique),
     trackingStartedDate: periodUniqueTrackingStartedDateKey,
   };
@@ -651,6 +703,9 @@ export async function getUsageSummary({
       })),
       generatedAt: new Date().toISOString(),
       periodCounts: {
+        conversationPageUnique: 0,
+        conversationPageViews: 0,
+        conversationTrackingStartedDate: cleanConversationViewTrackingStartedDateKey,
         siteViews: 0,
         trackingStartedDate: periodUniqueTrackingStartedDateKey,
       },

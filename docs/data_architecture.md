@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-06-23
-**Last meaningful change:** 2026-06-27 (usage dashboard keeps launch-window daily rows; top-card homepage views use a clean counter started after the dashboard fix; site view counter narrowed to homepage renders with transient automated-request filtering; no server-side content persistence added)
+**Last meaningful change:** 2026-07-01 (conversation page-view usage moved from server render to client page-open events and tracked conversation links disable prefetch, so route prefetches do not count as user conversation views; no server-side content persistence added)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -89,7 +89,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - We have no user identity. A subpoena ("records for John Doe") cannot be linked to anything in our system.
 - We have no conversation content. Nothing to hand over.
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
-- Blind usage counters in Vercel KV: daily homepage visits, homepage prompt clicks, conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, clean range-level homepage-view counts, and clean range-level unique salted-IP counters for the dashboard's top cards. The per-day unique markers expire shortly after the day ends; range-level markers expire with aggregate usage retention.
+- Blind usage counters in Vercel KV: daily homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, clean range-level homepage-view counts, clean range-level conversation-view counts, and clean range-level unique salted-IP counters for the dashboard's top cards. The per-day unique markers expire shortly after the day ends; range-level markers expire with aggregate usage retention.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
 - In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
@@ -394,7 +394,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Runs:** Inside Vercel during homepage render, conversation page render, prompt-button click event handling, and `/api/chat` handling.
 - **Has access to:** Salted hashed IP, current UTC date, metric class (`site`, `prompt_button`, `conversation_page`, `chat_submit`, `chat`, or `llm`), button id, language, final status, model label, classifier category, and spend counter.
 - **Logs by default:** Vercel KV operation metadata only. Counter keys contain metric names and UTC dates. Short-lived unique marker keys contain salted hashes, never raw IPs.
-- **Override:** Stores one daily hash of aggregate fields such as `site.views`, `site.unique`, `funnel.prompt_button.clicks`, `funnel.conversation_page.views`, `funnel.chat_submit.clicks`, `chat.requests`, `chat.status.completed`, `llm.turns`, `llm.unique`, `llm.model.<label>`. Uses request headers transiently to skip obvious bots, link preview agents, monitors, and prefetches before incrementing page counters. Stores no request path, user agent, raw IP, message text, answer text, source URLs, session ID, cookie, or per-user timeline. Per-day unique marker keys expire shortly after UTC midnight; aggregate counters expire after 180 days.
+- **Override:** Stores one daily hash of aggregate fields such as `site.views`, `site.unique`, `funnel.prompt_button.clicks`, `funnel.conversation_page.views`, `funnel.chat_submit.clicks`, `chat.requests`, `chat.status.completed`, `llm.turns`, `llm.unique`, `llm.model.<label>`. Uses request headers transiently to skip obvious bots, link preview agents, monitors, and prefetches before incrementing page counters. Conversation page views are emitted by the client after the conversation UI mounts, so framework route prefetches do not count as conversation opens. Stores no request path, user agent, raw IP, message text, answer text, source URLs, session ID, cookie, or per-user timeline. Per-day unique marker keys expire shortly after UTC midnight; aggregate counters expire after 180 days.
 - **What leaves this hop:** Counts are available only through the token-protected `/api/ops/usage` JSON endpoint and `/ops/usage` dashboard. Both return aggregate counts only.
 
 ### Hop 5 — Anthropic API (Main Model — Sonnet 4.6 by default)
@@ -1079,7 +1079,7 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 
 - **No backups.** Nothing is stored that could be backed up. No database, no user content, no per-user state.
 - **No monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom. Detection is human. Slower than automated; accepted because monitoring tools introduce vendors with content access and a surveillance-shaped surface.
-- **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count daily homepage visits, homepage prompt clicks, conversation page views, chat submit clicks, chat requests, LLM turns, and aggregate unique reach without raw IPs, paths, user agents, cookies, content, or per-person timelines.
+- **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count daily homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, and aggregate unique reach without raw IPs, paths, user agents, cookies, content, or per-person timelines.
 - **No A/B testing or experimentation framework.** One version ships. Improvements deploy for everyone after partner review.
 - **No accounts, no login, no email, no phone collection.** No user table, no session table, no auth code. Adding any is a fundamental shift.
 - **No admin panel.** Vercel's dashboard is the only admin surface.
@@ -1217,6 +1217,12 @@ One-line summary of every decision in this document, dated for traceability.
 - Because the clean homepage count field was added after the clean unique marker, the displayed homepage count is floored at the clean unique count so the aggregate cannot show fewer homepage views than unique homepage visitors.
 - `site.views` now counts homepage renders only, not every route under the root layout.
 - Page counters skip obvious bots, link preview agents, monitors, and prefetches before incrementing, without storing user agents or request paths.
+
+**2026-07-01 — conversation page-view prefetch fix:**
+
+- `funnel.conversation_page.views` is no longer incremented from the conversation page server render.
+- Conversation page views are now sent by the client after `ConversationClient` mounts, and tracked home-page conversation links disable Next prefetch.
+- The dashboard's top-card conversation view count uses a clean range-level counter beginning 2026-07-01; older daily conversation-view rows remain legacy context because they can include framework prefetches.
 
 ---
 
