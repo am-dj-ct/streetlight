@@ -205,16 +205,14 @@ function formatCurrency(value: number): string {
 function buildMetricHtml({
   label,
   value,
-  unique,
-  uniqueLabel = "unique",
+  secondary,
 }: {
   label: string;
   value: number | string;
-  unique?: number;
-  uniqueLabel?: string;
+  secondary?: string;
 }): string {
   return `<div class="metric"><span>${label}</span><strong>${value}</strong>${
-    unique === undefined ? "" : `<small>${unique} ${escapeHtml(uniqueLabel)}</small>`
+    secondary === undefined ? "" : `<small>${escapeHtml(secondary)}</small>`
   }</div>`;
 }
 
@@ -492,9 +490,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     oldestDate && newestDate && oldestDate !== newestDate
       ? `${oldestDate} through ${newestDate}`
       : newestDate;
-  const aggregateUniqueLabel = `unique since ${summary.periodUnique.trackingStartedDate}`;
-  const homepageUniqueLabel = `unique since ${summary.periodCounts.trackingStartedDate}`;
-  const conversationUniqueLabel = `unique since ${summary.periodCounts.conversationTrackingStartedDate}`;
+  const aggregateUniqueLabel = `since ${summary.periodUnique.trackingStartedDate}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -702,47 +698,41 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 <body>
   <main>
     <h1>Streetlight Usage</h1>
-    <p>Daily table covers ${escapeHtml(rangeLabel)}. Homepage views use a clean browser-open counter started ${escapeHtml(
+    <p>Daily table covers ${escapeHtml(rangeLabel)}. Top cards show aggregate unique counts since ${escapeHtml(
+      summary.periodUnique.trackingStartedDate,
+    )}. Page-open totals use clean browser-open counters started ${escapeHtml(
       summary.periodCounts.trackingStartedDate,
-    )}; conversation views use a clean page-open counter started ${escapeHtml(
-      summary.periodCounts.conversationTrackingStartedDate,
     )}. Earlier site-view and conversation-view rows are legacy context. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
-        label: "Homepage views",
-        unique: summary.periodCounts.siteUnique,
-        uniqueLabel: homepageUniqueLabel,
-        value: cleanHomepageViews,
+        label: "Homepage unique",
+        secondary: `${aggregateUniqueLabel} · ${cleanHomepageViews} clean opens`,
+        value: aggregateUnique.site,
       })}
       ${buildMetricHtml({
-        label: "Prompt clicks",
-        unique: aggregateUnique.promptButton,
-        uniqueLabel: aggregateUniqueLabel,
-        value: totals.promptButtonClicks,
+        label: "Prompt unique",
+        secondary: `${aggregateUniqueLabel} · ${totals.promptButtonClicks} clicks`,
+        value: aggregateUnique.promptButton,
       })}
       ${buildMetricHtml({
-        label: "Conversation views",
-        unique: summary.periodCounts.conversationPageUnique,
-        uniqueLabel: conversationUniqueLabel,
-        value: cleanConversationPageViews,
+        label: "Conversation unique",
+        secondary: `${aggregateUniqueLabel} · ${cleanConversationPageViews} clean opens`,
+        value: aggregateUnique.conversationPage,
       })}
       ${buildMetricHtml({
-        label: "Submit clicks",
-        unique: aggregateUnique.chatSubmit,
-        uniqueLabel: aggregateUniqueLabel,
-        value: totals.chatSubmitClicks,
+        label: "Submit unique",
+        secondary: `${aggregateUniqueLabel} · ${totals.chatSubmitClicks} clicks`,
+        value: aggregateUnique.chatSubmit,
       })}
       ${buildMetricHtml({
-        label: "Chat requests",
-        unique: aggregateUnique.chat,
-        uniqueLabel: aggregateUniqueLabel,
-        value: totals.chatRequests,
+        label: "Chat unique",
+        secondary: `${aggregateUniqueLabel} · ${totals.chatRequests} requests`,
+        value: aggregateUnique.chat,
       })}
       ${buildMetricHtml({
-        label: "LLM turns",
-        unique: aggregateUnique.llm,
-        uniqueLabel: aggregateUniqueLabel,
-        value: totals.llmTurns,
+        label: "LLM unique",
+        secondary: `${aggregateUniqueLabel} · ${totals.llmTurns} turns`,
+        value: aggregateUnique.llm,
       })}
       ${buildMetricHtml({
         label: "Spend",

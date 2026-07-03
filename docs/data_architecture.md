@@ -89,7 +89,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - We have no user identity. A subpoena ("records for John Doe") cannot be linked to anything in our system.
 - We have no conversation content. Nothing to hand over.
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
-- Blind usage counters in Vercel KV: client-confirmed homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, clean range-level homepage-view counts, clean range-level conversation-view counts, and clean range-level unique salted-IP counters for the dashboard's top cards. The per-day unique markers expire shortly after the day ends; range-level markers expire with aggregate usage retention.
+- Blind usage counters in Vercel KV: client-confirmed homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, clean range-level homepage-view counts, clean range-level conversation-view counts, and range-level unique salted-IP counters for the dashboard's top cards. The per-day unique markers expire shortly after the day ends; range-level markers expire with aggregate usage retention.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
 - In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
@@ -1213,8 +1213,8 @@ One-line summary of every decision in this document, dated for traceability.
 **2026-06-27 — launch-window dashboard and homepage-only site counter:**
 
 - `/ops/usage` and `/api/ops/usage` default to the launch window beginning 2026-06-24 instead of only the current day.
-- The dashboard's top-card homepage view count and top-card unique counts use clean range-level counters instead of summing polluted daily site-view history. These counters start after the 2026-06-27 dashboard fix and intentionally do not backfill polluted historical site-view rows.
-- Because the clean homepage count field was added after the clean unique marker, the displayed homepage count is floored at the clean unique count so the aggregate cannot show fewer homepage views than unique homepage visitors.
+- The dashboard's top cards show aggregate unique counts from the 2026-06-27 range-level tracking window as the primary number, with related total counts in the card detail text.
+- Clean homepage/detail counts are floored at the matching clean unique count so the aggregate cannot show fewer page opens than unique page visitors.
 - `site.views` now counts client-confirmed homepage opens only, not every route under the root layout.
 - Page counters skip obvious bots, link preview agents, monitors, and prefetches before incrementing, without storing user agents or request paths.
 
@@ -1222,13 +1222,13 @@ One-line summary of every decision in this document, dated for traceability.
 
 - `funnel.conversation_page.views` is no longer incremented from the conversation page server render.
 - Conversation page views are now sent by the client after `ConversationClient` mounts, and tracked home-page conversation links disable Next prefetch.
-- The dashboard's top-card conversation view count uses a clean range-level counter beginning 2026-07-01; older daily conversation-view rows remain legacy context because they can include framework prefetches.
+- The dashboard's top-card conversation detail text uses a clean range-level page-open counter beginning 2026-07-01; older daily conversation-view rows remain legacy context because they can include framework prefetches.
 
 **2026-07-01 — homepage unique reset and browser-open counter:**
 
 - `site.views` is no longer incremented from the homepage server render.
 - Homepage views are now sent by the client after the homepage UI mounts.
-- The dashboard's top-card homepage view and unique counts use a clean range-level browser-open counter beginning 2026-07-01; older daily site-view rows remain legacy context because they can include server-render and automated traffic.
+- The dashboard's top-card homepage detail text uses a clean range-level browser-open counter beginning 2026-07-01; older daily site-view rows remain legacy context because they can include server-render and automated traffic.
 
 ---
 
