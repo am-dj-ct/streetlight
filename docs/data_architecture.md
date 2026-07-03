@@ -1213,7 +1213,7 @@ One-line summary of every decision in this document, dated for traceability.
 **2026-06-27 — launch-window dashboard and homepage-only site counter:**
 
 - `/ops/usage` and `/api/ops/usage` default to the launch window beginning 2026-06-24 instead of only the current day.
-- The dashboard's top cards show aggregate unique counts from the 2026-06-27 range-level tracking window as the primary number, with related total counts in the card detail text.
+- The dashboard's top cards show clean range-level page-open uniques for homepage and conversation page cards, and aggregate unique action counts from the 2026-06-27 range-level tracking window for prompt, submit, chat, and LLM cards. Related total counts stay in the card detail text.
 - Clean homepage/detail counts are floored at the matching clean unique count so the aggregate cannot show fewer page opens than unique page visitors.
 - `site.views` now counts client-confirmed homepage opens only, not every route under the root layout.
 - Page counters skip obvious bots, link preview agents, monitors, and prefetches before incrementing, without storing user agents or request paths.
@@ -1222,13 +1222,13 @@ One-line summary of every decision in this document, dated for traceability.
 
 - `funnel.conversation_page.views` is no longer incremented from the conversation page server render.
 - Conversation page views are now sent by the client after `ConversationClient` mounts, and tracked home-page conversation links disable Next prefetch.
-- The dashboard's top-card conversation detail text uses a clean range-level page-open counter beginning 2026-07-01; older daily conversation-view rows remain legacy context because they can include framework prefetches.
+- The dashboard's top-card conversation value and detail text use a clean range-level page-open counter beginning 2026-07-01; older daily conversation-view rows remain legacy context because they can include framework prefetches.
 
 **2026-07-01 — homepage unique reset and browser-open counter:**
 
 - `site.views` is no longer incremented from the homepage server render.
 - Homepage views are now sent by the client after the homepage UI mounts.
-- The dashboard's top-card homepage detail text uses a clean range-level browser-open counter beginning 2026-07-01; older daily site-view rows remain legacy context because they can include server-render and automated traffic.
+- The dashboard's top-card homepage value and detail text use a clean range-level browser-open counter beginning 2026-07-01; older daily site-view rows remain legacy context because they can include server-render and automated traffic.
 
 ---
 

@@ -36,7 +36,7 @@ type UsageDashboardTotals = {
   spendUsd: number;
 };
 
-type AggregateUniqueDisplays = {
+type TopCardUniqueDisplays = {
   chat: number;
   chatSubmit: number;
   conversationPage: number;
@@ -392,16 +392,16 @@ function buildRows(days: UsageDaySummary[]): string {
     .join("\n");
 }
 
-function getAggregateUniqueDisplays(
+function getTopCardUniqueDisplays(
   summary: Awaited<ReturnType<typeof getUsageSummary>>,
-): AggregateUniqueDisplays {
+): TopCardUniqueDisplays {
   return {
     chat: summary.periodUnique.chat,
     chatSubmit: summary.periodUnique.chatSubmit,
-    conversationPage: summary.periodUnique.conversationPage,
+    conversationPage: summary.periodCounts.conversationPageUnique,
     llm: summary.periodUnique.llm,
     promptButton: summary.periodUnique.promptButton,
-    site: summary.periodUnique.site,
+    site: summary.periodCounts.siteUnique,
   };
 }
 
@@ -472,7 +472,7 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       spendUsd: 0,
     },
   );
-  const aggregateUnique = getAggregateUniqueDisplays(summary);
+  const topCardUnique = getTopCardUniqueDisplays(summary);
   const cleanHomepageViews = summary.periodCounts.siteViews;
   const cleanConversationPageViews = summary.periodCounts.conversationPageViews;
   const funnelTotals: UsageDashboardTotals = {
@@ -491,6 +491,8 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
       ? `${oldestDate} through ${newestDate}`
       : newestDate;
   const aggregateUniqueLabel = `since ${summary.periodUnique.trackingStartedDate}`;
+  const homepageUniqueLabel = `since ${summary.periodCounts.trackingStartedDate}`;
+  const conversationUniqueLabel = `since ${summary.periodCounts.conversationTrackingStartedDate}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -698,41 +700,41 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
 <body>
   <main>
     <h1>Streetlight Usage</h1>
-    <p>Daily table covers ${escapeHtml(rangeLabel)}. Top cards show aggregate unique counts since ${escapeHtml(
-      summary.periodUnique.trackingStartedDate,
-    )}. Page-open totals use clean browser-open counters started ${escapeHtml(
+    <p>Daily table covers ${escapeHtml(rangeLabel)}. Homepage and conversation cards show clean page-open unique counts since ${escapeHtml(
       summary.periodCounts.trackingStartedDate,
+    )}. Other top cards show aggregate unique action counts since ${escapeHtml(
+      summary.periodUnique.trackingStartedDate,
     )}. Earlier site-view and conversation-view rows are legacy context. No raw IPs, user agents, messages, answers, paths, or session records.</p>
     <section class="summary">
       ${buildMetricHtml({
         label: "Homepage unique",
-        secondary: `${aggregateUniqueLabel} - ${cleanHomepageViews} clean opens`,
-        value: aggregateUnique.site,
+        secondary: `${homepageUniqueLabel} - ${cleanHomepageViews} clean opens`,
+        value: topCardUnique.site,
       })}
       ${buildMetricHtml({
         label: "Prompt unique",
         secondary: `${aggregateUniqueLabel} - ${totals.promptButtonClicks} clicks`,
-        value: aggregateUnique.promptButton,
+        value: topCardUnique.promptButton,
       })}
       ${buildMetricHtml({
         label: "Conversation unique",
-        secondary: `${aggregateUniqueLabel} - ${cleanConversationPageViews} clean opens`,
-        value: aggregateUnique.conversationPage,
+        secondary: `${conversationUniqueLabel} - ${cleanConversationPageViews} clean opens`,
+        value: topCardUnique.conversationPage,
       })}
       ${buildMetricHtml({
         label: "Submit unique",
         secondary: `${aggregateUniqueLabel} - ${totals.chatSubmitClicks} clicks`,
-        value: aggregateUnique.chatSubmit,
+        value: topCardUnique.chatSubmit,
       })}
       ${buildMetricHtml({
         label: "Chat unique",
         secondary: `${aggregateUniqueLabel} - ${totals.chatRequests} requests`,
-        value: aggregateUnique.chat,
+        value: topCardUnique.chat,
       })}
       ${buildMetricHtml({
         label: "LLM unique",
         secondary: `${aggregateUniqueLabel} - ${totals.llmTurns} turns`,
-        value: aggregateUnique.llm,
+        value: topCardUnique.llm,
       })}
       ${buildMetricHtml({
         label: "Spend",
