@@ -706,32 +706,32 @@ function buildHtml(summary: Awaited<ReturnType<typeof getUsageSummary>>): string
     <section class="summary">
       ${buildMetricHtml({
         label: "Homepage unique",
-        secondary: `${aggregateUniqueLabel} · ${cleanHomepageViews} clean opens`,
+        secondary: `${aggregateUniqueLabel} - ${cleanHomepageViews} clean opens`,
         value: aggregateUnique.site,
       })}
       ${buildMetricHtml({
         label: "Prompt unique",
-        secondary: `${aggregateUniqueLabel} · ${totals.promptButtonClicks} clicks`,
+        secondary: `${aggregateUniqueLabel} - ${totals.promptButtonClicks} clicks`,
         value: aggregateUnique.promptButton,
       })}
       ${buildMetricHtml({
         label: "Conversation unique",
-        secondary: `${aggregateUniqueLabel} · ${cleanConversationPageViews} clean opens`,
+        secondary: `${aggregateUniqueLabel} - ${cleanConversationPageViews} clean opens`,
         value: aggregateUnique.conversationPage,
       })}
       ${buildMetricHtml({
         label: "Submit unique",
-        secondary: `${aggregateUniqueLabel} · ${totals.chatSubmitClicks} clicks`,
+        secondary: `${aggregateUniqueLabel} - ${totals.chatSubmitClicks} clicks`,
         value: aggregateUnique.chatSubmit,
       })}
       ${buildMetricHtml({
         label: "Chat unique",
-        secondary: `${aggregateUniqueLabel} · ${totals.chatRequests} requests`,
+        secondary: `${aggregateUniqueLabel} - ${totals.chatRequests} requests`,
         value: aggregateUnique.chat,
       })}
       ${buildMetricHtml({
         label: "LLM unique",
-        secondary: `${aggregateUniqueLabel} · ${totals.llmTurns} turns`,
+        secondary: `${aggregateUniqueLabel} - ${totals.llmTurns} turns`,
         value: aggregateUnique.llm,
       })}
       ${buildMetricHtml({
