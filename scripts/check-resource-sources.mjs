@@ -6,6 +6,8 @@ const cwd = process.cwd();
 const today = new Date().toISOString().slice(0, 10);
 const defaultOutputPath = path.join(cwd, "tmp", `resource-review-${today}.md`);
 const outputPath = getOutputPath(process.argv) ?? defaultOutputPath;
+const fetchAttemptCount = 2;
+const fetchRetryDelayMs = 750;
 const fetchTimeoutMs = 15000;
 const maxDisplayedPhones = 12;
 
@@ -190,24 +192,70 @@ function extractLinks(html, baseUrl) {
   return links;
 }
 
-async function fetchSource(sourceUrl) {
-  const response = await fetch(sourceUrl, {
-    headers: {
-      Accept: "text/html,application/xhtml+xml",
-      "User-Agent": "StreetlightResourceReview/0.1 (+https://streetlight.help)",
-    },
-    redirect: "follow",
-    signal: AbortSignal.timeout(fetchTimeoutMs),
+function wait(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
   });
-  const body = await response.text();
+}
 
-  return {
-    body,
-    finalUrl: response.url,
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText,
-  };
+function describeFetchError(error) {
+  const details = [];
+
+  if (error instanceof Error && error.message) {
+    details.push(error.message);
+  }
+
+  const cause = error instanceof Error ? error.cause : null;
+
+  if (cause && typeof cause === "object") {
+    const causeRecord = cause;
+    const causeParts = [
+      causeRecord.code,
+      causeRecord.name,
+      causeRecord.message,
+    ].filter((part) => typeof part === "string" && part.trim().length > 0);
+
+    details.push(...causeParts);
+  }
+
+  return [...new Set(details)].join("; ") || String(error);
+}
+
+async function fetchSource(sourceUrl) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= fetchAttemptCount; attempt += 1) {
+    try {
+      const response = await fetch(sourceUrl, {
+        headers: {
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9",
+          "User-Agent": "StreetlightResourceReview/0.1 (+https://streetlight.help)",
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(fetchTimeoutMs),
+      });
+      const body = await response.text();
+
+      return {
+        body,
+        finalUrl: response.url,
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < fetchAttemptCount) {
+        await wait(fetchRetryDelayMs);
+      }
+    }
+  }
+
+  throw new Error(
+    `${describeFetchError(lastError)} after ${fetchAttemptCount} attempts`,
+  );
 }
 
 function getKnownPhones(resource) {
