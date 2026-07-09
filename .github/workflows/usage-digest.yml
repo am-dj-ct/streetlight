@@ -1,0 +1,56 @@
+name: Usage Digest
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 16 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: usage-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BODY_PATH: tmp/usage-digest-email.md
+      STREETLIGHT_BASE_URL: https://streetlight.help
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build usage digest
+        env:
+          OPS_READ_TOKEN: ${{ secrets.OPS_READ_TOKEN }}
+        run: |
+          node scripts/build-usage-digest-email.mjs \
+            --output "$BODY_PATH" \
+            --baseUrl "$STREETLIGHT_BASE_URL"
+
+      - name: Upload usage digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: usage-digest-${{ github.run_id }}
+          path: ${{ env.BODY_PATH }}
+          if-no-files-found: error
+
+      - name: Send Resend email
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESOURCE_REVIEW_EMAIL_FROM: ${{ secrets.RESOURCE_REVIEW_EMAIL_FROM }}
+          RESOURCE_REVIEW_EMAIL_TO: ${{ secrets.RESOURCE_REVIEW_EMAIL_TO }}
+        run: |
+          report_date="$(date -u -d 'yesterday' +%F)"
+          node scripts/send-resend-email.mjs \
+            --subject "Streetlight usage digest - $report_date" \
+            --body "$BODY_PATH"

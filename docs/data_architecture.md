@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-06-23
-**Last meaningful change:** 2026-07-01 (homepage and conversation headline usage moved to client browser-open events, and tracked conversation links disable prefetch, so server renders and route prefetches do not count as user opens; no server-side content persistence added)
+**Last reviewed:** 2026-07-09
+**Last meaningful change:** 2026-07-09 (daily aggregate usage digest emails the operator the existing blind usage counters for the latest complete UTC day and cumulative tracking windows; no new tracking, raw identifiers, or content persistence added)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -90,6 +90,7 @@ The architecture is designed to defend against eight specific threats. For each:
 - We have no conversation content. Nothing to hand over.
 - Hashed IPs in the rate-limit KV with daily TTL. After 24 hours, the hash is gone. Even within 24 hours, the hash is one-way.
 - Blind usage counters in Vercel KV: client-confirmed homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, daily unique salted-IP counts, clean range-level homepage-view counts, clean range-level conversation-view counts, and range-level unique salted-IP counters for the dashboard's top cards. The per-day unique markers expire shortly after the day ends; range-level markers expire with aggregate usage retention.
+- Daily operator usage digest email: aggregate counts from the existing usage dashboard for the latest complete UTC day and cumulative tracking windows. No raw IPs, user agents, paths, messages, answers, cookies, session IDs, or per-person timelines.
 - Aggregate metadata in Vercel runtime logs (3-day window): hashed IP, timestamp, button tapped, language, classifier category, model used, token counts. No content. No identity.
 - Anthropic has the conversation content for 7 days. A subpoena to them, not us, could compel that.
 - In rare circumstances when the configured Anthropic chain fails and OpenAI fallback is enabled, OpenAI may receive the conversation for that turn. A subpoena to OpenAI, not us, could compel provider-side records for those fallback turns.
@@ -1229,6 +1230,12 @@ One-line summary of every decision in this document, dated for traceability.
 - `site.views` is no longer incremented from the homepage server render.
 - Homepage views are now sent by the client after the homepage UI mounts.
 - The dashboard's top-card homepage value and detail text use a clean range-level browser-open counter beginning 2026-07-01; older daily site-view rows remain legacy context because they can include server-render and automated traffic.
+
+**2026-07-09 — daily aggregate usage digest:**
+
+- A scheduled GitHub Actions cron fetches the protected `/api/ops/usage` endpoint and sends a daily plain-text Resend email to the operator.
+- The digest includes latest complete UTC-day metrics and cumulative tracking-window metrics for homepage reach, conversation opens, prompt starts, submit clicks, chat/API requests, LLM turns, outcomes, weak categories, models, and spend.
+- The digest reuses existing aggregate counters only; it adds no raw IPs, user agents, request paths, content, cookies, session IDs, or per-person timelines.
 
 ---
 

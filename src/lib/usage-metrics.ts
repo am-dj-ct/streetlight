@@ -696,7 +696,13 @@ export async function getUsageSummary({
 }: {
   days: number;
 }): Promise<UsageSummary> {
-  const boundedDays = Math.max(1, Math.min(90, Math.floor(days)));
+  const boundedDays = Math.max(
+    1,
+    Math.min(
+      aggregateRetentionSeconds / 24 / 60 / 60,
+      Math.floor(days),
+    ),
+  );
   const dateKeys = getDateKeys(boundedDays);
 
   if (!hasKvConfig()) {

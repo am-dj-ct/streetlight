@@ -27,6 +27,7 @@
     "validate:data": "node scripts/validate-resource-data.mjs",
     "data:status": "node scripts/print-resource-status.mjs",
     "resources:check": "node scripts/check-resource-sources.mjs",
+    "usage:digest": "node scripts/build-usage-digest-email.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:quick": "node scripts/run-with-env.mjs SMOKE_CASE_LIMIT=2 -- node scripts/smoke.mjs",
     "regression:prompts": "node scripts/regression.mjs",
