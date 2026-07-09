@@ -22,12 +22,12 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Build usage digest
         env:
@@ -38,7 +38,7 @@ jobs:
             --baseUrl "$STREETLIGHT_BASE_URL"
 
       - name: Upload usage digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: usage-digest-${{ github.run_id }}
           path: ${{ env.BODY_PATH }}
