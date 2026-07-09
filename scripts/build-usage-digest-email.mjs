@@ -75,65 +75,103 @@ function buildUsageDigest({ reportDate, summary }) {
   const generatedAt = summary.generatedAt
     ? `Generated from Streetlight usage data at ${summary.generatedAt}.`
     : null;
-
-  return [
+  const rows = [
+    [
+      "Homepage",
+      `${daily.site.unique} unique / ${daily.site.views} opens`,
+      `${numberValue(periodCounts.siteUnique)} unique / ${numberValue(periodCounts.siteViews)} opens since ${periodCounts.trackingStartedDate ?? "2026-07-01"}`,
+    ],
+    [
+      "Conversation",
+      `${daily.funnel.conversationPageUnique} unique / ${daily.funnel.conversationPageViews} opens`,
+      `${numberValue(periodCounts.conversationPageUnique)} unique / ${numberValue(periodCounts.conversationPageViews)} opens since ${periodCounts.conversationTrackingStartedDate ?? "2026-07-01"}`,
+    ],
+    [
+      "Prompt starts",
+      `${daily.funnel.promptButtonUnique} unique / ${daily.funnel.promptButtonClicks} clicks`,
+      `${numberValue(periodUnique.promptButton)} unique / ${cumulativePromptClicks} clicks since ${actionStartDate}`,
+    ],
+    [
+      "Submit",
+      `${daily.funnel.chatSubmitUnique} unique / ${daily.funnel.chatSubmitClicks} clicks`,
+      `${numberValue(periodUnique.chatSubmit)} unique / ${cumulativeSubmitClicks} clicks since ${actionStartDate}`,
+    ],
+    [
+      "Chat API",
+      `${daily.chat.unique} unique / ${daily.chat.requests} requests`,
+      `${numberValue(periodUnique.chat)} unique / ${cumulativeChatRequests} requests since ${actionStartDate}`,
+    ],
+    [
+      "LLM",
+      `${daily.llm.unique} unique / ${daily.llm.turns} turns`,
+      `${numberValue(periodUnique.llm)} unique / ${cumulativeLlmTurns} turns since ${actionStartDate}`,
+    ],
+    [
+      "Spend",
+      formatUsd(daily.spendUsd),
+      `${formatUsd(cumulativeSpend)} since ${launchStartDate}`,
+    ],
+  ];
+  const dailyDetails = formatOptionalDailyDetails(daily);
+  const lines = [
     `# Streetlight usage digest - ${reportDate}`,
     "",
     "Aggregate counts only. No raw IPs, user agents, messages, answers, paths, or session records.",
     "",
     generatedAt,
     "",
-    `## Last complete UTC day (${reportDate})`,
-    "",
-    `- Homepage unique / opens: ${daily.site.unique} / ${daily.site.views}`,
-    `- Conversation unique / opens: ${daily.funnel.conversationPageUnique} / ${daily.funnel.conversationPageViews}`,
-    `- Prompt starts unique / clicks: ${daily.funnel.promptButtonUnique} / ${daily.funnel.promptButtonClicks}`,
-    `- Submit unique / clicks: ${daily.funnel.chatSubmitUnique} / ${daily.funnel.chatSubmitClicks}`,
-    `- Chat API unique / requests: ${daily.chat.unique} / ${daily.chat.requests}`,
-    `- LLM unique / turns: ${daily.llm.unique} / ${daily.llm.turns}`,
-    `- Spend: ${formatUsd(daily.spendUsd)}`,
-    formatOptionalDailyDetails(daily),
-    "",
-    "## Cumulative",
-    "",
-    `- Homepage unique / opens since ${periodCounts.trackingStartedDate ?? "2026-07-01"}: ${numberValue(periodCounts.siteUnique)} / ${numberValue(periodCounts.siteViews)}`,
-    `- Conversation unique / opens since ${periodCounts.conversationTrackingStartedDate ?? "2026-07-01"}: ${numberValue(periodCounts.conversationPageUnique)} / ${numberValue(periodCounts.conversationPageViews)}`,
-    `- Prompt starts unique / clicks since ${actionStartDate}: ${numberValue(periodUnique.promptButton)} / ${cumulativePromptClicks}`,
-    `- Submit unique / clicks since ${actionStartDate}: ${numberValue(periodUnique.chatSubmit)} / ${cumulativeSubmitClicks}`,
-    `- Chat API unique / requests since ${actionStartDate}: ${numberValue(periodUnique.chat)} / ${cumulativeChatRequests}`,
-    `- LLM unique / turns since ${actionStartDate}: ${numberValue(periodUnique.llm)} / ${cumulativeLlmTurns}`,
-    `- Spend since ${launchStartDate}: ${formatUsd(cumulativeSpend)}`,
-    "",
-    "## Reading notes",
-    "",
-    "- The cumulative unique lines are the best first-time/reach numbers: they dedupe salted IP markers across the tracking window.",
-    "- The daily unique lines are unique within that UTC day. They are not guaranteed to be first-time-ever visitors.",
-    "- Chat API counts mean requests that reached Streetlight's chat endpoint. LLM counts mean turns that reached an AI provider.",
-    "",
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
+    formatTableRow([
+      "Metric",
+      `Last complete UTC day (${reportDate})`,
+      "Cumulative",
+    ]),
+    formatTableRow(["---", "---", "---"]),
+    ...rows.map(formatTableRow),
+  ];
+
+  if (dailyDetails.length > 0) {
+    lines.push(
+      "",
+      "## Daily details",
+      "",
+      formatTableRow(["Item", "Count"]),
+      formatTableRow(["---", "---"]),
+      ...dailyDetails.map(formatTableRow),
+    );
+  }
+
+  lines.push("");
+
+  return lines.filter((line) => line !== null).join("\n");
 }
 
 function formatOptionalDailyDetails(day) {
   const statuses = formatTopEntries(day.chat.statuses);
   const categories = formatTopEntries(day.llm.categories);
   const models = formatTopEntries(day.llm.models);
-  const lines = [];
+  const rows = [];
 
   if (statuses !== "None") {
-    lines.push(`- Outcomes: ${statuses}`);
+    rows.push(["Outcomes", statuses]);
   }
 
   if (categories !== "None") {
-    lines.push(`- Weak categories: ${categories}`);
+    rows.push(["Weak category flags", categories]);
   }
 
   if (models !== "None") {
-    lines.push(`- Models: ${models}`);
+    rows.push(["Models", models]);
   }
 
-  return lines.length > 0 ? `\n${lines.join("\n")}` : "";
+  return rows;
+}
+
+function formatTableRow(cells) {
+  return `| ${cells.map(formatTableCell).join(" | ")} |`;
+}
+
+function formatTableCell(value) {
+  return String(value).replace(/\|/g, "/").replace(/\s+/g, " ").trim();
 }
 
 function formatTopEntries(values, limit = 5) {
