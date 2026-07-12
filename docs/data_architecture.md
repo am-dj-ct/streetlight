@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-07-09
-**Last meaningful change:** 2026-07-09 (daily aggregate usage digest emails the operator the existing blind usage counters for the latest complete UTC day and cumulative tracking windows; no new tracking, raw identifiers, or content persistence added)
+**Last reviewed:** 2026-07-12
+**Last meaningful change:** 2026-07-12 (allows an operator-owned local dashboard to poll the public `/healthz` contract and GitHub workflow metadata while storing only fixed, content-free health status; no third-party observability or user-content access added)
 **Next scheduled review:** 2026-08-07 (quarterly)
 
 ---
@@ -1079,7 +1079,7 @@ This tool is built and run by one person in Seattle. It's free. It's not a compa
 What is not in this architecture and why. Each entry is a "we don't do this and here's why" statement. A future Claude Code session, a future operator, or a future contributor must actively contradict the listed reasoning to add the missing piece.
 
 - **No backups.** Nothing is stored that could be backed up. No database, no user content, no per-user state.
-- **No monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom. Detection is human. Slower than automated; accepted because monitoring tools introduce vendors with content access and a surveillance-shaped surface.
+- **No third-party monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom, or similar vendor. An operator-owned dashboard on the operator's own machine may poll the public `/healthz` contract and GitHub workflow metadata, then store only a fixed green/yellow/red result, fixed summary, source label, and timestamps. It must not call chat, TTS, usage, or other user-connected routes; retain response bodies; log configuration fields or workflow output; introduce a new vendor; or create user-level telemetry. Human review remains the response path.
 - **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count client-confirmed homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, and aggregate unique reach without raw IPs, paths, user agents, cookies, content, or per-person timelines.
 - **No A/B testing or experimentation framework.** One version ships. Improvements deploy for everyone after partner review.
 - **No accounts, no login, no email, no phone collection.** No user table, no session table, no auth code. Adding any is a fundamental shift.
@@ -1236,6 +1236,12 @@ One-line summary of every decision in this document, dated for traceability.
 - A scheduled GitHub Actions cron fetches the protected `/api/ops/usage` endpoint and sends a daily plain-text Resend email to the operator.
 - The digest includes latest complete UTC-day metrics and cumulative tracking-window metrics for homepage reach, conversation opens, prompt starts, submit clicks, chat/API requests, LLM turns, outcomes, weak categories, models, and spend.
 - The digest reuses existing aggregate counters only; it adds no raw IPs, user agents, request paths, content, cookies, session IDs, or per-person timelines.
+
+**2026-07-12 — operator-owned local health polling:**
+
+- A local personal-ops dashboard may read the existing public `/healthz` contract and GitHub Actions metadata on a bounded schedule.
+- The poller stores only fixed health status, fixed summary, source label, and timestamps. It does not call chat, TTS, usage, or other user-connected routes and does not retain response bodies, configuration details, workflow output, user data, or content.
+- This is a narrow first-party operational exception, not authorization for hosted monitoring, alerting vendors, analytics, log drains, content logging, or automated user surveillance.
 
 ---
 
