@@ -480,6 +480,10 @@ for (const resourceFile of resourceFiles) {
       throw new Error(`${resource.id ?? "unknown-id"} is missing sourceUrl.`);
     }
 
+    if (resource.skipSourceCheck === true) {
+      continue;
+    }
+
     entries.push(await reviewResource(resource, resourceFile));
   }
 }

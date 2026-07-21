@@ -153,6 +153,13 @@ function validateReferrals(referrals) {
     assertCleanString(referral.sourceName, `Referral "${referral.id}" sourceName`);
     assertHttpsUrl(referral.sourceUrl, `Referral "${referral.id}" sourceUrl`);
 
+    if (
+      referral.skipSourceCheck !== undefined &&
+      typeof referral.skipSourceCheck !== "boolean"
+    ) {
+      fail(`Referral "${referral.id}" skipSourceCheck must be a boolean.`);
+    }
+
     assertIsoDate(
       referral.lastVerified,
       `Referral "${referral.id}" lastVerified`,
@@ -269,6 +276,13 @@ function validateCrisisResources(resources) {
 
     assertCleanString(resource.label, `Crisis resource "${resource.id}" label`);
     assertCleanString(resource.sourceName, `Crisis resource "${resource.id}" sourceName`);
+
+    if (
+      resource.skipSourceCheck !== undefined &&
+      typeof resource.skipSourceCheck !== "boolean"
+    ) {
+      fail(`Crisis resource "${resource.id}" skipSourceCheck must be a boolean.`);
+    }
 
     assertIsoDate(
       resource.lastVerified,

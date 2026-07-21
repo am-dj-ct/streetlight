@@ -36,6 +36,10 @@ links against the maintained JSON, and writes a Markdown report to `tmp/`.
 That report is only a review aid. It does not update the JSON and it is not a
 source of truth.
 
+Set `skipSourceCheck` to `true` only for a manually verified resource whose
+official site predictably blocks automated requests. The resource stays live,
+but it is omitted from the scrape-assisted report.
+
 ## Scheduled email review
 
 GitHub Actions runs a scrape-assisted review every two weeks on Monday at
