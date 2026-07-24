@@ -1,6 +1,5 @@
 import {
   clearOpsSessionCookie,
-  isOpsRequestAuthorized,
   isOpsPasswordValid,
   makeOpsSessionCookie,
 } from "../../../lib/ops-auth";
@@ -840,16 +839,6 @@ export async function GET(request: Request) {
         "Set-Cookie": clearOpsSessionCookie(),
       },
       status: 303,
-    });
-  }
-
-  if (!isOpsRequestAuthorized(request)) {
-    return new Response(buildLoginHtml({ days }), {
-      headers: {
-        "Cache-Control": "no-store",
-        "Content-Type": "text/html; charset=utf-8",
-      },
-      status: 200,
     });
   }
 
