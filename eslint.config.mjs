@@ -16,8 +16,8 @@ const eslintConfig = defineConfig([
         },
         {
           selector:
-            "CallExpression[callee.object.name='console'][callee.property.name=/^(debug|dir|error|info|log|table|trace|warn)$/] Identifier[name=/^(body|details|draft|exportText|fileContents|goal|parsedBody|reply|reportBody|requestBody|messages)$/]",
-          message: "Do not log request bodies or conversation messages.",
+            "CallExpression[callee.object.name='console'][callee.property.name=/^(debug|dir|error|info|log|table|trace|warn)$/] Identifier[name=/^(body|details|draft|exportText|fileContents|goal|parsedBody|reply|reportBody|requestBody|messages|attachment|attachments|pendingAttachments|image|images|photo|photos|file|files|pickedFile|dataUrl|dataBase64|blob|upload|uploads|bytes|buffer|bitmap|canvas)$/]",
+          message: "Do not log request bodies, conversation messages, or attachment data.",
         },
         {
           selector:

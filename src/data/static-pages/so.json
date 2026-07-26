@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Asturnaanta",
-      "lastUpdated": "2026-06-23",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "Waxa aan kaydinno: waxba oo ku saabsan sheekadaada.",
@@ -42,7 +42,8 @@
           "heading": "Meesha farriimahaagu tagaan.",
           "paragraphs": [
             "Markaad fariin dirto, badanaa waxay tagtaa shirkad la yiraahdo Anthropic. Iyaga ayaa sameeya AI-ga ugu weyn ee kuu jawaabaya. Farriintaada waxay hayaan 7 maalmood, kadib way tirtiraan. Uma isticmaalaan in AI lagu tababaro. Mana la wadaagaan.",
-            "Xaalado dhif ah, marka Anthropic si ballaaran u go'o oo kaydka la shiday, farriintaadu waxay beddelkeeda u tagi kartaa OpenAI. OpenAI ayaa sameeya jawaabta AI ee kaydka ah. Farriintaas kuma kaydinno server-radayada, umana isticmaalno in AI lagu tababaro.",
+            "Haddii aad ku lifaaqdo sawir ama PDF, sida sawirka warqad, waxay u tagtaa Anthropic oo keliya, si la mid ah fariintaada. Weligayo kuma kaydinno server-radayada, xitaa daqiiqad kadib marka su'aashaada laga jawaabo. Anthropic way tirtirtaa kadib marka ay farsameyso, umana isticmaasho tababarka AI. Kahor inta sawirkaagu ka bixin qalabkaaga, app-ku wuu yareeyaa wuxuuna ka saaraa xogta qarsoon ee sawirka, sida goobta lagu qaaday.",
+            "Xaalado dhif ah, marka Anthropic si ballaaran u go'o oo kaydka la shiday, farriintaadu waxay beddelkeeda u tagi kartaa OpenAI. OpenAI ayaa sameeya jawaabta AI ee kaydka ah. Farriintaas kuma kaydinno server-radayada, umana isticmaalno in AI lagu tababaro. Sawirrada iyo faylasha aad ku lifaaqdo weligood looma diro OpenAI. Haddii kaydku jawaabo, wuxuu kuu sheegi doonaa inuusan arki karin faylkaaga.",
             "Anthropic ayaa weli ugu horreeya sababtoo ah xeerarkooda ku saabsan xogtaada way ka adag yihiin shirkado badan oo AI sameeya. OpenAI waa kayd keliya xaalado go'itaan dhif ah, ka dib marka Anthropic fashilmo.",
             "Haddii aad taabato Cod dheer u akhri, qoraalka jawaabta waxaa loo diraa Microsoft Azure AI Speech si cod loo sameeyo. Haddii aadan taaban Cod dheer u akhri, halkaas looma diro. Codka ma kaydinno."
           ]
@@ -87,7 +88,7 @@
     },
     "about": {
       "title": "Ku saabsan",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "Waxa kani yahay.",
@@ -113,7 +114,7 @@
         {
           "heading": "Cod iyo luqad.",
           "paragraphs": [
-            "Qalabku qoraal ayuu marka hore ku shaqeeyaa. Gelinta makarafoonka iyo akhrinta codka dheer waa caawiyeyaal, laakiin isticmaalka cod keliya weli waa meel ka maqan V1. Codadka qalabka ayaa weli kayd ahaan u jira marka akhrinta dabiiciga ahi aanay jirin."
+            "Qalabku qoraal ayuu marka hore ku shaqeeyaa. Gelinta makarafoonka iyo akhrinta codka dheer waa caawiyeyaal, laakiin isticmaalka cod keliya weli waa meel ka maqan V1. Codadka qalabka ayaa weli kayd ahaan u jira marka akhrinta dabiiciga ahi aanay jirin. Waxaad sidoo kale ku lifaaqi kartaa sawirka warqad ama foom warqad ah, ama PDF, oo wax ka weydiin kartaa."
           ]
         },
         {

@@ -30,7 +30,61 @@ export const conversationEntryIds: readonly ConversationEntryId[] = [
 export const maxChatMessages = 24;
 export const maxClientMessageTextLength = 8000;
 export const maxChatRequestTextLength = 24000;
-export const maxChatRequestBodyBytes = 64000;
+// Sized so one turn of downscaled document photos or a small PDF fits under
+// Vercel's 4.5 MB function body limit after base64 inflation. See
+// docs/decisions/2026-07-26-inline-file-upload-v1.md.
+export const maxChatRequestBodyBytes = 4_000_000;
+export const maxAttachmentsPerMessage = 5;
+export const maxImageAttachmentBase64Length = 1_500_000;
+export const maxPdfAttachmentBase64Length = 2_800_000;
+export const maxTotalAttachmentBase64Length = 3_000_000;
+
+export const attachmentMediaTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+] as const;
+
+export type AttachmentMediaType = (typeof attachmentMediaTypes)[number];
+
+export type ChatAttachment = {
+  dataBase64: string;
+  mediaType: AttachmentMediaType;
+};
+
+const base64Pattern = /^[A-Za-z0-9+/]+={0,2}$/;
+
+export function isAttachmentMediaType(
+  value: null | string | undefined,
+): value is AttachmentMediaType {
+  return isOneOf(attachmentMediaTypes, value);
+}
+
+export function isChatAttachment(value: unknown): value is ChatAttachment {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<ChatAttachment>;
+
+  if (
+    !isAttachmentMediaType(candidate.mediaType) ||
+    typeof candidate.dataBase64 !== "string" ||
+    candidate.dataBase64.length === 0 ||
+    candidate.dataBase64.length % 4 !== 0 ||
+    !base64Pattern.test(candidate.dataBase64)
+  ) {
+    return false;
+  }
+
+  const maxLength =
+    candidate.mediaType === "application/pdf"
+      ? maxPdfAttachmentBase64Length
+      : maxImageAttachmentBase64Length;
+
+  return candidate.dataBase64.length <= maxLength;
+}
 
 export function isConversationEntryId(
   value: null | string | undefined,
@@ -72,6 +126,7 @@ export function isWeakCategory(
 }
 
 export type ClientChatMessage = {
+  attachments?: ChatAttachment[];
   id: string;
   role: "user" | "assistant";
   suggestions?: string[];
@@ -104,7 +159,20 @@ export function isClientChatMessage(value: unknown): value is ClientChatMessage 
       (Array.isArray(candidate.suggestions) &&
         candidate.suggestions.every((suggestion) => typeof suggestion === "string"))) &&
     (candidate.weakCategory === undefined ||
-      isWeakCategory(candidate.weakCategory))
+      isWeakCategory(candidate.weakCategory)) &&
+    (candidate.attachments === undefined ||
+      (candidate.role === "user" &&
+        Array.isArray(candidate.attachments) &&
+        candidate.attachments.length > 0 &&
+        candidate.attachments.length <= maxAttachmentsPerMessage &&
+        candidate.attachments.every(isChatAttachment)))
+  );
+}
+
+function totalAttachmentBase64Length(message: ClientChatMessage): number {
+  return (message.attachments ?? []).reduce(
+    (total, attachment) => total + attachment.dataBase64.length,
+    0,
   );
 }
 
@@ -127,7 +195,18 @@ export function isChatRequestBody(value: unknown): value is ChatRequestBody {
     candidate.messages.reduce(
       (total, message) => total + message.text.length,
       0,
-    ) <= maxChatRequestTextLength
+    ) <= maxChatRequestTextLength &&
+    // Attachment bytes are never resent with history: only the newest
+    // message may carry attachments, and their combined size is capped.
+    candidate.messages.every(
+      (message, index) =>
+        message.attachments === undefined ||
+        index === candidate.messages!.length - 1,
+    ) &&
+    candidate.messages.reduce(
+      (total, message) => total + totalAttachmentBase64Length(message),
+      0,
+    ) <= maxTotalAttachmentBase64Length
   );
 }
 

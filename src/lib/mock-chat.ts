@@ -18,6 +18,13 @@ function asParagraphs(lines: string[]) {
   return lines.join("\n\n").trim();
 }
 
+function getLatestUserAttachmentCount(messages: ClientChatMessage[]) {
+  return (
+    [...messages].reverse().find((message) => message.role === "user")
+      ?.attachments?.length ?? 0
+  );
+}
+
 function classifyMockResponse({
   entryId,
   latestUserText,
@@ -204,17 +211,27 @@ function buildMockSuggestions(entryId: ConversationEntryId): string[] {
 
 export function buildMockChatTurn(body: ChatRequestBody) {
   const latestUserText = getLatestUserText(body.messages);
+  const attachmentCount = getLatestUserAttachmentCount(body.messages);
+  const responseText = buildMockResponse({
+    entryId: body.entryId,
+    language: body.language,
+    latestUserText,
+  });
 
   return {
     classifierCategory: classifyMockResponse({
       entryId: body.entryId,
       latestUserText,
     }),
-    responseText: buildMockResponse({
-      entryId: body.entryId,
-      language: body.language,
-      latestUserText,
-    }),
+    responseText:
+      attachmentCount > 0
+        ? asParagraphs([
+            `Mock mode received ${attachmentCount} attachment${
+              attachmentCount === 1 ? "" : "s"
+            } with this message. The live model would read the attached photo or document.`,
+            responseText,
+          ])
+        : responseText,
     suggestions: buildMockSuggestions(body.entryId),
   };
 }

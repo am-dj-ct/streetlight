@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Quyền riêng tư",
-      "lastUpdated": "2026-06-23",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "Điều chúng tôi lưu: không có gì về cuộc trò chuyện của bạn.",
@@ -42,7 +42,8 @@
           "heading": "Tin nhắn của bạn đi đâu.",
           "paragraphs": [
             "Khi bạn gửi tin nhắn, thường nó đi đến một công ty tên là Anthropic. Họ tạo ra AI chính trả lời bạn. Họ giữ tin nhắn của bạn trong 7 ngày, rồi xóa. Họ không dùng nó để huấn luyện AI. Họ không chia sẻ nó.",
-            "Trong một số ít trường hợp, khi Anthropic bị gián đoạn rộng và phần dự phòng được bật, tin nhắn của bạn có thể được gửi đến OpenAI thay thế. OpenAI tạo câu trả lời AI dự phòng. Chúng tôi không lưu tin nhắn đó trên máy chủ của chúng tôi hoặc dùng nó để huấn luyện AI.",
+            "Nếu bạn đính kèm ảnh hoặc PDF, chẳng hạn ảnh chụp một lá thư, nó chỉ được gửi đến Anthropic, giống như tin nhắn của bạn. Chúng tôi không bao giờ lưu nó trên máy chủ của mình, dù chỉ một khoảnh khắc sau khi câu hỏi của bạn được trả lời. Anthropic xóa nó sau khi xử lý và không dùng nó để huấn luyện AI. Trước khi ảnh rời khỏi thiết bị của bạn, ứng dụng thu nhỏ ảnh và xóa dữ liệu ẩn của ảnh, như nơi chụp ảnh.",
+            "Trong một số ít trường hợp, khi Anthropic bị gián đoạn rộng và phần dự phòng được bật, tin nhắn của bạn có thể được gửi đến OpenAI thay thế. OpenAI tạo câu trả lời AI dự phòng. Chúng tôi không lưu tin nhắn đó trên máy chủ của chúng tôi hoặc dùng nó để huấn luyện AI. Ảnh và tệp bạn đính kèm không bao giờ được gửi đến OpenAI. Nếu bản dự phòng trả lời, nó sẽ cho bạn biết là không xem được tệp của bạn.",
             "Anthropic vẫn là lựa chọn đầu tiên vì quy định của họ về dữ liệu của bạn chặt chẽ hơn hầu hết các công ty làm AI. OpenAI chỉ là dự phòng cho những sự cố hiếm gặp, sau khi Anthropic không hoạt động.",
             "Nếu bạn bấm Đọc thành tiếng, văn bản câu trả lời sẽ được gửi đến Microsoft Azure AI Speech để tạo âm thanh. Nếu bạn không bấm Đọc thành tiếng, nó không được gửi đến đó. Chúng tôi không lưu âm thanh."
           ]
@@ -87,7 +88,7 @@
     },
     "about": {
       "title": "Giới thiệu",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "Đây là gì.",
@@ -113,7 +114,7 @@
         {
           "heading": "Giọng nói và ngôn ngữ.",
           "paragraphs": [
-            "Công cụ này ưu tiên văn bản. Nhập bằng mic và đọc thành tiếng là các phần hỗ trợ, nhưng dùng hoàn toàn bằng giọng nói vẫn là một khoảng thiếu trong V1. Giọng của thiết bị vẫn là phương án dự phòng khi đọc tự nhiên không khả dụng."
+            "Công cụ này ưu tiên văn bản. Nhập bằng mic và đọc thành tiếng là các phần hỗ trợ, nhưng dùng hoàn toàn bằng giọng nói vẫn là một khoảng thiếu trong V1. Giọng của thiết bị vẫn là phương án dự phòng khi đọc tự nhiên không khả dụng. Bạn cũng có thể đính kèm ảnh chụp thư hoặc biểu mẫu giấy, hoặc PDF, và hỏi về nó."
           ]
         },
         {

@@ -24,6 +24,13 @@ const dependencyBuckets = [
   "peerDependencies",
 ];
 const forbiddenPackages = [
+  // Blob/file stores: uploads are inline pass-through only, never stored.
+  // See docs/decisions/2026-07-26-inline-file-upload-v1.md.
+  "@aws-sdk/client-s3",
+  "@uploadthing/react",
+  "@vercel/blob",
+  "cloudinary",
+  "uploadthing",
   "@bugsnag/js",
   "@bugsnag/plugin-react",
   "@datadog/browser-logs",

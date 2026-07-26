@@ -163,7 +163,7 @@ The architecture is designed to defend against eight specific threats. For each:
 **Exposure:**
 - Budget drain capped by daily spend ceiling. Worst case: tool hits cap early, real users see "today's limit reached, try again tomorrow."
 - Scraping: contained by output token cap and daily cap.
-- Prompt injection: the only user-input-connected tool is Anthropic's server-side web search. No client tools, file system, shell, database writes, or arbitrary HTTP calls are connected to user input. System prompt is open-source, no secrets. Search is capped per turn, localized to Seattle / Washington, and query/source content is not logged. The OpenAI fallback does not enable web search or tools.
+- Prompt injection: the only user-input-connected tool is Anthropic's server-side web search. No client tools, file system, shell, database writes, or arbitrary HTTP calls are connected to user input. System prompt is open-source, no secrets. Search is capped per turn, localized to Seattle / Washington, and query/source content is not logged. The OpenAI fallback does not enable web search or tools. Attachments (added 2026-07-26) do not change this: the server never decodes, transforms, or executes attachment bytes beyond a magic-byte type check — base64 passes through into the Anthropic request as-is, and injected text inside an uploaded image or PDF reaches the model exactly like pasted text does, with the same tool surface.
 - Harassment / illegal content: handled by Anthropic's safety floor in the normal path and OpenAI's safety floor in the rare fallback path.
 - Infrastructure recon: Vercel platform protections, Turnstile.
 
@@ -344,7 +344,7 @@ Decisions in this document either confirm the V1 spec, extend it, or add somethi
 
 ## Full Request Flow
 
-Every hop a user message takes from the moment they tap send to the moment a response renders. Text-only, paste-able into other chats.
+Every hop a user message takes from the moment they tap send to the moment a response renders. Messages are text plus, as of 2026-07-26, optional inline attachments (JPEG/PNG/WebP photos and PDFs) that ride the same request as base64 and are never stored anywhere.
 
 **Implementation note as of 2026-06-23:** The current codebase implements the
 core V1 request path: browser memory state, backend `/api/chat`, the main
@@ -364,7 +364,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 - **Has access to:** Full conversation history for the current session (in-memory state), user's typed/dictated message, button selection that started the conversation, language setting, optional saved conversations (only if user explicitly saved — `localStorage` or generated text file/screenshot the user kept).
 - **Logs by default:** Browser console (dev tools only). Browser history records the URL but not message content (we never put content in URL params).
 - **Override:** No analytics/telemetry SDK is loaded. No Google Analytics, no Vercel Analytics, no Sentry, no PostHog. The homepage emits one Streetlight-owned blind aggregate page-open event after the browser UI mounts: total homepage opens, daily unique salted-IP count, and clean range-level unique salted-IP count. No path, user agent, raw IP, cookie, session ID, or per-person event stream is stored.
-- **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), language code, button-selection metadata, and a Cloudflare Turnstile token when Turnstile is configured. In local development without Turnstile keys, no token is sent. No user identifier, no session ID, no cookie. Language routing uses explicit `?lang=` links or the browser `Accept-Language` header; it does not set a language cookie.
+- **What leaves this hop:** HTTPS POST to `/api/chat` containing conversation history (system prompt + prior turns + new user message), optional base64 attachments on the newest user message only (images are downscaled and re-encoded to JPEG on the device first, which strips EXIF metadata including GPS; prior turns resend text only, never attachment bytes), language code, button-selection metadata, and a Cloudflare Turnstile token when Turnstile is configured. In local development without Turnstile keys, no token is sent. No user identifier, no session ID, no cookie. Language routing uses explicit `?lang=` links or the browser `Accept-Language` header; it does not set a language cookie.
 
 ### Hop 2 — Cloudflare Edge (Turnstile Only)
 
@@ -377,10 +377,10 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 ### Hop 3 — Vercel Edge / Serverless Function (`/api/chat`)
 
 - **Runs:** Next.js API route, serverless or edge function on Vercel. Validates Turnstile token server-side, applies per-IP rate limit check, applies daily spend cap check, selects model tier, constructs Anthropic API requests, calls them, awaits response, optionally tries OpenAI only after all configured Anthropic main-model attempts fail before emitting text, fires off classifier pass, returns response to client.
-- **Has access to:** Full request body including conversation history with whatever PII the user pasted in, source IP (from headers), Anthropic API key (env var), optional OpenAI fallback API key (env var), Vercel KV credentials, model tier state.
+- **Has access to:** Full request body including conversation history with whatever PII the user pasted in, plus any attached photos or PDFs as base64 on the newest user message (the densest PII the tool touches — these bytes exist only in the in-memory request body for the duration of the request; no file writes, no blob store, no cache, no thumbnails, no content-derived hashes), source IP (from headers), Anthropic API key (env var), optional OpenAI fallback API key (env var), Vercel KV credentials, model tier state. The request body cap is 4 MB (code constant `maxChatRequestBodyBytes`), sized so one turn of downscaled document photos or a small PDF fits under Vercel's 4.5 MB platform limit after base64 inflation.
 - **Logs by default:** Vercel runtime logs capture `console.log`/`console.error` output, request metadata (path, status, duration, region), uncaught exceptions including stack traces. **Critical: Vercel does not log request bodies by default.** Bodies appear in logs only if our code puts them there.
 - **Override:** Strict logging discipline (see Vercel section below). No `console.log` of message content, ever. Try/catch around Anthropic and OpenAI calls logs only safe metadata: error class, status, response time, model label. No request body, response body, or `console.error(error)` directly on caught errors.
-- **What leaves this hop:** HTTPS POST to `https://api.anthropic.com/v1/messages` with conversation history, system prompt, model name, max_tokens, and the Anthropic server-side `web_search` tool definition capped at five searches per turn. If the model chooses to search, Anthropic executes the search. Search queries and search result URLs are not logged by Streetlight. If all configured Anthropic main-model attempts fail before text is emitted and OpenAI fallback is fully configured, a single HTTPS POST to `https://api.openai.com/v1/responses` sends the conversation history and system instructions without web-search/tools. Plus separate POSTs for classifier and follow-up suggestion passes after the main response returns; those are Anthropic first with OpenAI fallback only if the Anthropic small pass fails.
+- **What leaves this hop:** HTTPS POST to `https://api.anthropic.com/v1/messages` with conversation history, attachments mapped to inline base64 `image`/`document` content blocks on the newest user message (never the Anthropic Files API — inline base64 inputs are ephemeral on Anthropic's side, deleted after processing), system prompt, model name, max_tokens, and the Anthropic server-side `web_search` tool definition capped at five searches per turn. If the model chooses to search, Anthropic executes the search. Search queries and search result URLs are not logged by Streetlight. If all configured Anthropic main-model attempts fail before text is emitted and OpenAI fallback is fully configured, a single HTTPS POST to `https://api.openai.com/v1/responses` sends the conversation history and system instructions without web-search/tools. Attachments are never sent to OpenAI: on fallback, attachment blocks are replaced with a fixed placeholder sentence so the model can say honestly that it could not view the file. Plus separate POSTs for classifier and follow-up suggestion passes after the main response returns; those are Anthropic first with OpenAI fallback only if the Anthropic small pass fails.
 
 ### Hop 4 — Per-IP Rate Limit Check
 
@@ -401,7 +401,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 ### Hop 5 — Anthropic API (Main Model — Sonnet 4.6 by default)
 
 - **Runs:** Anthropic's infrastructure. Receives conversation, runs the model, optionally executes server-side web search when the model decides current information is needed, and returns the completion.
-- **Has access to:** Full conversation contents, our API key (identifies our org), source metadata Anthropic chooses to log.
+- **Has access to:** Full conversation contents including any attached photos or PDFs, our API key (identifies our org), source metadata Anthropic chooses to log. Inline base64 attachment inputs are processed and then deleted per Anthropic's vision documentation; the 7-day retention and no-training commitments below apply to inputs and outputs alike.
 - **Logs by default (under our chosen 7-day retention):** Inputs and outputs auto-deleted after 7 days. Never used for training. Trust & safety classifier scores retained 7 years. Flagged-violation requests retained up to 2 years.
 - **Override:** System prompt instructs the model to keep web search queries general and not include names, addresses, phone numbers, case numbers, account numbers, exact copied letter text, or unusually specific private facts from the user's situation. We accept the published commercial-API defaults. ZDR pursued at month 9–10 alongside credits conversation.
 - **What leaves this hop:** Model completion and citation metadata, returned to our Vercel function.
@@ -409,7 +409,7 @@ User has typed (or dictated via Web Speech API → text in browser) a message in
 ### Hop 5b — OpenAI API (Rare Fallback Only)
 
 - **Runs:** OpenAI's Responses API only when all configured Anthropic main-model attempts fail before any text is emitted and the OpenAI fallback is fully configured.
-- **Has access to:** Full conversation contents, our OpenAI API key (identifies our org), source metadata OpenAI chooses to process or log.
+- **Has access to:** Full conversation text, our OpenAI API key (identifies our org), source metadata OpenAI chooses to process or log. Never attached photos or PDFs — attachments are stripped to a fixed placeholder before any fallback call.
 - **Logs by default:** Governed by OpenAI platform behavior and account controls. Streetlight does not log request bodies, response bodies, or OpenAI error bodies.
 - **Override:** No OpenAI web search, tools, file access, or background workflow is enabled. The fallback is a single text response attempt intended for rare broad Anthropic outages.
 - **What leaves this hop:** Text completion and token usage metadata, returned to our Vercel function.
@@ -601,7 +601,7 @@ of `/api/chat`, and `HARD_PAUSE_ENABLED` is enforced in `src/proxy.ts`.
 
 ### ESLint Rule
 
-A custom ESLint rule (or pre-commit grep hook) forbids `console.log`, `console.error`, `console.warn` calls whose argument is `req`, `req.body`, `messages`, `response`, `completion`, or any variable matching common Anthropic SDK response shapes. Forbids `console.error(error)` directly — must be `console.error({code, status, model})` with named fields. Cannot be merged if violated.
+A custom ESLint rule (or pre-commit grep hook) forbids `console.log`, `console.error`, `console.warn` calls whose argument is `req`, `req.body`, `messages`, `response`, `completion`, or any variable matching common Anthropic SDK response shapes. As of 2026-07-26 the denylist also covers upload-shaped names: `attachment(s)`, `file(s)`, `image(s)`, `photo(s)`, `dataUrl`, `blob`, `upload(s)`, `bytes`, `buffer`. Forbids `console.error(error)` directly — must be `console.error({code, status, model})` with named fields. Cannot be merged if violated.
 
 ---
 
@@ -623,6 +623,7 @@ A custom ESLint rule (or pre-commit grep hook) forbids `console.log`, `console.e
 ### What V1 Does Not Persist
 
 - Conversation content (any of it, ever).
+- Uploaded photos or documents (any of it, ever — no blob store, no file writes, no image cache, no thumbnails, no content-derived hashes; attachment bytes exist only inside the in-flight request).
 - User identifiers (no accounts exist).
 - IP addresses (raw — only hashed).
 - Anything that could be aggregated to identify or profile a user.
@@ -1041,7 +1042,9 @@ Before a message is sent, the site may ask Cloudflare Turnstile to check that th
 
 When you send a message, it usually goes to a company called Anthropic. They make the main AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.
 
-In rare circumstances, during a broad Anthropic outage, if the backup is turned on, your message may go to OpenAI instead. OpenAI makes the backup AI response. We don't save that message on our servers or use it to train AI.
+If you attach a photo or PDF, like a picture of a letter, it goes only to Anthropic, the same way your message does. We never save it on our servers, not even for a moment after your question is answered. Anthropic deletes it after processing it. Before your photo leaves your device, the app shrinks it and removes hidden photo data like the location where it was taken.
+
+In rare circumstances, during a broad Anthropic outage, if the backup is turned on, your message may go to OpenAI instead. OpenAI makes the backup AI response. We don't save that message on our servers or use it to train AI. Photos and files you attach are never sent to OpenAI — if the backup answers, it will tell you it could not see your file.
 
 Anthropic stays first because their rules about your data are stricter than most companies that make AI. OpenAI is only a backup for rare outages, after Anthropic fails.
 
@@ -1242,6 +1245,15 @@ One-line summary of every decision in this document, dated for traceability.
 - A local personal-ops dashboard may read the existing public `/healthz` contract and GitHub Actions metadata on a bounded schedule.
 - The poller stores only fixed health status, fixed summary, source label, and timestamps. It does not call chat, TTS, usage, or other user-connected routes and does not retain response bodies, configuration details, workflow output, user data, or content.
 - This is a narrow first-party operational exception, not authorization for hosted monitoring, alerting vendors, analytics, log drains, content logging, or automated user surveillance.
+
+**2026-07-26 — inline pass-through file upload (photos and PDFs):**
+
+- Users can attach up to 5 JPEG/PNG/WebP photos or a PDF to a chat message. HEIC is handled by iOS's accept-list transcoding plus a magic-byte guard; DOCX/XLSX and all other formats are rejected.
+- Attachments ride the existing `/api/chat` JSON body as base64 on the newest user message only; the body cap rose from 64 KB to 4 MB. Images are downscaled/re-encoded to JPEG on the device first, stripping EXIF/GPS.
+- The server maps attachments to inline base64 Anthropic `image`/`document` content blocks. The Anthropic Files API is not used. No blob store, no file writes, no cache, no thumbnails, no content-derived hashes — attachment bytes exist server-side only in the in-flight request body.
+- Attachments go to Anthropic only. The OpenAI outage fallback stays text-only; attachment blocks are replaced with a fixed placeholder. Classifier and suggestion passes stay text-only and never see attachments; an image-only turn classifies from a fixed placeholder plus the assistant's text response, so the weak-category note still works for photographed documents.
+- Metadata allowlist unchanged — not even an attachment count is logged. ESLint no-content-logging denylist extended with upload-shaped variable names.
+- Full rationale and rejected alternatives in `docs/decisions/2026-07-26-inline-file-upload-v1.md`.
 
 ---
 
