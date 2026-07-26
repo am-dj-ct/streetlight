@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Privacidad",
-      "lastUpdated": "2026-06-23",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "Lo que guardamos: nada sobre tu conversación.",
@@ -42,7 +42,8 @@
           "heading": "A dónde van tus mensajes.",
           "paragraphs": [
             "Cuando envías un mensaje, normalmente va a una compañía llamada Anthropic. Ellos hacen la IA principal que te responde. Conservan tu mensaje por 7 días y luego lo borran. No lo usan para entrenar IA. No lo comparten.",
-            "En circunstancias poco comunes, durante una interrupción amplia de Anthropic, si el respaldo está activado, tu mensaje puede ir a OpenAI en su lugar. OpenAI hace la respuesta de respaldo de IA. No guardamos ese mensaje en nuestros servidores ni lo usamos para entrenar IA.",
+            "Si adjuntas una foto o un PDF, como la foto de una carta, va únicamente a Anthropic, igual que tu mensaje. Nunca lo guardamos en nuestros servidores, ni siquiera por un momento después de que tu pregunta recibe respuesta. Anthropic lo borra después de procesarlo y no lo usa para entrenar IA. Antes de que tu foto salga de tu dispositivo, la app la reduce y elimina datos ocultos de la foto, como el lugar donde fue tomada.",
+            "En circunstancias poco comunes, durante una interrupción amplia de Anthropic, si el respaldo está activado, tu mensaje puede ir a OpenAI en su lugar. OpenAI hace la respuesta de respaldo de IA. No guardamos ese mensaje en nuestros servidores ni lo usamos para entrenar IA. Las fotos y archivos que adjuntas nunca se envían a OpenAI. Si el respaldo responde, te dirá que no pudo ver tu archivo.",
             "Anthropic sigue siendo la primera opción porque sus reglas sobre tus datos son más estrictas que las de la mayoría de las compañías que hacen IA. OpenAI solo es respaldo para interrupciones poco comunes, después de que Anthropic falla.",
             "Si tocas Leer en voz alta, el texto de la respuesta se envía a Microsoft Azure AI Speech para crear audio. Si no tocas Leer en voz alta, no se envía allí. No guardamos el audio."
           ]
@@ -87,7 +88,7 @@
     },
     "about": {
       "title": "Acerca de",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "Qué es esto.",
@@ -113,7 +114,7 @@
         {
           "heading": "Voz e idioma.",
           "paragraphs": [
-            "La herramienta empieza por texto. La entrada por micrófono y la lectura en voz alta están como ayudas, pero el uso solo por voz todavía es una limitación en V1. Las voces del dispositivo siguen como respaldo cuando la lectura natural no está disponible."
+            "La herramienta empieza por texto. La entrada por micrófono y la lectura en voz alta están como ayudas, pero el uso solo por voz todavía es una limitación en V1. Las voces del dispositivo siguen como respaldo cuando la lectura natural no está disponible. También puedes adjuntar una foto de una carta o formulario en papel, o un PDF, y preguntar sobre ello."
           ]
         },
         {

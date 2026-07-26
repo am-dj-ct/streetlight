@@ -6,7 +6,7 @@
   "pages": {
     "privacy": {
       "title": "Privacy",
-      "lastUpdated": "2026-06-23",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "What we save: nothing about your conversation.",
@@ -42,7 +42,8 @@
           "heading": "Where your messages go.",
           "paragraphs": [
             "When you send a message, it usually goes to a company called Anthropic. They make the main AI that answers you. They keep your message for 7 days, then delete it. They don't use it to train AI. They don't share it.",
-            "In rare circumstances, during a broad Anthropic outage, if the backup is turned on, your message may go to OpenAI instead. OpenAI makes the backup AI response. We don't save that message on our servers or use it to train AI.",
+            "If you attach a photo or PDF, like a picture of a letter, it goes only to Anthropic, the same way your message does. We never save it on our servers, not even for a moment after your question is answered. Anthropic deletes it after processing it and doesn't use it to train AI. Before your photo leaves your device, the app shrinks it and removes hidden photo data, like the place where it was taken.",
+            "In rare circumstances, during a broad Anthropic outage, if the backup is turned on, your message may go to OpenAI instead. OpenAI makes the backup AI response. We don't save that message on our servers or use it to train AI. Photos and files you attach are never sent to OpenAI. If the backup answers, it will tell you it could not see your file.",
             "Anthropic stays first because their rules about your data are stricter than most companies that make AI. OpenAI is only a backup for rare outages, after Anthropic fails.",
             "If you tap Play aloud, the answer text is sent to Microsoft Azure AI Speech to make audio. If you don't tap Play aloud, it is not sent there. We don't save the audio."
           ]
@@ -87,7 +88,7 @@
     },
     "about": {
       "title": "About",
-      "lastUpdated": "2026-05-09",
+      "lastUpdated": "2026-07-26",
       "sections": [
         {
           "heading": "What this is.",
@@ -113,7 +114,7 @@
         {
           "heading": "Voice and language.",
           "paragraphs": [
-            "The tool is text-first. Mic input and read-aloud are there as helpers, but pure voice use is still a gap in V1. Device voices remain as backup when natural read-aloud is unavailable."
+            "The tool is text-first. You can also attach a photo of a paper letter or form, or a PDF, and ask about it. Mic input and read-aloud are there as helpers, but pure voice use is still a gap in V1. Device voices remain as backup when natural read-aloud is unavailable."
           ]
         },
         {

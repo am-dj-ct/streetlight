@@ -47,9 +47,72 @@ import {
 import {
   isChatRequestBody,
   maxChatRequestBodyBytes,
+  type ChatAttachment,
   type ChatRequestBody,
   type WeakCategory,
 } from "../../../lib/chat-types";
+
+type ChatTurnMessage = {
+  attachments: ChatAttachment[];
+  content: string;
+  role: "assistant" | "user";
+};
+
+// Attachments ride to Anthropic only, as inline base64 content blocks.
+// The OpenAI outage fallback stays text-only; this fixed sentence replaces
+// attachment blocks so the backup model can say honestly that it could not
+// view the file. See docs/decisions/2026-07-26-inline-file-upload-v1.md.
+const fallbackAttachmentNotice =
+  "[The user attached a photo or document here. Attachments are not shared with the backup provider, so you cannot see it. Say so plainly and ask the user to type or paste what the document says.]";
+
+function buildAnthropicMessages(
+  turnMessages: ChatTurnMessage[],
+): Anthropic.MessageParam[] {
+  return turnMessages.map((message) => {
+    if (message.attachments.length === 0) {
+      return { role: message.role, content: message.content };
+    }
+
+    const blocks: Anthropic.ContentBlockParam[] = message.attachments.map(
+      (attachment) =>
+        attachment.mediaType === "application/pdf"
+          ? {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: attachment.dataBase64,
+              },
+            }
+          : {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: attachment.mediaType,
+                data: attachment.dataBase64,
+              },
+            },
+    );
+
+    if (message.content.length > 0) {
+      blocks.push({ type: "text", text: message.content });
+    }
+
+    return { role: message.role, content: blocks };
+  });
+}
+
+function buildTextOnlyFallbackMessages(turnMessages: ChatTurnMessage[]) {
+  return turnMessages.map((message) => ({
+    role: message.role,
+    content:
+      message.attachments.length === 0
+        ? message.content
+        : [fallbackAttachmentNotice, message.content]
+            .filter((part) => part.length > 0)
+            .join("\n\n"),
+  }));
+}
 
 function jsonNoStore(
   body: { assistantNotice?: string; error: string },
@@ -419,12 +482,15 @@ export async function POST(request: Request) {
     return jsonNoStore({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const messages = body.messages
+  const messages: ChatTurnMessage[] = body.messages
     .map((message) => ({
       role: message.role,
       content: message.text.trim(),
+      attachments: message.attachments ?? [],
     }))
-    .filter((message) => message.content.length > 0);
+    .filter(
+      (message) => message.content.length > 0 || message.attachments.length > 0,
+    );
   const latestMessage = messages.at(-1);
 
   if (messages.length === 0) {
@@ -436,6 +502,14 @@ export async function POST(request: Request) {
   }
 
   const latestUserMessageText = latestMessage.content;
+  // The classifier pass stays text-only. For an image-only turn it sees this
+  // fixed placeholder plus the assistant's text response — never the
+  // attachment — so the weak-category note still works for photographed
+  // letters and forms.
+  const classifierLatestUserText =
+    latestUserMessageText.length > 0
+      ? latestUserMessageText
+      : "(The user sent a photo or document attachment with no typed text.)";
   const requestStartedAt = Date.now();
   let model = process.env.MAIN_MODEL ?? "missing";
   let classifierModel = process.env.CLASSIFIER_MODEL ?? "missing";
@@ -762,7 +836,7 @@ export async function POST(request: Request) {
                 model,
                 max_tokens: 900,
                 system: getSystemPrompt(body.entryId),
-                messages,
+                messages: buildAnthropicMessages(messages),
                 tools: [
                   {
                     type: "web_search_20250305",
@@ -856,7 +930,7 @@ export async function POST(request: Request) {
             try {
               const openAiResponse = await createOpenAiMainFallback({
                 entryId: body.entryId,
-                messages,
+                messages: buildTextOnlyFallbackMessages(messages),
               });
 
               model = getOpenAiFallbackModelLabel(openAiFallbackModel);
@@ -927,7 +1001,7 @@ export async function POST(request: Request) {
                     role: "user",
                     content: buildClassifierInput({
                       assistantResponse: responseText,
-                      latestUserMessage: latestUserMessageText,
+                      latestUserMessage: classifierLatestUserText,
                     }),
                   },
                 ],
@@ -968,7 +1042,7 @@ export async function POST(request: Request) {
                 try {
                   const classifierResponse = await createOpenAiClassifierFallback({
                     assistantResponse: responseText,
-                    latestUserMessage: latestUserMessageText,
+                    latestUserMessage: classifierLatestUserText,
                   });
                   const category = parseWeakCategory(classifierResponse.text);
 

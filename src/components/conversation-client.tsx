@@ -28,6 +28,7 @@ import { stripMarkdownForSpeech } from "../lib/speech-text";
 import { getAzureVoiceOption, getAzureVoiceOptions } from "../lib/azure-tts";
 import { getUiCopy, hasTranslatedUiCopy } from "../lib/ui-copy";
 import type {
+  ChatAttachment,
   ChatErrorBody,
   ChatStreamEvent,
   ClientChatMessage,
@@ -37,9 +38,15 @@ import type {
 import {
   isChatErrorBody,
   isChatStreamEvent,
+  maxAttachmentsPerMessage,
   maxChatMessages,
   maxClientMessageTextLength,
 } from "../lib/chat-types";
+import {
+  AttachmentError,
+  makeAttachmentPreviewUrl,
+  processSelectedAttachment,
+} from "../lib/attachments";
 import { isTtsErrorBody } from "../lib/tts-types";
 import type { RegionScope } from "../lib/geo";
 import {
@@ -354,6 +361,38 @@ function windowMessagesForRequest(
   return [seed, ...tail];
 }
 
+// Attachment bytes are sent for the newest message only. Older turns resend
+// text; an image-only older turn gets this fixed placeholder so the request
+// stays valid and role alternation is preserved. The placeholder is model
+// input, not UI copy, so it stays English.
+const attachmentHistoryPlaceholder =
+  "[The user attached a photo or document earlier in the conversation. It is not included again.]";
+
+function prepareMessagesForRequest(
+  messages: ClientChatMessage[],
+): ClientChatMessage[] {
+  return messages.map((message, index) => {
+    if (
+      !message.attachments ||
+      message.attachments.length === 0 ||
+      index === messages.length - 1
+    ) {
+      return message;
+    }
+
+    return {
+      id: message.id,
+      role: message.role,
+      suggestions: message.suggestions,
+      text:
+        message.text.trim().length > 0
+          ? message.text
+          : attachmentHistoryPlaceholder,
+      weakCategory: message.weakCategory,
+    };
+  });
+}
+
 function setMessageWeakCategory(
   messages: ClientChatMessage[],
   messageId: string,
@@ -494,6 +533,50 @@ function SendIcon({ className }: IconProps) {
         d="m10.8 13.2 3.4-3.4"
         stroke="currentColor"
         strokeLinecap="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function PaperclipIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M8 12.5 14.2 6.3a3.2 3.2 0 0 1 4.5 4.5l-7.4 7.4a5.2 5.2 0 0 1-7.3-7.3L10.9 4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function CameraIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M4 8.5h3l1.5-2.5h7L17 8.5h3V18H4V8.5Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <circle
+        cx="12"
+        cy="13"
+        r="3"
+        stroke="currentColor"
         strokeWidth="2"
       />
     </svg>
@@ -703,6 +786,12 @@ export function ConversationClient({
   const hasTranslatedCopy = hasTranslatedUiCopy(currentLanguageCode);
   const threadRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const attachmentPickerRef = useRef<HTMLInputElement | null>(null);
+  const cameraPickerRef = useRef<HTMLInputElement | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<
+    ChatAttachment[]
+  >([]);
+  const [isPreparingAttachments, setIsPreparingAttachments] = useState(false);
   const assistantMessageRefs = useRef(new Map<string, HTMLElement>());
   const languageSheetDoneRef = useRef<HTMLButtonElement | null>(null);
   const languageSheetRef = useRef<HTMLDivElement | null>(null);
@@ -1230,8 +1319,23 @@ export function ConversationClient({
     ? "min-h-12 min-w-12 sm:min-h-20 sm:min-w-20"
     : "min-h-20 min-w-20";
 
+  // Saved/exported copies are text: attachments are represented by a fixed
+  // label line so an image-only turn does not silently vanish from the export.
+  function getExportMessages(): ClientChatMessage[] {
+    return messages.map((message) =>
+      message.attachments && message.attachments.length > 0
+        ? {
+            ...message,
+            text: [copy.attachmentExportLabel, message.text.trim()]
+              .filter((part) => part.length > 0)
+              .join("\n"),
+          }
+        : message,
+    );
+  }
+
   function getConversationExportText() {
-    return formatConversationForExport(messages, {
+    return formatConversationForExport(getExportMessages(), {
       copy,
       entryLabel: exportEntryLabel,
       languageLabel: currentLanguageLabel,
@@ -1445,7 +1549,7 @@ export function ConversationClient({
             })
           : await docx.buildConversationDocxBlob({
               labels: getDocxLabels(),
-              messages,
+              messages: getExportMessages(),
               title: copy.conversationExportTitle,
             });
       const filename =
@@ -1476,7 +1580,7 @@ export function ConversationClient({
             })
           : await pdf.buildConversationPdfBlob({
               labels: getDocxLabels(),
-              messages,
+              messages: getExportMessages(),
               title: copy.conversationExportTitle,
             });
       const filename =
@@ -1895,10 +1999,57 @@ export function ConversationClient({
     recognition.start();
   }
 
+  async function handleAttachmentPick(fileList: FileList | null) {
+    const picked = Array.from(fileList ?? []);
+
+    if (picked.length === 0) {
+      return;
+    }
+
+    if (pendingAttachments.length + picked.length > maxAttachmentsPerMessage) {
+      setErrorMessage(copy.attachmentLimitReached);
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsPreparingAttachments(true);
+
+    try {
+      for (const pickedFile of picked) {
+        const attachment = await processSelectedAttachment(pickedFile);
+
+        setPendingAttachments((current) =>
+          current.length >= maxAttachmentsPerMessage
+            ? current
+            : [...current, attachment],
+        );
+      }
+    } catch (error: unknown) {
+      const code =
+        error instanceof AttachmentError ? error.code : "processing-failed";
+
+      setErrorMessage(
+        code === "too-large"
+          ? copy.attachmentTooLarge
+          : code === "unsupported-type"
+            ? copy.attachmentUnsupported
+            : copy.attachmentFailed,
+      );
+    } finally {
+      setIsPreparingAttachments(false);
+    }
+  }
+
+  function removePendingAttachment(index: number) {
+    setPendingAttachments((current) =>
+      current.filter((_, currentIndex) => currentIndex !== index),
+    );
+  }
+
   async function sendMessage(text: string, trackSubmit = false) {
     const trimmed = text.trim();
 
-    if (!trimmed) {
+    if (!trimmed && pendingAttachments.length === 0) {
       return;
     }
 
@@ -1911,7 +2062,10 @@ export function ConversationClient({
     }
 
     if (isStreaming || isPreparingTurnstileRef.current) {
-      queuedDraftRef.current = trimmed;
+      // Attachments stay pending and ride the next successful send.
+      if (trimmed) {
+        queuedDraftRef.current = trimmed;
+      }
       setDraft("");
       return;
     }
@@ -1934,6 +2088,9 @@ export function ConversationClient({
       id: makeMessageId("user"),
       role: "user",
       text: trimmed,
+      ...(pendingAttachments.length > 0
+        ? { attachments: pendingAttachments }
+        : {}),
     };
     const pendingAssistantId = makeMessageId("assistant");
     const pendingAssistantMessage: ClientChatMessage = {
@@ -1947,6 +2104,7 @@ export function ConversationClient({
 
     setMessages([...nextMessages, pendingAssistantMessage]);
     setDraft("");
+    setPendingAttachments([]);
     setErrorMessage(null);
     setSaveStatusMessage(null);
     setShowSuggestions(false);
@@ -1965,7 +2123,7 @@ export function ConversationClient({
           body: JSON.stringify({
             entryId,
             language: currentLanguageCode,
-            messages: sentMessages,
+            messages: prepareMessagesForRequest(sentMessages),
             turnstileToken: turnstileSiteKey ? verifiedTurnstileToken : undefined,
           }),
         });
@@ -2289,7 +2447,36 @@ export function ConversationClient({
                           {message.text}
                         </ReactMarkdown>
                       ) : (
-                        message.text
+                        <>
+                          {message.attachments && message.attachments.length > 0 ? (
+                            <span
+                              className={`flex flex-wrap gap-2 ${
+                                message.text.length > 0 ? "mb-2" : ""
+                              }`}
+                            >
+                              {message.attachments.map(
+                                (attachment, attachmentIndex) =>
+                                  attachment.mediaType === "application/pdf" ? (
+                                    <span
+                                      key={attachmentIndex}
+                                      className="flex h-16 w-16 items-center justify-center rounded-[12px] border border-[rgba(255,255,255,0.4)] bg-[rgba(255,255,255,0.12)] text-[13px] font-semibold"
+                                    >
+                                      PDF
+                                    </span>
+                                  ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      key={attachmentIndex}
+                                      src={makeAttachmentPreviewUrl(attachment)}
+                                      alt={copy.attachmentImageAlt}
+                                      className="max-h-40 max-w-full rounded-[12px] border border-[rgba(255,255,255,0.4)] object-contain"
+                                    />
+                                  ),
+                              )}
+                            </span>
+                          ) : null}
+                          {message.text}
+                        </>
                       )}
                     </article>
 
@@ -2531,6 +2718,43 @@ export function ConversationClient({
             </p>
           ) : null}
 
+          {pendingAttachments.length > 0 || isPreparingAttachments ? (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {pendingAttachments.map((attachment, index) => (
+                <div
+                  key={`${attachment.mediaType}-${index}`}
+                  className="relative"
+                >
+                  {attachment.mediaType === "application/pdf" ? (
+                    <span className="flex h-14 w-14 items-center justify-center rounded-[12px] border border-[#d3ddd6] bg-white text-[12px] font-semibold text-[#405047]">
+                      PDF
+                    </span>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={makeAttachmentPreviewUrl(attachment)}
+                      alt={copy.attachmentImageAlt}
+                      className="h-14 w-14 rounded-[12px] border border-[#d3ddd6] object-cover"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    aria-label={copy.attachmentRemoveLabel}
+                    onClick={() => removePendingAttachment(index)}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[13px] font-semibold text-[#405047] shadow-[0_1px_4px_rgba(29,42,34,0.18)]"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {isPreparingAttachments ? (
+                <p className="text-[14px] leading-6 text-[#5f6d64]">
+                  {copy.attachmentPreparing}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <form
             className="flex items-end gap-2"
             onSubmit={(event) => {
@@ -2538,6 +2762,50 @@ export function ConversationClient({
               void sendMessage(draft, true);
             }}
           >
+            <input
+              ref={attachmentPickerRef}
+              type="file"
+              // HEIC is deliberately absent: iOS transcodes HEIC to JPEG at
+              // selection time when the accept list excludes it, so the app
+              // never has to decode HEIC. See docs/decisions/
+              // 2026-07-26-inline-file-upload-v1.md.
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              multiple
+              hidden
+              onChange={(event) => {
+                void handleAttachmentPick(event.target.files);
+                event.target.value = "";
+              }}
+            />
+            <input
+              ref={cameraPickerRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              capture="environment"
+              hidden
+              onChange={(event) => {
+                void handleAttachmentPick(event.target.files);
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              aria-label={copy.attachmentAddLabel}
+              disabled={isPreparingAttachments}
+              onClick={() => attachmentPickerRef.current?.click()}
+              className={`flex items-center justify-center rounded-[18px] border border-[#d3ddd6] bg-white text-[#405047] transition-colors hover:border-[#b7c7bd] disabled:opacity-50 ${composerControlSizeClassName}`}
+            >
+              <PaperclipIcon className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label={copy.attachmentCameraLabel}
+              disabled={isPreparingAttachments}
+              onClick={() => cameraPickerRef.current?.click()}
+              className={`flex items-center justify-center rounded-[18px] border border-[#d3ddd6] bg-white text-[#405047] transition-colors hover:border-[#b7c7bd] disabled:opacity-50 ${composerControlSizeClassName}`}
+            >
+              <CameraIcon className="h-5 w-5" />
+            </button>
             <label className="flex-1" htmlFor="conversation-input">
               <span className="sr-only">{copy.composerAssistiveLabel}</span>
               <textarea
@@ -2586,7 +2854,11 @@ export function ConversationClient({
             <button
               type="submit"
               aria-label={copy.sendAssistiveLabel}
-              disabled={draft.trim().length === 0 || isPreparingTurnstile}
+              disabled={
+                (draft.trim().length === 0 && pendingAttachments.length === 0) ||
+                isPreparingTurnstile ||
+                isPreparingAttachments
+              }
               className={`flex items-center justify-center rounded-[18px] bg-[#24594d] text-white shadow-[0_2px_8px_rgba(31,95,67,0.2)] transition-colors hover:bg-[#1d4a40] disabled:bg-[#9fb7ad] disabled:opacity-80 ${composerControlSizeClassName}`}
             >
               <SendIcon className="h-5 w-5" />

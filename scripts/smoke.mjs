@@ -619,7 +619,7 @@ async function checkOversizedChatBody() {
         {
           id: "smoke-oversized-body",
           role: "user",
-          text: "x".repeat(65000),
+          text: "x".repeat(4_100_000),
         },
       ],
     }),
@@ -648,7 +648,7 @@ async function checkChunkedOversizedChatBody() {
         {
           id: "smoke-chunked-huge-message",
           role: "user",
-          text: "x".repeat(200_000),
+          text: "x".repeat(4_100_000),
         },
       ],
     }),
@@ -1021,6 +1021,96 @@ async function checkIncompleteConversationReportProblemSource() {
   if (invalidSnapshot.sourceRoute !== "not supplied") {
     fail("Invalid conversation source path rendered on /report-problem.");
   }
+}
+
+async function checkInvalidAttachmentMediaType() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-bad-attachment-type",
+          role: "user",
+          text: "What does this say?",
+          attachments: [
+            {
+              mediaType: "application/msword",
+              dataBase64: "aGVsbG8=",
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (response.status !== 400) {
+    fail(
+      `Expected 400 from /api/chat for unsupported attachment media type, got ${response.status}.`,
+    );
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid request shape.") {
+    fail("Unexpected unsupported-attachment response from /api/chat.");
+  }
+
+  assertNoStore(response, "Unsupported attachment media type response");
+}
+
+async function checkAttachmentOnEarlierMessageRejected() {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      entryId: "understand-letter-or-form",
+      language: "en",
+      messages: [
+        {
+          id: "smoke-earlier-attachment",
+          role: "user",
+          text: "First message",
+          attachments: [
+            {
+              mediaType: "image/jpeg",
+              dataBase64: "aGVsbG8h",
+            },
+          ],
+        },
+        {
+          id: "smoke-earlier-attachment-assistant",
+          role: "assistant",
+          text: "Mock reply",
+        },
+        {
+          id: "smoke-earlier-attachment-latest",
+          role: "user",
+          text: "Second message",
+        },
+      ],
+    }),
+  });
+
+  if (response.status !== 400) {
+    fail(
+      `Expected 400 from /api/chat for attachment on an earlier message, got ${response.status}.`,
+    );
+  }
+
+  const payload = await response.json().catch(() => null);
+
+  if (payload?.error !== "Invalid request shape.") {
+    fail("Unexpected earlier-message-attachment response from /api/chat.");
+  }
+
+  assertNoStore(response, "Earlier-message attachment response");
 }
 
 async function checkBlankChatMessage() {
@@ -1430,6 +1520,10 @@ await checkIncompleteConversationReportProblemSource();
 console.log("Incomplete conversation source handling ok (/report-problem ignores bare conversation paths).");
 await checkBlankChatMessage();
 console.log("Blank message handling ok (/api/chat rejects all-whitespace messages).");
+await checkInvalidAttachmentMediaType();
+console.log("Attachment media-type handling ok (/api/chat rejects unsupported attachment types).");
+await checkAttachmentOnEarlierMessageRejected();
+console.log("Attachment history handling ok (/api/chat rejects attachments on earlier messages).");
 await checkEmptyMessagesArray();
 console.log("Empty messages handling ok (/api/chat rejects empty arrays).");
 await checkMissingMessagesArray();
