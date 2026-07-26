@@ -2740,6 +2740,10 @@ export function ConversationClient({
                   <button
                     type="button"
                     aria-label={copy.attachmentRemoveLabel}
+                    // Keep composer focus: blurring collapses the composer
+                    // and reflows this row mid-tap, so the tap misses (or
+                    // hits the wrong file's remove button).
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => removePendingAttachment(index)}
                     className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#cfd7cf] bg-white text-[13px] font-semibold text-[#405047] shadow-[0_1px_4px_rgba(29,42,34,0.18)]"
                   >
