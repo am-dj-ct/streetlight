@@ -1,0 +1,100 @@
+name: Prod upload validation
+
+# Post-deploy validation of the inline attachment feature against
+# production. Runs from CI because GitHub-hosted runners have open egress.
+# The Playwright pass costs a few live image turns; the stress pass is
+# zero-spend (every request is rejected before the model).
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL to validate
+        default: https://streetlight.help
+        type: string
+      expect_sha:
+        description: Commit SHA prefix healthz must report (empty to skip)
+        default: ""
+        type: string
+  push:
+    branches:
+      - claude/image-upload-handling-audit-uppvpd
+    paths:
+      - scripts/prod-validation/**
+      - .github/workflows/prod-upload-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-upload-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BASE_URL: ${{ inputs.base_url || 'https://streetlight.help' }}
+      EXPECT_SHA: ${{ inputs.expect_sha || 'de3db24' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Health gate
+        run: |
+          for attempt in $(seq 1 40); do
+            body="$(curl -fsS --max-time 10 "$BASE_URL/healthz" || true)"
+            sha="$(echo "$body" | jq -r '.commitSha // empty')"
+            config_ok="$(echo "$body" | jq -r '.deployConfigOk // empty')"
+            chat_mode="$(echo "$body" | jq -r '.chatMode // empty')"
+            echo "poll $attempt: sha=$sha deployConfigOk=$config_ok chatMode=$chat_mode"
+            if [ "$config_ok" = "true" ] && [ "$chat_mode" = "live-model" ]; then
+              if [ -z "$EXPECT_SHA" ] || case "$sha" in "$EXPECT_SHA"*) true ;; *) false ;; esac; then
+                echo "healthz gate passed"
+                exit 0
+              fi
+            fi
+            sleep 15
+          done
+          echo "healthz gate FAILED"
+          exit 1
+
+      - name: Install playwright-core
+        working-directory: scripts/prod-validation
+        run: npm install --no-fund --no-audit
+
+      - name: Generate synthetic documents
+        working-directory: scripts/prod-validation
+        run: CHROME_PATH="$(command -v google-chrome)" node gen-assets.mjs
+
+      - name: No-spend stress checks
+        working-directory: scripts/prod-validation
+        run: node stress.mjs "$BASE_URL"
+
+      - name: Live UI validation (real turns; may be Turnstile-blocked from CI)
+        working-directory: scripts/prod-validation
+        run: |
+          CHROME_PATH="$(command -v google-chrome)" HEADED=1 \
+            xvfb-run -a node validate-live.mjs "$BASE_URL"
+
+      - name: Show validation results
+        if: always()
+        working-directory: scripts/prod-validation
+        run: cat validate-results.json 2>/dev/null || echo "no results file"
+
+      - name: Upload screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-upload-validation
+          path: |
+            scripts/prod-validation/shots/
+            scripts/prod-validation/validate-results.json
+          if-no-files-found: ignore
