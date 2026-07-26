@@ -66,7 +66,15 @@ for (const tc of CASES) {
   const started = Date.now();
   let outcome = { name: tc.name, ok: false };
   const posts = [];
+  const responses = [];
+  const consoleErrors = [];
 
+  page.on("console", (m) => {
+    if (m.type() === "error") consoleErrors.push(m.text().slice(0, 200));
+  });
+  page.on("response", (res) => {
+    if (res.url().includes("/api/chat")) responses.push(res.status());
+  });
   page.on("request", (req) => {
     if (req.url().includes("/api/chat") && req.method() === "POST") {
       try {
@@ -122,19 +130,33 @@ for (const tc of CASES) {
     if (!attached) throw new Error("attachment never enabled the send button");
 
     if (tc.text) await composer.fill(tc.text);
+    const baselineLength = await page.evaluate(
+      () => document.querySelector("section[aria-live]")?.textContent?.length ?? 0,
+    );
     const sendAt = Date.now();
     await sendButton.click();
 
+    // On production the client fetches a Turnstile token before POSTing,
+    // so the request is NOT synchronous with the click. First wait for the
+    // POST to actually leave, then for the stream to finish.
+    const postDeadline = Date.now() + 45_000;
+    while (posts.length === 0 && Date.now() < postDeadline) {
+      await page.waitForTimeout(250);
+    }
+    if (posts.length === 0)
+      throw new Error("no /api/chat POST fired within 45s of clicking send");
+
     // Streaming is done when aria-busy flips back to false and the thread
-    // has grown past the user's own bubble.
+    // has grown well past its pre-send length (user bubble + reply).
     await page.waitForFunction(
-      () =>
+      (baseline) =>
         document
           .querySelector("section[aria-live]")
           ?.getAttribute("aria-busy") === "false" &&
         (document.querySelector("section[aria-live]")?.textContent?.length ??
-          0) > 80,
-      null,
+          0) >
+          baseline + 40,
+      baselineLength,
       { timeout: 180_000 },
     );
 
@@ -166,6 +188,8 @@ for (const tc of CASES) {
       wireOk: Boolean(wireOk),
       replyOk,
       post,
+      responses,
+      consoleErrors: consoleErrors.slice(0, 3),
       streamMs,
       totalMs: Date.now() - started,
       threadChars: thread.length,
@@ -174,6 +198,8 @@ for (const tc of CASES) {
   } catch (error) {
     outcome.error = String(error).slice(0, 300);
     outcome.post = posts[0];
+    outcome.responses = responses;
+    outcome.consoleErrors = consoleErrors.slice(0, 3);
     await page
       .screenshot({ path: path.join(SHOTS, `${tc.name}-FAIL.png`), fullPage: true })
       .catch(() => {});
@@ -188,6 +214,7 @@ for (const tc of CASES) {
             .join(", ")} | body ${Math.round((outcome.post.bodyBytes ?? 0) / 1024)}KB]`
         : "") +
       (outcome.streamMs ? ` (stream ${outcome.streamMs}ms)` : "") +
+      (outcome.responses?.length ? ` [status ${outcome.responses.join(",")}]` : "") +
       (outcome.error ? ` — ${outcome.error}` : ""),
   );
   await context.close();

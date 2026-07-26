@@ -80,6 +80,11 @@ jobs:
           CHROME_PATH="$(command -v google-chrome)" HEADED=1 \
             xvfb-run -a node validate-live.mjs "$BASE_URL"
 
+      - name: Show validation results
+        if: always()
+        working-directory: scripts/prod-validation
+        run: cat validate-results.json 2>/dev/null || echo "no results file"
+
       - name: No-spend stress checks
         working-directory: scripts/prod-validation
         run: node stress.mjs "$BASE_URL"
