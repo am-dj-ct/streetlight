@@ -53,3 +53,4 @@ scripts/prod-validation/assets
 scripts/prod-validation/shots
 scripts/prod-validation/package-lock.json
 scripts/prod-validation/validate-results.json
+scripts/prod-validation/evil

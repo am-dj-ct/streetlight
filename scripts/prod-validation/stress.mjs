@@ -20,9 +20,9 @@ async function post(payload, extraHeaders = {}) {
       body: payload,
     });
     const text = await res.text();
-    return { status: res.status, ms: Date.now() - started, body: text.slice(0, 120) };
+    return { status: res.status, ms: Date.now() - started, errorSnippet: text.slice(0, 120) };
   } catch (error) {
-    return { status: "ERR", ms: Date.now() - started, body: String(error).slice(0, 120) };
+    return { status: "ERR", ms: Date.now() - started, errorSnippet: String(error).slice(0, 120) };
   }
 }
 
@@ -107,7 +107,7 @@ for (const c of cases) {
   const ok = c.expect.includes(r.status);
   if (!ok) failures += 1;
   console.log(
-    `${ok ? "PASS" : "FAIL"} ${c.name}: got ${r.status} in ${r.ms}ms (want ${c.expect.join("/")}) ${ok ? "" : r.body}`,
+    `${ok ? "PASS" : "FAIL"} ${c.name}: got ${r.status} in ${r.ms}ms (want ${c.expect.join("/")}) ${ok ? "" : r.errorSnippet}`,
   );
 }
 

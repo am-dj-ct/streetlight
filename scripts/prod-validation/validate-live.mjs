@@ -82,7 +82,7 @@ for (const tc of CASES) {
         const last = parsed.messages.at(-1);
         posts.push({
           bodyBytes: (req.postData() ?? "").length,
-          attachments: (last.attachments ?? []).map((x) => ({
+          blocks: (last.attachments ?? []).map((x) => ({
             mediaType: x.mediaType,
             base64Length: x.dataBase64.length,
           })),
@@ -190,13 +190,13 @@ for (const tc of CASES) {
       .innerText({ timeout: 5_000 });
     const streamMs = Date.now() - sendAt;
 
-    const post = posts.find((p) => (p.attachments?.length ?? 0) > 0);
+    const post = posts.find((p) => (p.blocks?.length ?? 0) > 0);
     const wireOk =
       post &&
-      post.attachments.length === tc.files.length &&
+      post.blocks.length === tc.files.length &&
       (tc.expectTypes
-        ? tc.expectTypes.every((t, i) => post.attachments[i]?.mediaType === t)
-        : post.attachments.every((x) => x.mediaType === "image/jpeg"));
+        ? tc.expectTypes.every((t, i) => post.blocks[i]?.mediaType === t)
+        : post.blocks.every((x) => x.mediaType === "image/jpeg"));
 
     const replyOk =
       thread.length > 120 &&
@@ -233,8 +233,8 @@ for (const tc of CASES) {
   results.push(outcome);
   console.log(
     `${outcome.ok ? "PASS" : "FAIL"} ${tc.name}` +
-      (outcome.post?.attachments
-        ? ` [wire: ${outcome.post.attachments
+      (outcome.post?.blocks
+        ? ` [wire: ${outcome.post.blocks
             .map((x) => `${x.mediaType} ${Math.round(x.base64Length / 1024)}KB`)
             .join(", ")} | body ${Math.round((outcome.post.bodyBytes ?? 0) / 1024)}KB]`
         : "") +
