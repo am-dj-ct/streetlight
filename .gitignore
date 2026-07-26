@@ -48,8 +48,8 @@ next-env.d.ts
 .claude/
 
 # prod-validation local artifacts
-scripts/prod-validation/node_modules/
-scripts/prod-validation/assets/
-scripts/prod-validation/shots/
+scripts/prod-validation/node_modules
+scripts/prod-validation/assets
+scripts/prod-validation/shots
 scripts/prod-validation/package-lock.json
 scripts/prod-validation/validate-results.json
