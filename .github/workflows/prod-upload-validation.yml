@@ -74,7 +74,11 @@ jobs:
         working-directory: scripts/prod-validation
         run: CHROME_PATH="$(command -v google-chrome)" node gen-assets.mjs
 
-      - name: Live UI validation (real turns)
+      - name: No-spend stress checks
+        working-directory: scripts/prod-validation
+        run: node stress.mjs "$BASE_URL"
+
+      - name: Live UI validation (real turns; may be Turnstile-blocked from CI)
         working-directory: scripts/prod-validation
         run: |
           CHROME_PATH="$(command -v google-chrome)" HEADED=1 \
@@ -84,10 +88,6 @@ jobs:
         if: always()
         working-directory: scripts/prod-validation
         run: cat validate-results.json 2>/dev/null || echo "no results file"
-
-      - name: No-spend stress checks
-        working-directory: scripts/prod-validation
-        run: node stress.mjs "$BASE_URL"
 
       - name: Upload screenshots and results
         if: always()
