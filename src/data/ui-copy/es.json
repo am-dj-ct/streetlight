@@ -198,7 +198,19 @@
     "suggestedReplies": "Respuestas sugeridas",
     "weakCategoryPending": "Comprobando si esto necesita una nota para verificarlo con una persona...",
     "weakCategoryLead": "La IA a veces se equivoca en esto.",
-    "weakCategoryTail": "Vale la pena verificarlo con una persona que sí sepa",
+    "weakCategoryTail": "Vale la pena verificarlo con una persona que sí sepa de",
+    "weakCategoryLabels": {
+      "legal_procedure": "procedimientos legales",
+      "medical_dosing": "dosis de medicamentos",
+      "medical_decisionmaking": "decisiones médicas",
+      "benefits_eligibility": "elegibilidad para beneficios",
+      "immigration": "inmigración",
+      "drug_interactions": "interacciones entre medicamentos",
+      "employment_rights": "derechos laborales",
+      "identity_documentation": "documentos de identidad",
+      "specific_deadlines": "plazos exactos",
+      "specific_dollar_amounts": "cantidades exactas de dinero"
+    },
     "turnstileWait": "Un momento más. Inténtalo de nuevo en unos segundos.",
     "sendFailure": "La respuesta no llegó. Inténtalo de nuevo."
   }

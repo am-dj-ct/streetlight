@@ -199,6 +199,18 @@
     "weakCategoryPending": "Waxaan hubinaynaa in tani u baahan tahay xusuusin qof lala xaqiijiyo...",
     "weakCategoryLead": "AI mararka qaarkood tan wuu khaldaa.",
     "weakCategoryTail": "Waxaa fiican in lala xaqiijiyo qof yaqaan",
+    "weakCategoryLabels": {
+      "legal_procedure": "habraaca sharciga",
+      "medical_dosing": "qiyaasta daawada",
+      "medical_decisionmaking": "go'aannada caafimaadka",
+      "benefits_eligibility": "u-qalmitaanka gargaarka",
+      "immigration": "arrimaha socdaalka",
+      "drug_interactions": "isdhexgalka daawooyinka",
+      "employment_rights": "xuquuqda shaqada",
+      "identity_documentation": "dukumentiyada aqoonsiga",
+      "specific_deadlines": "wakhtiyada kama-dambaysta ah",
+      "specific_dollar_amounts": "lacagaha saxda ah"
+    },
     "turnstileWait": "Wax yar sug. Fadlan mar kale isku day dhowr ilbiriqsi ka dib.",
     "sendFailure": "Jawaabtu ma soo gaarin. Fadlan mar kale isku day."
   }

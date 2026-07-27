@@ -20,9 +20,13 @@ import {
 import type { InternalAppPath } from "../lib/routes";
 import type { UiCopy } from "../lib/ui-copy";
 
+type UiCopyStringKey = {
+  [K in keyof UiCopy]: UiCopy[K] extends string ? K : never;
+}[keyof UiCopy];
+
 type ReportAreaOption = {
   value: ReportArea;
-  copyKey: keyof UiCopy;
+  copyKey: UiCopyStringKey;
 };
 
 const problemValues = [
@@ -43,10 +47,10 @@ const reportDetailsMaxLength = 1200;
 
 type ProblemOption = {
   value: ProblemValue;
-  copyKey: keyof UiCopy;
+  copyKey: UiCopyStringKey;
 };
 
-const reportAreaCopyKeys: Record<ReportArea, keyof UiCopy> = {
+const reportAreaCopyKeys: Record<ReportArea, UiCopyStringKey> = {
   "main-screen": "reportAreaMainScreen",
   conversation: "reportAreaConversation",
   "find-human": "reportAreaFindHuman",
@@ -62,7 +66,7 @@ const whereOptions: readonly ReportAreaOption[] = reportAreas.map((value) => ({
   copyKey: reportAreaCopyKeys[value],
 }));
 
-const problemCopyKeys: Record<ProblemValue, keyof UiCopy> = {
+const problemCopyKeys: Record<ProblemValue, UiCopyStringKey> = {
   "wrong-facts": "reportWrongFacts",
   "missed-point": "reportWrongMissedPoint",
   "unsafe-advice": "reportWrongUnsafe",

@@ -95,7 +95,7 @@
     "referralsCheckedThroughLabel": "የሀብት ዝርዝር የተፈተሸው እስከ:",
     "referralsSourceLabel": "ምንጭ:",
     "referralsVerifiedLabel": "ተረጋግጧል:",
-    "referralsFilteredPrefix": "ይህ ዝርዝር ለዚህ ተጣርቷል",
+    "referralsFilteredPrefix": "ይህ ዝርዝር በዚህ ርዕስ ተጣርቷል፦",
     "referralsShowAll": "ሁሉንም ሀብቶች አሳይ",
     "referralsBestFit": "በጣም የሚስማማ",
     "referralsCallLabel": "ይደውሉ",
@@ -198,7 +198,19 @@
     "suggestedReplies": "የተጠቆሙ መልሶች",
     "weakCategoryPending": "ይህ ከሰው ጋር ለማረጋገጥ ማስታወሻ ይፈልጋል እንደሆነ እያረጋገጥን ነው...",
     "weakCategoryLead": "AI አንዳንድ ጊዜ በዚህ ይሳሳታል.",
-    "weakCategoryTail": "ይህን ከሚያውቅ ሰው ጋር ማረጋገጥ ይሻላል",
+    "weakCategoryTail": "ይህን ጉዳይ ከሚያውቅ ሰው ጋር ማረጋገጥ ይሻላል፦",
+    "weakCategoryLabels": {
+      "legal_procedure": "የሕግ ሂደት",
+      "medical_dosing": "የመድኃኒት መጠን",
+      "medical_decisionmaking": "የሕክምና ውሳኔ",
+      "benefits_eligibility": "የጥቅማ ጥቅም ብቁነት",
+      "immigration": "ኢሚግሬሽን",
+      "drug_interactions": "የመድኃኒት መስተጋብር",
+      "employment_rights": "የሥራ መብቶች",
+      "identity_documentation": "የመታወቂያ ሰነዶች",
+      "specific_deadlines": "የተወሰኑ ቀነ-ገደቦች",
+      "specific_dollar_amounts": "የተወሰኑ የገንዘብ መጠኖች"
+    },
     "turnstileWait": "ትንሽ ተጨማሪ ይጠብቁ። ከጥቂት ሰከንዶች በኋላ እንደገና ይሞክሩ።",
     "sendFailure": "መልሱ አልመጣም. እባክዎ እንደገና ይሞክሩ."
   }

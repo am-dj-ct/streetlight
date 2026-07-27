@@ -9,7 +9,6 @@ import {
   getBackHrefForReferrals,
   getCheckedThroughDate,
   getReferralsForCategory,
-  getWeakCategoryLabel,
   isReferralSpecificToCategory,
   sanitizeFindHumanSearchParams,
 } from "../../lib/referrals";
@@ -70,7 +69,8 @@ export default async function FindHumanPage({
     entryId: safeEntryId,
     languageCode,
   });
-  const categoryLabel = category ? getWeakCategoryLabel(category) : "";
+  const categoryLabel =
+    category && category !== "none" ? copy.weakCategoryLabels[category] : "";
   const formattedCheckedThroughDate = checkedThroughDate
     ? formatResourceDate(checkedThroughDate)
     : null;

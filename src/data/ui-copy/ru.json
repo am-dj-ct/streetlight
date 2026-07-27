@@ -95,7 +95,7 @@
     "referralsCheckedThroughLabel": "Список ресурсов проверен по:",
     "referralsSourceLabel": "Источник:",
     "referralsVerifiedLabel": "Проверено:",
-    "referralsFilteredPrefix": "Этот список отфильтрован для",
+    "referralsFilteredPrefix": "Этот список отфильтрован по теме:",
     "referralsShowAll": "Показать все ресурсы",
     "referralsBestFit": "Лучше всего подходит",
     "referralsCallLabel": "Позвонить",
@@ -198,7 +198,19 @@
     "suggestedReplies": "Предложенные ответы",
     "weakCategoryPending": "Проверяем, нужна ли здесь пометка о проверке у человека...",
     "weakCategoryLead": "AI иногда ошибается в этом.",
-    "weakCategoryTail": "Стоит проверить у человека, который в этом разбирается",
+    "weakCategoryTail": "Стоит проверить у человека, который разбирается в теме:",
+    "weakCategoryLabels": {
+      "legal_procedure": "юридические процедуры",
+      "medical_dosing": "дозировки лекарств",
+      "medical_decisionmaking": "медицинские решения",
+      "benefits_eligibility": "право на пособия",
+      "immigration": "иммиграция",
+      "drug_interactions": "взаимодействие лекарств",
+      "employment_rights": "трудовые права",
+      "identity_documentation": "документы, удостоверяющие личность",
+      "specific_deadlines": "точные сроки",
+      "specific_dollar_amounts": "точные суммы"
+    },
     "turnstileWait": "Еще немного. Попробуйте снова через несколько секунд.",
     "sendFailure": "Ответ не пришел. Попробуйте еще раз."
   }

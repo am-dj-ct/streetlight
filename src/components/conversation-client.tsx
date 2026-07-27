@@ -13,7 +13,6 @@ import { getConversationContentEntry } from "../lib/conversation-content";
 import {
   getCheckedThroughDate,
   getReferralsForCategory,
-  getWeakCategoryLabel,
   isReferralSpecificToCategory,
 } from "../lib/referrals";
 import {
@@ -1315,9 +1314,11 @@ export function ConversationClient({
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
   const shouldReserveAnswerScrollRoom =
     !isStreaming && messages.some((message) => message.role === "user");
-  const composerControlSizeClassName = isCompactComposer
-    ? "min-h-12 min-w-12 sm:min-h-20 sm:min-w-20"
-    : "min-h-20 min-w-20";
+  // Below the sm breakpoint the controls stay at 48px even when the
+  // composer is not focused: four controls at 80px plus gaps leave a
+  // 390px viewport with a ~36px textarea.
+  const composerControlSizeClassName =
+    "min-h-12 min-w-12 sm:min-h-20 sm:min-w-20";
 
   // Saved/exported copies are text: attachments are represented by a fixed
   // label line so an image-only turn does not silently vanish from the export.
@@ -2037,6 +2038,9 @@ export function ConversationClient({
       );
     } finally {
       setIsPreparingAttachments(false);
+      // The native file dialog moves focus off the composer; return it so
+      // the user can keep typing without tapping the message box again.
+      composerRef.current?.focus();
     }
   }
 
@@ -2044,6 +2048,7 @@ export function ConversationClient({
     setPendingAttachments((current) =>
       current.filter((_, currentIndex) => currentIndex !== index),
     );
+    composerRef.current?.focus();
   }
 
   async function sendMessage(text: string, trackSubmit = false) {
@@ -2500,7 +2505,7 @@ export function ConversationClient({
                             <span className="font-semibold">{copy.weakCategoryLead}</span>{" "}
                             {copy.weakCategoryTail}{" "}
                             <span className="font-semibold">
-                              {getWeakCategoryLabel(weakCategory)}
+                              {copy.weakCategoryLabels[weakCategory]}
                             </span>
                             .
                           </button>
@@ -2810,7 +2815,7 @@ export function ConversationClient({
             >
               <CameraIcon className="h-5 w-5" />
             </button>
-            <label className="flex-1" htmlFor="conversation-input">
+            <label className="min-w-0 flex-1" htmlFor="conversation-input">
               <span className="sr-only">{copy.composerAssistiveLabel}</span>
               <textarea
                 ref={composerRef}
@@ -3060,11 +3065,11 @@ export function ConversationClient({
               </p>
             ) : null}
             <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pb-1">
-              {referralActiveCategory ? (
+              {referralActiveCategory && referralActiveCategory !== "none" ? (
                 <section className="rounded-[18px] border border-[#ead8b7] bg-[#fff9ef] px-4 py-3 text-[15px] leading-6 text-[#6a4c12]">
                   {copy.referralsFilteredPrefix}{" "}
                   <span className="font-semibold">
-                    {getWeakCategoryLabel(referralActiveCategory)}
+                    {copy.weakCategoryLabels[referralActiveCategory]}
                   </span>
                   .
                   <div className="pt-2">

@@ -95,7 +95,7 @@
     "referralsCheckedThroughLabel": "资源列表检查截至：",
     "referralsSourceLabel": "来源：",
     "referralsVerifiedLabel": "已核实：",
-    "referralsFilteredPrefix": "此列表已按以下内容筛选",
+    "referralsFilteredPrefix": "此列表已按以下内容筛选：",
     "referralsShowAll": "显示所有资源",
     "referralsBestFit": "最适合",
     "referralsCallLabel": "拨打",
@@ -198,7 +198,19 @@
     "suggestedReplies": "建议回复",
     "weakCategoryPending": "正在检查这里是否需要找真人核实的提示...",
     "weakCategoryLead": "AI 有时会在这里出错。",
-    "weakCategoryTail": "值得找懂这件事的人核实一下",
+    "weakCategoryTail": "值得找懂以下方面的人核实：",
+    "weakCategoryLabels": {
+      "legal_procedure": "法律程序",
+      "medical_dosing": "用药剂量",
+      "medical_decisionmaking": "医疗决定",
+      "benefits_eligibility": "福利资格",
+      "immigration": "移民事务",
+      "drug_interactions": "药物相互作用",
+      "employment_rights": "劳工权益",
+      "identity_documentation": "身份证件",
+      "specific_deadlines": "具体期限",
+      "specific_dollar_amounts": "具体金额"
+    },
     "turnstileWait": "再等一下。请过几秒再试。",
     "sendFailure": "回复没有发过来。请再试一次。"
   }
