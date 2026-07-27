@@ -199,6 +199,18 @@
     "weakCategoryPending": "Checking whether this needs a note to verify with a person...",
     "weakCategoryLead": "AI sometimes gets this wrong.",
     "weakCategoryTail": "Worth verifying with a person who does",
+    "weakCategoryLabels": {
+      "legal_procedure": "legal procedure",
+      "medical_dosing": "medical dosing",
+      "medical_decisionmaking": "medical decision-making",
+      "benefits_eligibility": "benefits eligibility",
+      "immigration": "immigration",
+      "drug_interactions": "drug interactions",
+      "employment_rights": "employment rights",
+      "identity_documentation": "identity documentation",
+      "specific_deadlines": "specific deadlines",
+      "specific_dollar_amounts": "specific dollar amounts"
+    },
     "turnstileWait": "One more moment. Try again in a few seconds.",
     "sendFailure": "The response did not come through. Please try again."
   }

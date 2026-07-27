@@ -198,7 +198,19 @@
     "suggestedReplies": "Câu trả lời gợi ý",
     "weakCategoryPending": "Đang kiểm tra xem phần này có cần ghi chú để xác minh với một người không...",
     "weakCategoryLead": "AI đôi khi sai ở phần này.",
-    "weakCategoryTail": "Nên kiểm tra lại với người hiểu việc này",
+    "weakCategoryTail": "Nên kiểm tra lại với người hiểu rõ về",
+    "weakCategoryLabels": {
+      "legal_procedure": "thủ tục pháp lý",
+      "medical_dosing": "liều dùng thuốc",
+      "medical_decisionmaking": "quyết định y tế",
+      "benefits_eligibility": "điều kiện hưởng trợ cấp",
+      "immigration": "di trú",
+      "drug_interactions": "tương tác thuốc",
+      "employment_rights": "quyền lao động",
+      "identity_documentation": "giấy tờ tùy thân",
+      "specific_deadlines": "thời hạn cụ thể",
+      "specific_dollar_amounts": "số tiền cụ thể"
+    },
     "turnstileWait": "Chờ thêm một chút. Vui lòng thử lại sau vài giây.",
     "sendFailure": "Không nhận được phản hồi. Vui lòng thử lại."
   }
