@@ -2765,7 +2765,9 @@ export function ConversationClient({
           ) : null}
 
           <form
-            className="flex items-end gap-2"
+            // Phones get two rows (full-width message box above the
+            // controls); from sm up everything shares one row.
+            className="flex flex-wrap items-end gap-2 sm:flex-nowrap"
             onSubmit={(event) => {
               event.preventDefault();
               void sendMessage(draft, true);
@@ -2802,7 +2804,7 @@ export function ConversationClient({
               aria-label={copy.attachmentAddLabel}
               disabled={isPreparingAttachments}
               onClick={() => attachmentPickerRef.current?.click()}
-              className={`flex items-center justify-center rounded-[18px] border border-[#d3ddd6] bg-white text-[#405047] transition-colors hover:border-[#b7c7bd] disabled:opacity-50 ${composerControlSizeClassName}`}
+              className={`order-2 flex items-center justify-center rounded-[18px] border border-[#d3ddd6] bg-white text-[#405047] transition-colors hover:border-[#b7c7bd] disabled:opacity-50 sm:order-1 ${composerControlSizeClassName}`}
             >
               <PaperclipIcon className="h-5 w-5" />
             </button>
@@ -2811,11 +2813,14 @@ export function ConversationClient({
               aria-label={copy.attachmentCameraLabel}
               disabled={isPreparingAttachments}
               onClick={() => cameraPickerRef.current?.click()}
-              className={`flex items-center justify-center rounded-[18px] border border-[#d3ddd6] bg-white text-[#405047] transition-colors hover:border-[#b7c7bd] disabled:opacity-50 ${composerControlSizeClassName}`}
+              className={`order-3 flex items-center justify-center rounded-[18px] border border-[#d3ddd6] bg-white text-[#405047] transition-colors hover:border-[#b7c7bd] disabled:opacity-50 sm:order-2 ${composerControlSizeClassName}`}
             >
               <CameraIcon className="h-5 w-5" />
             </button>
-            <label className="min-w-0 flex-1" htmlFor="conversation-input">
+            <label
+              className="order-1 min-w-0 grow basis-full sm:order-3 sm:basis-0"
+              htmlFor="conversation-input"
+            >
               <span className="sr-only">{copy.composerAssistiveLabel}</span>
               <textarea
                 ref={composerRef}
@@ -2852,7 +2857,7 @@ export function ConversationClient({
               aria-label={copy.micAssistiveLabel}
               onClick={handleMicInput}
               disabled={micUnavailable}
-              className={`flex items-center justify-center rounded-[18px] border text-[16px] font-medium transition-colors disabled:opacity-50 ${
+              className={`order-4 ml-auto flex items-center justify-center rounded-[18px] border text-[16px] font-medium transition-colors disabled:opacity-50 sm:ml-0 ${
                 isListening
                   ? "border-[#9a6a16] bg-[#fff2d6] text-[#684b10]"
                   : "border-[#d3ddd6] bg-white text-[#405047] hover:border-[#b7c7bd]"
@@ -2868,7 +2873,7 @@ export function ConversationClient({
                 isPreparingTurnstile ||
                 isPreparingAttachments
               }
-              className={`flex items-center justify-center rounded-[18px] bg-[#24594d] text-white shadow-[0_2px_8px_rgba(31,95,67,0.2)] transition-colors hover:bg-[#1d4a40] disabled:bg-[#9fb7ad] disabled:opacity-80 ${composerControlSizeClassName}`}
+              className={`order-5 flex items-center justify-center rounded-[18px] bg-[#24594d] text-white shadow-[0_2px_8px_rgba(31,95,67,0.2)] transition-colors hover:bg-[#1d4a40] disabled:bg-[#9fb7ad] disabled:opacity-80 ${composerControlSizeClassName}`}
             >
               <SendIcon className="h-5 w-5" />
             </button>
