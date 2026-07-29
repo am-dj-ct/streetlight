@@ -16,13 +16,6 @@ on:
         description: Commit SHA prefix healthz must report (empty to skip)
         default: ""
         type: string
-  push:
-    branches:
-      - claude/image-upload-handling-audit-uppvpd
-    paths:
-      - scripts/prod-validation/**
-      - .github/workflows/prod-upload-validation.yml
-
 permissions:
   contents: read
 
@@ -36,7 +29,7 @@ jobs:
     timeout-minutes: 25
     env:
       BASE_URL: ${{ inputs.base_url || 'https://streetlight.help' }}
-      EXPECT_SHA: ${{ inputs.expect_sha || 'de3db24' }}
+      EXPECT_SHA: ${{ inputs.expect_sha }}
 
     steps:
       - name: Check out repository
