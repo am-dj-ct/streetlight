@@ -24,11 +24,16 @@ export function computeOverallLevel({ tier0, tier1, tier2 }) {
   return { level: "PASS", siteDown: false };
 }
 
+// `level` is the RAW level before R4 escalation (computeOverallLevel's
+// output) — escalatedFromBlocked can only be true when level is
+// "DEGRADED" (see orchestrator.mjs), so it's checked ahead of the
+// DEGRADED branch here rather than requiring the caller to pass the
+// already-escalated level back in.
 export function buildSubject({ level, siteDown, escalatedFromBlocked }) {
   if (level === "FAIL" && siteDown) {
     return "Streetlight UI sentry: FAIL (site down)";
   }
-  if (level === "FAIL" && escalatedFromBlocked) {
+  if (escalatedFromBlocked) {
     return "Streetlight UI sentry: FAIL (chat blocked 3 runs running)";
   }
   if (level === "DEGRADED") {
