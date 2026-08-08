@@ -16,6 +16,18 @@
 // must never be retried — see the shared-budget note below and the "mixed
 // or unexplained failures = red" rule this module already enforced before
 // the retry existed.
+//
+// Visible window (2026-08-08, same-day follow-up): a second measurement
+// found the flag above does not survive headless at all — 4 cold headless
+// starts with the flag, 0 passed (2 from this sentry's own production
+// runs, 2 isolation runs), against 3 of 4 passing in a visible window. Zero
+// evidence either way is not the finding; a clean 0-for-4 against a 3-of-4
+// visible baseline is. Jesse authorized a visible browser window opening on
+// this Mac for the real run — orchestrator.mjs's real call site passes
+// `headed: true` explicitly for exactly this reason. `headed` still
+// defaults to false here so any other/future caller (tests, a one-off
+// structural check) stays headless unless it opts in the same explicit
+// way.
 import { chromium } from "@playwright/test";
 import { mobileDevice } from "./playwright.config.mjs";
 import { blockUsageEvents } from "./lib/browser.mjs";

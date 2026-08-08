@@ -256,7 +256,17 @@ async function main() {
     return;
   }
 
-  partial.tier2 = await runTier2({ baseUrl: BASE_URL, logger });
+  // Visible window, not headless (2026-08-08 ADR amendment): a controlled
+  // experiment on this same day found the Turnstile flag survives in a
+  // visible window (3 passes / 4 cold starts) but does not survive
+  // headless (0 passes / 4 cold starts, including two of this sentry's own
+  // production runs). Jesse authorized a visible browser window opening on
+  // this Mac for the real scheduled run so the check has a realistic
+  // chance of passing at all. `runTier2`'s own default stays headless —
+  // this is the one call site that represents the actual scheduled/manual
+  // `--live` path, so it opts in explicitly rather than the default
+  // silently deciding it.
+  partial.tier2 = await runTier2({ baseUrl: BASE_URL, logger, headed: true });
   await finalize();
 }
 

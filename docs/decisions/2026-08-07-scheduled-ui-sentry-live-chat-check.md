@@ -233,3 +233,51 @@ against production, which the original design did not, while the
 no-escalation rule and the shared, unraised turn cap mean this is a
 resilience fix, not a bigger foothold against the site's own abuse
 controls.
+
+## Amendment (2026-08-08, same day): the flag alone does not survive headless — tier 2 now opens a visible browser window
+
+The flag adopted above was proven in a **visible** browser window
+(`headless: false`): 4 cold starts, 3 passed. A follow-up measurement,
+same day, isolated whether that result holds headless, which is how the
+scheduled sentry had been running. It does not:
+
+- Visible window + flag: 4 cold starts → **3 passed**.
+- Headless + flag: 4 cold starts → **0 passed** (2 of these were this
+  sentry's own production runs, already reported as blocked; 2 were
+  isolation runs against the same flag with nothing else changed).
+
+Four straight blocks in a row would be roughly a 0.4% event if headless
+behaved like the visible-window baseline above — it does not, so headless
+itself, not bad luck, is the reason tier 2 has never once passed against
+production. The automation tell the flag addresses is apparently detected
+differently (or additionally) when Chrome has no visible window at all.
+
+**Decision 3 — run tier 2 in a visible browser window, not headless.**
+Jesse authorized a real, visible Chrome window opening on the operator's
+own Mac when the scheduled or manual `--live` sentry run reaches tier 2.
+`scripts/ui-sentry/orchestrator.mjs` now calls `runTier2` with
+`headed: true` at its one real call site, with a comment pointing back
+here; `runTier2`'s own default (`headed = false`, in
+`scripts/ui-sentry/tier2.mjs`) is unchanged, so anything else that calls
+it directly — a future test, a one-off structural check — stays headless
+unless it opts in the same explicit way. No other launch behavior
+changes: same one flag from Decision 1, same real-Chrome-with-bundled-
+Chromium-fallback launch path, same retry logic from Decision 2, same
+shared 8-turn cap.
+
+**This stays inside the no-escalation rule, not outside it.** A visible,
+real browser window is the opposite of stealth tooling — it is strictly
+*more* honest about being an automated client than headless was, not
+less. It adds no fingerprint spoofing, no CAPTCHA-solving service, no new
+launch flag beyond the one Decision 1 already adopted. If Cloudflare
+later blocks even a visible-window real Chrome, this tier reports
+**DEGRADED** through the same three-state verdict machinery already
+described above — it does not escalate to a second, more aggressive
+technique. The no-escalation language in Decision 1 is unchanged and
+still governs.
+
+**Operational note, not a new rule:** a visible browser window opening
+periodically on the operator's own Mac is expected and cosmetic —
+already true of the manual proof runs used to validate this change. It
+carries no new cap, schedule, or content change; the ≤8-turn budget and
+Mon/Wed/Fri cadence in the base decision above are unaffected.
