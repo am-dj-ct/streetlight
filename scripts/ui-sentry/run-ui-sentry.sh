@@ -65,8 +65,24 @@ export STREETLIGHT_SENTINEL_FALLBACK_LOG
 # "command not found" (exit 127) under set -u/pipefail without set -e —
 # logged, not fatal — so a fully broken sentinel module degrades to zero
 # check-ins this run, never to a failed job.
+#
+# `.` (source) is a POSIX "special builtin": on this Mac's shipped bash
+# (3.2), a special builtin's own hard failure — file not found OR a syntax
+# error inside the sourced file — terminates the shell immediately under
+# errexit, even when the source command is the left side of `cmd || true`.
+# That exemption only protects ordinary commands, not special builtins, so
+# `|| true` alone does NOT make this line safe if this wrapper is ever
+# invoked under `bash -e` (e.g. `bash -e run-ui-sentry.sh`) with the
+# sentinel library missing or broken. Toggle errexit off around the source
+# call itself (restoring it afterward only if it was already on) so the
+# special-builtin fast-fail path can never trigger, then fall back to plain
+# wall-clock defaults exactly as before.
+_sentinel_had_errexit=0
+case "$-" in *e*) _sentinel_had_errexit=1 ;; esac
+set +e
 # shellcheck source=./sentinel-v5/checkin-lib.sh
-. "$SCRIPT_DIR/../sentinel-v5/checkin-lib.sh" || true
+. "$SCRIPT_DIR/../sentinel-v5/checkin-lib.sh"
+[ "$_sentinel_had_errexit" = "1" ] && set -e
 sentinel_capture_invocation sl-ui-sentry || true
 : "${SENTINEL_AT:=$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 : "${SENTINEL_SLOT:=$SENTINEL_AT}"
@@ -96,25 +112,34 @@ sentinel_emit_item_a() {
 SENTINEL_LIVE_CHAT_THRESHOLD_DAYS=10
 sentinel_emit_item_b() {
   local state_file="$STATE_ROOT/last-run.json"
-  local last_success status reason
-  last_success=""
+  local status reason
+  # UI_SENTRY_LAST_SUCCESS_AT is deliberately NOT `local`: the PATH-missing
+  # fallback path below (which calls this function before overwriting
+  # last-run.json) reuses this exact value so the fallback write can carry a
+  # real prior success forward instead of clobbering it with null.
+  UI_SENTRY_LAST_SUCCESS_AT=""
   if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    last_success="$(jq -r '.lastSuccessfulLiveChatAt // empty' "$state_file" 2>/dev/null || true)"
+    UI_SENTRY_LAST_SUCCESS_AT="$(jq -r '.lastSuccessfulLiveChatAt // empty' "$state_file" 2>/dev/null || true)"
   fi
-  if [ -z "$last_success" ]; then
+  if [ -z "$UI_SENTRY_LAST_SUCCESS_AT" ]; then
     status="red"; reason="degraded"
   elif node -e '
       const last = new Date(process.argv[1]).getTime();
       const now = new Date(process.argv[2]).getTime();
       const thresholdMs = Number(process.argv[3]) * 86400000;
       if (!Number.isFinite(last) || !Number.isFinite(now)) process.exit(1);
-      process.exit((now - last) <= thresholdMs ? 0 : 1);
-    ' "$last_success" "$UI_SENTRY_SENTINEL_AT" "$SENTINEL_LIVE_CHAT_THRESHOLD_DAYS" 2>/dev/null; then
+      const ageMs = now - last;
+      // A future-dated timestamp (age < 0) is garbage, not "very fresh" —
+      // require the age to be non-negative as well as under the threshold,
+      // or a bogus future value would read green for threshold-plus-however-
+      // far-ahead days.
+      process.exit((ageMs >= 0 && ageMs <= thresholdMs) ? 0 : 1);
+    ' "$UI_SENTRY_LAST_SUCCESS_AT" "$UI_SENTRY_SENTINEL_AT" "$SENTINEL_LIVE_CHAT_THRESHOLD_DAYS" 2>/dev/null; then
     status="green"; reason="ok"
   else
     status="red"; reason="degraded"
   fi
-  sentinel_checkin sl-ui-sentry-live-chat "$status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT"
+  sentinel_checkin sl-ui-sentry-live-chat "$status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
 }
 
 mkdir -p "$STATE_ROOT/logs"
@@ -146,17 +171,25 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
   # expected, not a bug in this fallback. The nonzero exit below is what
   # actually surfaces the failure (launchd's stderr log).
   # Item B must be computed and emitted BEFORE the fallback state write
-  # below, not after: that write unconditionally sets
-  # lastSuccessfulLiveChatAt: null (it has no way to know the real value —
-  # this fires before node/doppler are even known to work), which is a
-  # correct "we don't know" for the FILE, but would be a false, incorrectly
-  # RED report for item B if a real, recent live-chat success happened on a
-  # prior run. Reading last-run.json here, before it gets overwritten,
-  # means item B reflects the real prior evidence — item A still reports
-  # red/job_failed for this invocation regardless, since the sentry itself
-  # did not run.
+  # below, not after: that write has no way to know this run's real
+  # lastSuccessfulLiveChatAt (this fires before node/doppler are even known
+  # to work). sentinel_emit_item_b (just below) already reads the PRIOR
+  # last-run.json and leaves that value in UI_SENTRY_LAST_SUCCESS_AT as a
+  # side effect — reuse it here so the fallback write CARRIES a real prior
+  # success FORWARD instead of clobbering it with null. Overwriting a real
+  # Friday timestamp with null on a Monday PATH-missing run would otherwise
+  # make a later Wednesday run (which reads this file, not item B's
+  # already-emitted check-in) see nothing and report red even though Friday
+  # is still inside the freshness window. Item A still reports red/job_failed
+  # for this invocation regardless, since the sentry itself did not run.
   sentinel_emit_item_a 5
   sentinel_emit_item_b
+
+  if [ -n "$UI_SENTRY_LAST_SUCCESS_AT" ]; then
+    last_success_json="\"$UI_SENTRY_LAST_SUCCESS_AT\""
+  else
+    last_success_json="null"
+  fi
 
   state_tmp="$STATE_ROOT/.last-run.json.tmp-$$"
   cat > "$state_tmp" <<STATE_JSON
@@ -170,7 +203,7 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
   "tier1": null,
   "tier2": null,
   "consecutiveBlockedRuns": null,
-  "lastSuccessfulLiveChatAt": null,
+  "lastSuccessfulLiveChatAt": $last_success_json,
   "escalatedFromBlocked": false,
   "crashError": "$reason",
   "overallLevel": "FAIL",
@@ -204,6 +237,19 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   fi
   if [ "$lock_age_seconds" -lt 7200 ]; then
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ui-sentry: another run holds the lock ($LOCK_DIR, ${lock_age_seconds}s old) — exiting without a run" >&2
+    # This invocation's own SENTINEL_AT/SENTINEL_SLOT were already captured
+    # above, before the lock check, so this slot must still be accounted for
+    # here — the run holding the lock captured its OWN (different) slot and
+    # will never emit for this one. Silence here is how a scheduled slot
+    # disappears from the spine. Mirrors the PATH-missing (exit 5) and
+    # node_modules-missing (exit 4) bail-outs elsewhere in this file: the
+    # sentry did not execute its job body for this slot, which is the same
+    # red/job_failed condition those paths already report via
+    # sentinel_emit_item_a's exit-code mapping. Item B is unaffected by any
+    # of this — it always reads last-run.json's real prior value, lock or no
+    # lock.
+    sentinel_emit_item_a 3
+    sentinel_emit_item_b
     exit 3
   fi
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ui-sentry: stale lock (${lock_age_seconds}s old) — reclaiming" >&2
