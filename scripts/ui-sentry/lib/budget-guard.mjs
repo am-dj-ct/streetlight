@@ -9,20 +9,29 @@ export function installTurnBudgetGuard(context, cap) {
   const budget = { used: 0, cap, aborted: 0 };
 
   context.route("**/api/chat", async (route, request) => {
-    if (request.method() !== "POST") {
+    // A route handler throwing becomes an unhandledRejection at the
+    // process level, detached from any case-level try/catch — never let
+    // that crash the whole run. The counters above are updated before this
+    // try, so budget accounting stays correct even if the actual
+    // continue/abort call itself races another handler.
+    try {
+      if (request.method() !== "POST") {
+        await route.continue();
+        return;
+      }
+
+      budget.used += 1;
+
+      if (budget.used > cap) {
+        budget.aborted += 1;
+        await route.abort("failed");
+        return;
+      }
+
       await route.continue();
-      return;
+    } catch {
+      // best-effort only
     }
-
-    budget.used += 1;
-
-    if (budget.used > cap) {
-      budget.aborted += 1;
-      await route.abort("failed");
-      return;
-    }
-
-    await route.continue();
   });
 
   return budget;

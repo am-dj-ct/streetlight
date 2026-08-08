@@ -61,11 +61,46 @@ boundary or get its own dated ADR.
 - **Reporting is content-free**, matching the existing recall-suite
   precedent (`docs/data_architecture.md:754` — "prints only synthetic case
   names and category results, not prompt or response content"). The
-  Resend email payload contains only: a fixed subject
-  (`Streetlight UI sentry: PASS | DEGRADED (chat blocked) | FAIL`), and a
-  plain-text body built from case names, HTTP statuses, latencies,
-  durations, and the on-disk log path. No `from`/`to` fields carry anything
-  beyond the operator's own configured addresses.
+  Resend email payload contains only a subject line and a plain-text body
+  built from case names, HTTP statuses, latencies, durations, and the
+  on-disk log path. No `from`/`to` fields carry anything beyond the
+  operator's own configured addresses.
+
+### Reporting: subject lines and the persistent-blocked escalation
+
+Every run sends an email regardless of outcome — the absence of the
+Mon/Wed/Fri email is itself the dead-man signal (subject to the honest gap
+below). The subject is one of `PASS`, `DEGRADED (chat blocked)`,
+`DEGRADED (chat blocked, N consecutive)`, `FAIL (chat blocked 3 runs
+running)`, `PASS (chat recovered)`, `FAIL` / `FAIL (site down)`, or
+`<level> (structural only, tier 2 skipped)` for a `--skip-tier2` run.
+
+Turnstile withholding a token from every automated live-chat attempt is a
+known, standing condition for this sentry's environment, not necessarily a
+fresh emergency each run (see the proof run in the PR: 6/6 turns
+client-blocked, zero real spend, both headed and headless real Chrome
+tried). The original design re-escalated to `FAIL` on every run once 3
+consecutive blocked runs was reached and never reset except on an actual
+pass — meaning a structurally blocked chat path would have sent `FAIL`
+forever, which trains the reader to stop opening the one alert that's
+actually supposed to matter (a cross-vendor review, 2026-08-08, flagged
+this as merge-blocking).
+
+Revised behavior: the subject escalates to `FAIL (chat blocked 3 runs
+running)` **exactly once** — the run that first crosses the
+3-consecutive-blocked threshold. `last-run.json`'s `blockedEscalationActive`
+flag remembers that it fired. Every subsequent run while still blocked
+reports a steady `DEGRADED (chat blocked, N consecutive)` instead — still
+emailed every run, still visibly abnormal, not re-alarming. The flag clears,
+and a `PASS (chat recovered)` subject fires, the moment a live turn
+actually succeeds; that recovery framing is suppressed if the same run has
+an unrelated concurrent failure, so "good news" text never masks a real
+problem.
+
+This narrows what "the report is content-free" means in practice, not what
+it protects: the escalation state machine only ever operates on booleans
+and counts (`consecutiveBlockedRuns`, `blockedEscalationActive`) already in
+the allowlisted `last-run.json` schema below — no new field carries content.
 - **Cadence:** Mon/Wed/Fri 07:23 local, no `KeepAlive`, no internal retry
   loop. A manual run (`run-ui-sentry.sh --live`, the same entry point,
   same caps) is permitted for proof and debugging and shares the same
@@ -79,11 +114,13 @@ boundary or get its own dated ADR.
   `{ status, startedAt, finishedAt, durationMs, exitCode, logPath, baseUrl,
   tier0: { status, reason, cases[] }, tier1: { status, engines[] } | null,
   tier2: { status, turns[], turnBudgetUsed, turnBudgetCap,
-  lastSuccessfulLiveChatAt } | null, consecutiveBlockedRuns,
-  lastSuccessfulLiveChatAt, escalatedFromBlocked, crashError,
-  emailAccepted, emailHttpStatus }`. Every field is a status code, count,
-  timestamp, or timing — never a message body, model reply, or classifier
-  input/output text.
+  lastSuccessfulLiveChatAt } | null, tier2Skipped, consecutiveBlockedRuns,
+  lastSuccessfulLiveChatAt, blockedEscalationActive, blockedNarrative,
+  crashError, emailAccepted, emailHttpStatus }`. Every field is a status
+  code, count, boolean, timestamp, or timing — never a message body, model
+  reply, or classifier input/output text. `blockedEscalationActive` and
+  `blockedNarrative` are the persistent-blocked escalation state described
+  above; `tier2Skipped` marks a `--skip-tier2` structural-only run.
 - **Artifact retention:** trace and video are off everywhere. Screenshots
   are only-on-failure in tier 1 (structural pages only, no live-chat
   content ever on screen at that point) and hard-off in tier 2 always. Any

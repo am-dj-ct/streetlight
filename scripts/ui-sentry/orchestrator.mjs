@@ -16,6 +16,13 @@ import { runTier1 } from "./tier1.mjs";
 import { runTier2 } from "./tier2.mjs";
 
 const BASE_URL = process.env.UI_SENTRY_BASE_URL ?? "https://streetlight.help";
+// Skips tier 2 (no /api/chat calls, no model spend) for structural-only
+// verification — needed for post-merge commissioning (R9: prove the
+// launchd path works without spending on every commissioning check) and
+// for re-verifying tier 0/1 fixes without burning turns each time.
+// Scheduled/manual live runs never set this.
+const SKIP_TIER2 =
+  process.argv.includes("--skip-tier2") || process.env.UI_SENTRY_SKIP_TIER2 === "1";
 const REPORT_FROM = process.env.RESOURCE_REVIEW_EMAIL_FROM ?? "Streetlight UI Sentry <onboarding@resend.dev>";
 // The shared agent-secrets RESEND_API_KEY's Resend account has no verified
 // domain (only balancedlivingtherapy.com, status "not_started" — a BLT
@@ -38,7 +45,7 @@ const logger = new Logger(logPath);
 
 const previousState = readPreviousState();
 
-const partial = { tier0: null, tier1: null, tier2: null, crashError: null };
+const partial = { tier0: null, tier1: null, tier2: null, tier2Skipped: false, crashError: null };
 let finalized = false;
 
 async function runTier1BothEngines() {
@@ -75,14 +82,53 @@ async function finalize() {
   const finishedAt = new Date();
   const { level, siteDown } = computeOverallLevel(partial);
 
-  // R4: three consecutive BLOCKED runs escalates the subject (and, here,
-  // the exit code) to FAIL — a sentry that can never talk to the model
-  // must surface on a bounded clock, not stay quietly "degraded" forever.
+  // R4, revised after review: three consecutive BLOCKED runs escalates the
+  // subject to FAIL exactly ONCE (the run that first crosses the
+  // threshold), not on every run thereafter. A structurally blocked chat
+  // path is a known, standing condition once it's been flagged — repeating
+  // FAIL forever trains the reader to stop opening the one alert that
+  // matters. Subsequent blocked runs report a steady
+  // "DEGRADED (chat blocked, Nth consecutive)" instead. The escalation
+  // state persists in last-run.json (blockedEscalationActive) and clears
+  // the moment a live turn actually succeeds, which also sends a
+  // recovery-flavored subject.
+  //
+  // A deliberately skipped tier 2 (--skip-tier2, structural-only) makes no
+  // observation about the chat path at all, so it must not disturb the
+  // real streak — carry the previous values forward unchanged rather than
+  // resetting to "not blocked."
   const previousConsecutiveBlocked = previousState?.consecutiveBlockedRuns ?? 0;
-  const consecutiveBlockedRuns =
-    partial.tier2?.status === "blocked" ? previousConsecutiveBlocked + 1 : 0;
-  const escalatedFromBlocked = level === "DEGRADED" && consecutiveBlockedRuns >= 3;
-  const effectiveLevel = escalatedFromBlocked ? "FAIL" : level;
+  const previousBlockedEscalationActive = previousState?.blockedEscalationActive ?? false;
+
+  let consecutiveBlockedRuns = previousConsecutiveBlocked;
+  let blockedEscalationActive = previousBlockedEscalationActive;
+  let blockedNarrative = "none";
+
+  if (!partial.tier2Skipped) {
+    const tier2Status = partial.tier2?.status ?? null;
+    consecutiveBlockedRuns = tier2Status === "blocked" ? previousConsecutiveBlocked + 1 : 0;
+    blockedEscalationActive = previousBlockedEscalationActive;
+
+    if (tier2Status === "pass" && previousBlockedEscalationActive) {
+      blockedNarrative = "recovery";
+      blockedEscalationActive = false;
+    } else if (tier2Status === "blocked") {
+      if (consecutiveBlockedRuns >= 3 && !previousBlockedEscalationActive) {
+        blockedNarrative = "escalated_once";
+        blockedEscalationActive = true;
+      } else if (previousBlockedEscalationActive || consecutiveBlockedRuns >= 3) {
+        blockedNarrative = "steady_blocked";
+      }
+    }
+
+    // The recovery subject is "good news" framing — never let it mask a
+    // concurrent, unrelated real failure (e.g. tier 1 broke this same run).
+    if (blockedNarrative === "recovery" && level !== "PASS") {
+      blockedNarrative = "none";
+    }
+  }
+
+  const effectiveLevel = blockedNarrative === "escalated_once" ? "FAIL" : level;
 
   const lastSuccessfulLiveChatAt =
     partial.tier2?.lastSuccessfulLiveChatAt ?? previousState?.lastSuccessfulLiveChatAt ?? null;
@@ -113,9 +159,11 @@ async function finalize() {
           lastSuccessfulLiveChatAt: partial.tier2.lastSuccessfulLiveChatAt,
         }
       : null,
+    tier2Skipped: Boolean(partial.tier2Skipped),
     consecutiveBlockedRuns,
     lastSuccessfulLiveChatAt,
-    escalatedFromBlocked,
+    blockedEscalationActive,
+    blockedNarrative,
     crashError: partial.crashError,
     overallLevel: effectiveLevel,
     emailAccepted: null,
@@ -125,9 +173,17 @@ async function finalize() {
   if (partial.crashError) {
     logger.line(`orchestrator crash: ${partial.crashError}`);
   }
-  logger.line(`overall status: ${effectiveLevel} (exitCode=${exitCode})`);
+  logger.line(
+    `overall status: ${effectiveLevel} (exitCode=${exitCode}, blockedNarrative=${blockedNarrative}, consecutiveBlockedRuns=${consecutiveBlockedRuns}, tier2Skipped=${Boolean(partial.tier2Skipped)})`,
+  );
 
-  const subject = buildSubject({ level, siteDown, escalatedFromBlocked });
+  const subject = buildSubject({
+    level,
+    siteDown,
+    blockedNarrative,
+    consecutiveBlockedRuns,
+    tier2Skipped: partial.tier2Skipped,
+  });
   const body = buildEmailBody(state);
 
   let emailResult;
@@ -189,6 +245,13 @@ async function main() {
   partial.tier1 = await runTier1BothEngines();
   if (partial.tier1.status === "fail") {
     logger.line("tier1 failed; skipping tier2 (structural check must pass before spending on live turns)");
+    await finalize();
+    return;
+  }
+
+  if (SKIP_TIER2) {
+    logger.line("tier2 skipped (--skip-tier2 / UI_SENTRY_SKIP_TIER2=1) — structural-only run, no model spend");
+    partial.tier2Skipped = true;
     await finalize();
     return;
   }

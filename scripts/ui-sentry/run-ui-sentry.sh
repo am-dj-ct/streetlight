@@ -41,6 +41,66 @@ fi
 
 mkdir -p "$STATE_ROOT/logs"
 
+# PATH preflight. launchd's default minimal PATH for a GUI agent
+# (/usr/bin:/bin:/usr/sbin:/sbin) does not include Homebrew, where both
+# `doppler` and `node` live on this Mac — and the plist now sets
+# EnvironmentVariables.PATH to compensate (same pattern as the sibling
+# com.callertrack.ui-health.plist), but a future edit could drop that, or a
+# manual invocation could run under a shell with its own broken PATH. Fail
+# loudly here rather than dying silently before orchestrator.mjs — which is
+# the only place that would otherwise write state and send the email — ever
+# starts.
+missing_tools=()
+command -v doppler >/dev/null 2>&1 || missing_tools+=("doppler")
+command -v node >/dev/null 2>&1 || missing_tools+=("node")
+
+if [ "${#missing_tools[@]}" -gt 0 ]; then
+  STAMP_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  reason="PATH is missing required tool(s): ${missing_tools[*]} (PATH=$PATH)"
+  echo "$STAMP_ISO ui-sentry: $reason" >&2
+
+  # This failure happens BEFORE the doppler-wrapped orchestrator.mjs ever
+  # starts, so the normal one-finalizer-path (R13) can't run. Do the closest
+  # bash-only equivalent: write a content-free state file directly (no node
+  # needed), then attempt the email with whatever is actually on PATH.
+  # RESEND_API_KEY is only ever sourced via doppler, which is exactly what's
+  # missing here, so this email attempt will normally fail closed — that's
+  # expected, not a bug in this fallback. The nonzero exit below is what
+  # actually surfaces the failure (launchd's stderr log).
+  state_tmp="$STATE_ROOT/.last-run.json.tmp-$$"
+  cat > "$state_tmp" <<STATE_JSON
+{
+  "status": "FAIL",
+  "startedAt": "$STAMP_ISO",
+  "finishedAt": "$STAMP_ISO",
+  "exitCode": 5,
+  "baseUrl": null,
+  "tier0": { "status": "fail", "reason": "path_misconfigured", "cases": [] },
+  "tier1": null,
+  "tier2": null,
+  "consecutiveBlockedRuns": null,
+  "lastSuccessfulLiveChatAt": null,
+  "escalatedFromBlocked": false,
+  "crashError": "$reason",
+  "overallLevel": "FAIL",
+  "emailAccepted": null,
+  "emailHttpStatus": null
+}
+STATE_JSON
+  mv "$state_tmp" "$STATE_ROOT/last-run.json"
+
+  if command -v curl >/dev/null 2>&1 && [ -n "${RESEND_API_KEY:-}" ] && [ -n "${RESOURCE_REVIEW_EMAIL_TO:-}" ]; then
+    curl -s -o /dev/null --max-time 15 -X POST "https://api.resend.com/emails" \
+      -H "Authorization: Bearer $RESEND_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{\"from\":\"${RESOURCE_REVIEW_EMAIL_FROM:-Streetlight UI Sentry <onboarding@resend.dev>}\",\"to\":[\"$RESOURCE_REVIEW_EMAIL_TO\"],\"subject\":\"Streetlight UI sentry: FAIL (PATH misconfigured)\",\"text\":\"$reason\"}" \
+      || true
+  fi
+
+  echo "$STAMP_ISO ui-sentry: cannot proceed without doppler/node on PATH — exiting" >&2
+  exit 5
+fi
+
 # Single-instance lock (R17: manual runs share the same caps and must not
 # overlap a scheduled fire, or vice versa). mkdir is atomic; a stray lock
 # older than 2 hours is treated as abandoned (a real run never takes that

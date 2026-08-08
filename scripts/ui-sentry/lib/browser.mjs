@@ -35,9 +35,18 @@ try {
 // counters (spec R16). Fulfilled with 204 rather than aborted so the page
 // never logs a console/network error about it.
 export async function blockUsageEvents(context) {
-  await context.route("**/api/usage/event", (route) =>
-    route.fulfill({ status: 204, body: "" }),
-  );
+  await context.route("**/api/usage/event", async (route) => {
+    // A route handler throwing becomes an unhandledRejection at the
+    // process level, detached from any case-level try/catch — that must
+    // never be able to crash the whole run. This can race a page-level
+    // "**/*" route (tier 1's slow-network case) also matching the same
+    // request; swallow "already handled" rather than letting it escape.
+    try {
+      await route.fulfill({ status: 204, body: "" });
+    } catch {
+      // best-effort only
+    }
+  });
 }
 
 // Launches a page with console/pageerror/dialog/failed-response watchers

@@ -81,6 +81,76 @@ Playwright artifacts: trace and video are off everywhere. Screenshots are
 only-on-failure in tier 1 and hard-off in tier 2 (R7). Any tier 1 failure
 screenshot is written under the state root, never uploaded anywhere.
 
+## Reporting: subject lines and the persistent-blocked escalation
+
+Every run sends an email — the absence of the Mon/Wed/Fri email is itself
+the dead-man signal. The subject is one of:
+
+- `Streetlight UI sentry: PASS`
+- `Streetlight UI sentry: DEGRADED (chat blocked)` — tier 2 came back
+  uniformly Turnstile-blocked (see Turn budget section below), 1st or 2nd
+  consecutive run.
+- `Streetlight UI sentry: DEGRADED (chat blocked, N consecutive)` — the
+  steady state once the 3-run escalation threshold has already fired once
+  (see below); N is the running consecutive-blocked count.
+- `Streetlight UI sentry: FAIL (chat blocked 3 runs running)` — sent
+  **exactly once**, the run where 3 consecutive blocked runs is first
+  reached.
+- `Streetlight UI sentry: PASS (chat recovered)` — the first run after a
+  live turn actually succeeds, following an active blocked-streak
+  escalation. Only used when the rest of that run is otherwise clean; a
+  concurrent unrelated failure is reported normally instead, never masked
+  by recovery framing.
+- `Streetlight UI sentry: FAIL` / `FAIL (site down)` — tier 0 or tier 1
+  failed for a reason unrelated to the blocked-streak state.
+- `Streetlight UI sentry: <level> (structural only, tier 2 skipped)` — a
+  `--skip-tier2` run (see below); `<level>` reflects tier 0/1 only.
+
+**Why this shape, not a flat 3-consecutive-blocked-always-escalates rule:**
+a structurally blocked chat path (Turnstile withholding a token from every
+automated turn) is a known, standing condition once it's been flagged once
+— re-sending `FAIL` on every run thereafter trains the reader to stop
+opening the one alert that's actually supposed to matter. The escalation
+fires once, `last-run.json`'s `blockedEscalationActive` flag remembers that
+it fired, subsequent blocked runs go back to a steady, still-visibly-
+abnormal `DEGRADED (chat blocked, N consecutive)`, and the flag only clears
+(with a recovery-flavored subject) the moment a live turn actually
+succeeds. See the ADR's Reporting section for the full state-machine
+rationale.
+
+## Structural-only runs (`--skip-tier2`)
+
+`--skip-tier2` (equivalently `UI_SENTRY_SKIP_TIER2=1`) runs tier 0 and tier
+1 only — no `/api/chat` calls, no model spend — and reports/emails
+normally with a subject tagged `(structural only, tier 2 skipped)`. It
+does not touch the persistent blocked-streak state
+(`consecutiveBlockedRuns`, `blockedEscalationActive`) — a run that made no
+observation about the chat path must not reset or otherwise disturb that
+tracking. Used for post-merge commissioning (R9: verify the launchd path
+end to end without spending on every check) and for re-verifying a tier
+0/1 fix without burning live turns.
+
+```
+UI_SENTRY_SKIP_TIER2=1 ./run-ui-sentry.sh --live
+```
+
+## PATH preflight
+
+launchd's default minimal PATH for a GUI agent
+(`/usr/bin:/bin:/usr/sbin:/sbin`) does not include Homebrew, where both
+`doppler` and `node` live on this Mac (`/opt/homebrew/bin`). The plist sets
+`EnvironmentVariables.PATH` to compensate (same pattern as the sibling
+`~/Library/LaunchAgents/com.callertrack.ui-health.plist`), and
+`run-ui-sentry.sh` also preflights `doppler`/`node` on PATH itself before
+doing anything else, in case that plist setting is ever dropped or a manual
+invocation runs under a shell with its own broken PATH. If either is
+missing: the wrapper writes a content-free `last-run.json` directly (no
+node required), attempts an email with whatever's on PATH (this normally
+still fails closed, since `RESEND_API_KEY` is only ever sourced via
+`doppler`, which is exactly what's missing), and exits nonzero either way
+so the failure is visible in `launchd.err.log` even if the email never
+went out.
+
 ## Turn budget and abuse controls
 
 Tier 2 sends at most 6 real turns, hard-capped at 8 by a

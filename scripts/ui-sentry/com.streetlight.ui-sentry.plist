@@ -45,6 +45,18 @@
 	<key>RunAtLoad</key>
 	<false/>
 
+	<!-- launchd's default minimal PATH for a GUI agent
+	     (/usr/bin:/bin:/usr/sbin:/sbin) does not include Homebrew, where both
+	     `doppler` and `node` live on this Mac (/opt/homebrew/bin). The script
+	     is invoked directly, non-login, so nothing sources .zprofile/.zshrc to
+	     add it back. Same pattern as the sibling
+	     ~/Library/LaunchAgents/com.callertrack.ui-health.plist. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+
 	<key>StandardOutPath</key>
 	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.out.log</string>
 	<key>StandardErrorPath</key>

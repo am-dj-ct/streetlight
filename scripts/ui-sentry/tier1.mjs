@@ -5,6 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { launchPage, readPerf, watchProblems } from "./lib/browser.mjs";
 import { humanType, settleComposer } from "./lib/human-type.mjs";
 import { gotoConversation, settleAfterConversationLoad } from "./lib/conversation.mjs";
+import { LOCALE_HEADING_MARKERS } from "./fixtures/locale-markers.mjs";
 
 const AXE_SERIOUS_OR_CRITICAL = new Set(["serious", "critical"]);
 
@@ -265,19 +266,36 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     }
 
     // --- Locale: switch to es, assert translated marker, switch back ---
-    await runCase(cases, `${engineName}: locale switch es -> en`, async () => {
+    // Every shipped locale, not just es — a translation regression on any
+    // of the other five (zh/so/am/vi/ru) previously had zero coverage
+    // (cross-vendor review, 2026-08-08). Direct ?lang= navigation rather
+    // than clicking each nav link: robust across non-Latin scripts and
+    // covers all six in about the same wall-clock cost as one click-based
+    // switch did.
+    for (const [localeCode, marker] of Object.entries(LOCALE_HEADING_MARKERS)) {
+      await runCase(cases, `${engineName}: locale ${localeCode} renders translated heading`, async () => {
+        await page.goto(`${baseUrl}/?lang=${localeCode}`, {
+          waitUntil: "domcontentloaded",
+          timeout: 20_000,
+        });
+        await page.waitForSelector("h1", { timeout: 15_000 });
+        const headingText = await page.locator("h1").innerText();
+        if (!headingText.includes(marker)) {
+          throw new Error(`${localeCode} locale marker not found on home heading`);
+        }
+      });
+    }
+
+    await runCase(cases, `${engineName}: locale switch back to en`, async () => {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
-      const esLink = page.locator('nav[aria-label] a', { hasText: "Español" }).first();
-      await esLink.click();
-      await page.waitForURL(/lang=es/, { timeout: 10_000 });
       await page.waitForSelector("h1", { timeout: 15_000 });
       const headingText = await page.locator("h1").innerText();
-      if (!headingText.includes("¿Qué necesitas?")) {
-        throw new Error("es locale marker not found on home heading");
+      const stillTranslated = Object.values(LOCALE_HEADING_MARKERS).some((marker) =>
+        headingText.includes(marker),
+      );
+      if (stillTranslated) {
+        throw new Error("home heading still shows a translated marker after switching back to en");
       }
-      const enLink = page.locator('nav[aria-label] a', { hasText: "English" }).first();
-      await enLink.click();
-      await page.waitForURL((url) => !url.toString().includes("lang=es"), { timeout: 10_000 });
     });
 
     // --- Accessibility: keyboard-only walk ---
@@ -350,7 +368,15 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       await page.unroute("**/*").catch(() => {});
       await page.route("**/*", async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 300));
-        await route.continue();
+        // Can race the context-level usage-event route (lib/browser.mjs)
+        // matching the same request. A route handler throwing becomes an
+        // unhandledRejection at the process level — must never crash the
+        // whole run over a route-handling race.
+        try {
+          await route.continue();
+        } catch {
+          // best-effort only
+        }
       });
       try {
         await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
