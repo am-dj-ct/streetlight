@@ -281,3 +281,65 @@ periodically on the operator's own Mac is expected and cosmetic —
 already true of the manual proof runs used to validate this change. It
 carries no new cap, schedule, or content change; the ≤8-turn budget and
 Mon/Wed/Fri cadence in the base decision above are unaffected.
+
+## Amendment (2026-08-08, same day): phone emulation was the second blocker — tier 2 now runs visible desktop Chrome, not a phone
+
+Decision 3 above got tier 2 passing in isolation runs, but production runs
+through this sentry's actual `orchestrator.mjs` call site kept coming back
+blocked even visible and even with the flag. A further controlled
+experiment, same recipe as before (persistent context + the
+`--disable-blink-features=AutomationControlled` flag), isolated why:
+
+- Visible window + desktop viewport + Chrome's own identity: **pass**
+  (Turnstile token in 4.5s, `/api/chat` 200).
+- Visible window + iPhone 13 emulation (WebKit UA via Playwright's device
+  descriptor): **blocked**.
+- Visible window + Pixel 7 emulation (Android Chrome UA): **blocked**.
+- Headless + flag, 4 cold starts: **0 passed** (matches the prior
+  headless finding above).
+
+The iPhone 13 and Pixel 7 results are the finding that matters: two
+different phone identities, one WebKit-flavored and one an Android Chrome
+UA, were blocked identically. **Which phone the browser claimed to be did
+not matter — emulating a phone at all was the blocker**, independent of
+and in addition to the headless blocker Decision 3 already fixed. This is
+not a user-agent string mismatch (a Chrome UA on a phone-shaped emulation
+was blocked exactly like a Safari UA was); it is device emulation itself
+that Turnstile's automation signal picks up on. Tier 2 had been running
+`browser.newContext({ ...mobileDevice })` (Playwright's iPhone 13 profile,
+the same device tier 1's webkit-mobile pass uses) since it was first
+built, which is why it kept failing even after Decisions 1–3 landed.
+
+**Decision 4 — tier 2 runs as a normal desktop Chrome, not a phone.**
+Jesse ruled: tier 2's live-chat check may run as a visible desktop Chrome
+— desktop viewport (1280x800, the same profile `desktopViewport` already
+defines for tier 1's Chromium pass), Chrome's own user agent, no device
+emulation — **accepting that it no longer exercises the phone-shaped
+path**. `scripts/ui-sentry/tier2.mjs` now opens `browser.newContext({
+viewport: desktopViewport })` instead of spreading in `mobileDevice`. This
+is the cost of the ruling, stated plainly: Streetlight is a mobile-web
+tool, and tier 2's live model turn — the one part of this sentry that
+actually types into the composer and gets a real reply — no longer runs
+in a mobile-shaped session. Tier 1's `webkit-mobile` engine still covers
+the mobile UI (page loads, composer, navigation, locale switch, in a real
+WebKit iPhone-viewport context) on every run, but tier 1 makes no
+`/api/chat` call at all and never observes a live model turn under any
+device. No check in this sentry exercises "the phone-shaped path with a
+live model reply" after this amendment; that gap is accepted, not hidden.
+
+**This stays inside the no-escalation rule.** Dropping device emulation is
+the opposite of an evasion technique — it makes this sentry look *less*
+distinctive to Turnstile, not more, and adds no new flag, library, or
+spoofing beyond what Decision 1 already adopted. If Cloudflare later
+blocks even a visible desktop Chrome, tier 2 reports **DEGRADED** through
+the same three-state verdict machinery already described above.
+
+**What is still untested and intentionally not re-derived:** whether an
+ephemeral `browser.newContext()` (tier 2's existing shape) or a persistent
+`launchPersistentContext()` with a throwaway profile is required for the
+desktop pass to hold up over repeated runs. The one real production run
+performed to validate this amendment used the simple ephemeral shape and
+passed on the first try (6/6 turns, `/api/chat` 200 each), so tier 2 keeps
+that shape rather than switching to a persistent context pre-emptively. If
+future runs show the ephemeral shape flaking the way headless did, that is
+a candidate follow-up, not assumed here.

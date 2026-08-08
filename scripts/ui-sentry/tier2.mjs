@@ -28,8 +28,18 @@
 // defaults to false here so any other/future caller (tests, a one-off
 // structural check) stays headless unless it opts in the same explicit
 // way.
+//
+// Desktop, not mobile (2026-08-08 ADR amendment, Decision 4): a further
+// measurement found phone emulation was the second independent blocker —
+// iPhone 13 and Pixel 7 (Android Chrome UA) were both blocked in a visible
+// window, so which phone this claimed to be was never the issue; emulating
+// a phone at all was. Jesse ruled tier 2 runs as a visible desktop Chrome
+// — desktop viewport, Chrome's own UA, no device emulation — accepting
+// that it no longer exercises the phone-shaped path. Tier 1's
+// webkit-mobile pass still covers the mobile UI structurally; it just
+// never makes a live model turn. See the ADR for the full finding.
 import { chromium } from "@playwright/test";
-import { mobileDevice } from "./playwright.config.mjs";
+import { desktopViewport } from "./playwright.config.mjs";
 import { blockUsageEvents } from "./lib/browser.mjs";
 import { gotoConversation, runTurn } from "./lib/conversation.mjs";
 import { installTurnBudgetGuard } from "./lib/budget-guard.mjs";
@@ -74,7 +84,17 @@ async function launchRealChrome({ headed }) {
 // creates its own cap.
 async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
   const browser = await launchRealChrome({ headed });
-  const context = await browser.newContext({ ...mobileDevice });
+  // Desktop viewport, Chrome's own identity, no device emulation (2026-08-08
+  // ADR amendment, Decision 4). A controlled experiment found phone
+  // emulation — iPhone 13 (WebKit UA via Playwright's device descriptor) and
+  // Pixel 7 (Android Chrome UA) alike — was blocked every time in a visible
+  // window, while plain desktop Chrome passed. Which phone it claimed to be
+  // did not matter; emulating a phone AT ALL was the second independent
+  // blocker alongside headless. This means tier 2 no longer exercises the
+  // phone-shaped path — tier 1's webkit-mobile pass still covers the mobile
+  // UI structurally, but never a live model turn. See the ADR for the full
+  // finding and Jesse's ruling accepting that trade-off.
+  const context = await browser.newContext({ viewport: desktopViewport });
   await blockUsageEvents(context);
   installTurnBudgetGuard(context, HARD_TURN_CAP, budget);
 
