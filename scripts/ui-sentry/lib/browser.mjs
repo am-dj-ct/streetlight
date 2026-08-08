@@ -65,7 +65,22 @@ export async function launchPage({ browserType, contextOptions = {}, browser }) 
       watch.consoleErrors.push(msg.text().slice(0, 200));
     }
   });
-  page.on("pageerror", (err) => watch.pageErrors.push(String(err).slice(0, 200)));
+  page.on("pageerror", (err) => {
+    const text = String(err).slice(0, 200);
+    // Known WebKit/Next.js App Router noise: Next speculatively prefetches
+    // same-origin routes for any <Link> that scrolls into view (an RSC
+    // payload fetch with a `_rsc=` query param). WebKit surfaces a failed
+    // background prefetch as an uncaught "access control checks" pageerror;
+    // Chromium does not. Confirmed empirically against production: the
+    // actual navigation and page content are unaffected either way (this is
+    // background prefetch, not the real request), so this one specific
+    // pattern is not treated as a structural failure. Everything else a
+    // page throws still is.
+    if (/Fetch API cannot load.*_rsc=.*access control checks/.test(text)) {
+      return;
+    }
+    watch.pageErrors.push(text);
+  });
   page.on("dialog", async (dialog) => {
     watch.dialogs.push(dialog.type());
     await dialog.dismiss().catch(() => {});
@@ -96,7 +111,9 @@ export async function readPerf(page) {
 
 export function watchProblems(watch) {
   const problems = [];
-  if (watch.pageErrors.length) problems.push(`pageErrors:${watch.pageErrors.length}`);
+  if (watch.pageErrors.length) {
+    problems.push(`pageErrors(${watch.pageErrors.length}):${watch.pageErrors.slice(0, 2).join(" | ")}`);
+  }
   if (watch.dialogs.length) problems.push(`unexpectedDialogs:${watch.dialogs.length}`);
   if (watch.failedApiResponses.length) {
     problems.push(`apiFailures:${watch.failedApiResponses.join(",")}`);

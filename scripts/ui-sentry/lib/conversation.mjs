@@ -9,14 +9,25 @@ import { fetchHealthz, healthzLooksOk } from "./healthz.mjs";
 
 const SEND_FAILURE_NOTICE_TEXT = "The response did not come through. Please try again.";
 
+// Lets React finish hydrating before typing. On a fresh hard navigation OR
+// a client-side Link click into the conversation page, keystrokes
+// dispatched before hydration completes get dropped after the first few
+// characters (confirmed empirically against production WebKit — this is
+// exactly the race tmp/stress-test/lib.cjs's gotoConversation comment
+// warns about). A real user reaches the composer well after this; the
+// wait keeps programmatic typing realistic rather than racing hydration.
+export async function settleAfterConversationLoad(page) {
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await page.waitForTimeout(350);
+}
+
 export async function gotoConversation(page, baseUrl, entryId, lang = "en") {
   await page.goto(new URL(`/conversation/${entryId}?lang=${lang}`, baseUrl).toString(), {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
   await page.waitForSelector("#conversation-input", { timeout: 15_000 });
-  await page.waitForLoadState("networkidle").catch(() => {});
-  await page.waitForTimeout(350);
+  await settleAfterConversationLoad(page);
 }
 
 export async function messageCounts(page) {
