@@ -1,8 +1,8 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-07-12
-**Last meaningful change:** 2026-07-12 (allows an operator-owned local dashboard to poll the public `/healthz` contract and GitHub workflow metadata while storing only fixed, content-free health status; no third-party observability or user-content access added)
-**Next scheduled review:** 2026-08-07 (quarterly)
+**Last reviewed:** 2026-08-07
+**Last meaningful change:** 2026-08-07 (named exception permitting the scheduled UI sentry, `com.streetlight.ui-sentry`, to call `/api/chat` with synthetic content on a capped, content-free basis — see `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
+**Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
 
@@ -1082,7 +1082,7 @@ This tool is built and run by one person in Seattle. It's free. It's not a compa
 What is not in this architecture and why. Each entry is a "we don't do this and here's why" statement. A future Claude Code session, a future operator, or a future contributor must actively contradict the listed reasoning to add the missing piece.
 
 - **No backups.** Nothing is stored that could be backed up. No database, no user content, no per-user state.
-- **No third-party monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom, or similar vendor. An operator-owned dashboard on the operator's own machine may poll the public `/healthz` contract and GitHub workflow metadata, then store only a fixed green/yellow/red result, fixed summary, source label, and timestamps. It must not call chat, TTS, usage, or other user-connected routes; retain response bodies; log configuration fields or workflow output; introduce a new vendor; or create user-level telemetry. Human review remains the response path.
+- **No third-party monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom, or similar vendor. An operator-owned dashboard on the operator's own machine may poll the public `/healthz` contract and GitHub workflow metadata, then store only a fixed green/yellow/red result, fixed summary, source label, and timestamps. It must not call chat, TTS, usage, or other user-connected routes; retain response bodies; log configuration fields or workflow output; introduce a new vendor; or create user-level telemetry. Human review remains the response path. **Named exception (`docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`):** the scheduled UI sentry (`com.streetlight.ui-sentry`, `scripts/ui-sentry/`), running on the operator's own machine, Mon/Wed/Fri, may additionally load the real public pages (`/`, `/conversation/[entryId]`, `/find-human`, `/report-problem`, `/about`, `/privacy`) in a real browser and call `/api/chat` with synthetic fixture content, capped at 8 live turns per run enforced at the request boundary. It must report content-free (case names, HTTP statuses, latencies, durations, log path — never typed prompts or model replies) and introduces no new vendor (Resend, already in use). This exception is scoped to that one named job; it is not general permission for local monitoring to call chat routes.
 - **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count client-confirmed homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, and aggregate unique reach without raw IPs, paths, user agents, cookies, content, or per-person timelines.
 - **No A/B testing or experimentation framework.** One version ships. Improvements deploy for everyone after partner review.
 - **No accounts, no login, no email, no phone collection.** No user table, no session table, no auth code. Adding any is a fundamental shift.
@@ -1254,6 +1254,13 @@ One-line summary of every decision in this document, dated for traceability.
 - Attachments go to Anthropic only. The OpenAI outage fallback stays text-only; attachment blocks are replaced with a fixed placeholder. Classifier and suggestion passes stay text-only and never see attachments; an image-only turn classifies from a fixed placeholder plus the assistant's text response, so the weak-category note still works for photographed documents.
 - Metadata allowlist unchanged — not even an attachment count is logged. ESLint no-content-logging denylist extended with upload-shaped variable names.
 - Full rationale and rejected alternatives in `docs/decisions/2026-07-26-inline-file-upload-v1.md`.
+
+**2026-08-07 — scheduled UI sentry, narrow live-chat monitoring exception:**
+
+- A `launchd` job on the operator's own machine (`com.streetlight.ui-sentry`, `scripts/ui-sentry/`) drives production in a real browser Mon/Wed/Fri and, as a named exception to the operator-monitoring boundary above, may additionally call `/api/chat` with synthetic fixture content — capped at 8 live turns per run, enforced at the request boundary, ≤3 runs/week.
+- Reporting stays content-free: the emailed report and `last-run.json` contain only case names, HTTP statuses, latencies, durations, and the on-disk log path — never typed prompts or model replies.
+- No new vendor (Resend, already in use for the resource-review and usage-digest emails). No self-heal or auto-remediation triggered by a failure.
+- Full rationale, the precise allowlist, and the honest dead-man-detection gap this leaves in `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
 
 ---
 

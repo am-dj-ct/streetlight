@@ -54,3 +54,7 @@ scripts/prod-validation/shots
 scripts/prod-validation/package-lock.json
 scripts/prod-validation/validate-results.json
 scripts/prod-validation/evil
+
+# ui-sentry local artifacts (state root is ~/.streetlight/ui-sentry/, never
+# in-repo; this is only the standalone package's own node_modules)
+scripts/ui-sentry/node_modules

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.streetlight.ui-sentry</string>
+
+	<!-- Stable absolute path in the main checkout — nothing else here is
+	     hardcoded. Post-merge commissioning runs from this exact path,
+	     never from a worktree. -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/alexmercer/streetlight/scripts/ui-sentry/run-ui-sentry.sh</string>
+		<string>--live</string>
+	</array>
+
+	<!-- Mon/Wed/Fri 07:23 local — an odd minute, house convention to avoid
+	     collisions with the :07/:17/:41 jobs. Weekday: 1=Mon, 3=Wed, 5=Fri. -->
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Weekday</key><integer>1</integer>
+			<key>Hour</key><integer>7</integer>
+			<key>Minute</key><integer>23</integer>
+		</dict>
+		<dict>
+			<key>Weekday</key><integer>3</integer>
+			<key>Hour</key><integer>7</integer>
+			<key>Minute</key><integer>23</integer>
+		</dict>
+		<dict>
+			<key>Weekday</key><integer>5</integer>
+			<key>Hour</key><integer>7</integer>
+			<key>Minute</key><integer>23</integer>
+		</dict>
+	</array>
+
+	<!-- No KeepAlive, no internal restart loop: the wrapper runs once per
+	     scheduled fire. A missed fire (Mac asleep/off at 07:23) is simply
+	     skipped — launchd does not queue or catch up missed
+	     StartCalendarInterval fires by default, and this job does not ask
+	     it to. The next scheduled day's run is the recovery path; the
+	     absence of an expected email is itself the dead-man signal
+	     (spec — and see the ADR's honest limitation, R12). -->
+	<key>RunAtLoad</key>
+	<false/>
+
+	<!-- launchd's default minimal PATH for a GUI agent
+	     (/usr/bin:/bin:/usr/sbin:/sbin) does not include Homebrew, where both
+	     `doppler` and `node` live on this Mac (/opt/homebrew/bin). The script
+	     is invoked directly, non-login, so nothing sources .zprofile/.zshrc to
+	     add it back. Same pattern as the sibling
+	     ~/Library/LaunchAgents/com.callertrack.ui-health.plist. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.err.log</string>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/alexmercer/streetlight/scripts/ui-sentry</string>
+
+	<key>ProcessType</key>
+	<string>Background</string>
+</dict>
+</plist>
