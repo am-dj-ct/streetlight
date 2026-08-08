@@ -17,7 +17,16 @@ import { runTier2 } from "./tier2.mjs";
 
 const BASE_URL = process.env.UI_SENTRY_BASE_URL ?? "https://streetlight.help";
 const REPORT_FROM = process.env.RESOURCE_REVIEW_EMAIL_FROM ?? "Streetlight UI Sentry <onboarding@resend.dev>";
-const REPORT_TO = process.env.RESOURCE_REVIEW_EMAIL_TO ?? "alexmercer.0x@gmail.com";
+// The shared agent-secrets RESEND_API_KEY's Resend account has no verified
+// domain (only balancedlivingtherapy.com, status "not_started" — a BLT
+// domain, not appropriate for this public-good project's FROM address
+// anyway) so the sandbox onboarding@resend.dev sender is in play, which
+// Resend restricts to delivering only to the account's own registered
+// address. Confirmed empirically (403 "You can only send testing emails to
+// your own email address (jesse.c.dunn@outlook.com)") — that address is
+// the only one this API key can actually deliver to today. Flagged as an
+// open question in the PR body; not a default to keep assuming silently.
+const REPORT_TO = process.env.RESOURCE_REVIEW_EMAIL_TO ?? "jesse.c.dunn@outlook.com";
 // send-resend-email.mjs reads these exact env names (R14: FROM/TO exported
 // inside the doppler-wrapped child).
 process.env.RESOURCE_REVIEW_EMAIL_FROM = REPORT_FROM;
