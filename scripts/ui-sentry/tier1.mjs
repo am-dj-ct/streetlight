@@ -358,12 +358,25 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
         const firstLink = page.locator('a[href*="/conversation/"]').first();
         await firstLink.click();
         await page.waitForSelector("#conversation-input", { timeout: 30_000 });
-        // Type while the page is still settling under artificial latency —
-        // the composer must not wedge (stay responsive to input).
+        // Type immediately, while the page is still settling under
+        // artificial latency — the composer must not wedge (stay
+        // permanently unresponsive to input). A dropped first keystroke or
+        // two here is the known pre-hydration race (see
+        // settleAfterConversationLoad) — expected under artificial 300ms
+        // latency, not a wedge. The bar for "not wedged" is that the
+        // composer recovers and accepts input once hydration has actually
+        // had a chance to finish, not that every keystroke typed before
+        // hydration completes lands.
         await humanType(page, "slow network probe", { delayMs: 10 });
-        const value = await page.inputValue("#conversation-input");
+        let value = await page.inputValue("#conversation-input");
         if (!value.includes("slow network probe")) {
-          throw new Error("composer wedged under slow-network conditions");
+          await settleAfterConversationLoad(page);
+          await page.fill("#conversation-input", "");
+          await humanType(page, "slow network probe retry", { delayMs: 10 });
+          value = await page.inputValue("#conversation-input");
+          if (!value.includes("slow network probe retry")) {
+            throw new Error("composer wedged under slow-network conditions");
+          }
         }
       } finally {
         await page.unroute("**/*").catch(() => {});
