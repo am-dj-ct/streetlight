@@ -16,15 +16,20 @@
 # nothing that could itself become a second place logic lives.
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
+
 # R8: runs under /usr/bin/caffeinate -i so a live-model turn never gets cut
 # off by the Mac sleeping mid-run. Re-exec once under caffeinate, guarded by
-# an env marker so this can't recurse.
+# an env marker so this can't recurse. Must re-exec with the resolved
+# ABSOLUTE path — caffeinate execs its argument via a bare PATH lookup, and
+# a relative "$0" like "run-ui-sentry.sh" (no "/" in it) is not found on
+# PATH even though the shell itself was happily invoked with it.
 if [ "${UI_SENTRY_CAFFEINATED:-0}" != "1" ] && command -v caffeinate >/dev/null 2>&1; then
   export UI_SENTRY_CAFFEINATED=1
-  exec /usr/bin/caffeinate -i "$0" "$@"
+  exec /usr/bin/caffeinate -i "$SCRIPT_PATH" "$@"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_ROOT="${UI_SENTRY_STATE_ROOT:-$HOME/.streetlight/ui-sentry}"
 LOCK_DIR="$STATE_ROOT/run.lock"
 
