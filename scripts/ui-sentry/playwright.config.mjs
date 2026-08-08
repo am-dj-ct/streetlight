@@ -23,7 +23,7 @@ export const mobileDevice = {
   viewport: { width: 390, height: 844 },
 };
 
-export default {
+const config = {
   testDir: "./tests",
   timeout: 60_000,
   retries: 0,
@@ -44,3 +44,5 @@ export default {
     },
   ],
 };
+
+export default config;

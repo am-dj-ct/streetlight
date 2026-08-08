@@ -56,7 +56,6 @@ export async function sendReportEmail({ subject, bodyText, timeoutMs = 15_000, m
 
   try {
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-      // eslint-disable-next-line no-await-in-loop
       const result = await runOnce(subject, tmpPath, timeoutMs);
 
       if (result.code === 0) {
