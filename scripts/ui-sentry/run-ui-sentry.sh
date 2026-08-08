@@ -51,9 +51,25 @@ fi
 # (keyed off sl-ui-sentry) is reused for both check-ins from this run.
 STREETLIGHT_SENTINEL_FALLBACK_LOG="$STATE_ROOT/sentinel-v5-fallback.log"
 export STREETLIGHT_SENTINEL_FALLBACK_LOG
+
+# The sentinel module is sourced/invoked defensively: under set -uo
+# pipefail, an unset $SENTINEL_AT/$SENTINEL_SLOT after a failed `source` or
+# a failed sentinel_capture_invocation (missing file, syntax error, node
+# missing) is a HARD abort of this entire script — which would fail the
+# real job the sentinel only exists to observe, exactly what "the producer
+# must never fail the caller" forbids. `|| true` on both calls plus the
+# `:=` defaults below guarantee SENTINEL_AT/SENTINEL_SLOT are always a
+# non-empty string before anything downstream reads them, no matter how the
+# sentinel module itself fails. If sentinel_checkin/sentinel_emit_item_*
+# below end up undefined because sourcing failed, calling them is a
+# "command not found" (exit 127) under set -u/pipefail without set -e —
+# logged, not fatal — so a fully broken sentinel module degrades to zero
+# check-ins this run, never to a failed job.
 # shellcheck source=./sentinel-v5/checkin-lib.sh
-. "$SCRIPT_DIR/../sentinel-v5/checkin-lib.sh"
-sentinel_capture_invocation sl-ui-sentry
+. "$SCRIPT_DIR/../sentinel-v5/checkin-lib.sh" || true
+sentinel_capture_invocation sl-ui-sentry || true
+: "${SENTINEL_AT:=$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+: "${SENTINEL_SLOT:=$SENTINEL_AT}"
 UI_SENTRY_SENTINEL_AT="$SENTINEL_AT"
 UI_SENTRY_SENTINEL_SLOT="$SENTINEL_SLOT"
 
@@ -64,9 +80,9 @@ UI_SENTRY_SENTINEL_SLOT="$SENTINEL_SLOT"
 sentinel_emit_item_a() {
   local exit_code="$1"
   if [ "$exit_code" = "0" ]; then
-    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT"
+    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
   else
-    sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT"
+    sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
   fi
 }
 
@@ -129,6 +145,19 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
   # missing here, so this email attempt will normally fail closed — that's
   # expected, not a bug in this fallback. The nonzero exit below is what
   # actually surfaces the failure (launchd's stderr log).
+  # Item B must be computed and emitted BEFORE the fallback state write
+  # below, not after: that write unconditionally sets
+  # lastSuccessfulLiveChatAt: null (it has no way to know the real value —
+  # this fires before node/doppler are even known to work), which is a
+  # correct "we don't know" for the FILE, but would be a false, incorrectly
+  # RED report for item B if a real, recent live-chat success happened on a
+  # prior run. Reading last-run.json here, before it gets overwritten,
+  # means item B reflects the real prior evidence — item A still reports
+  # red/job_failed for this invocation regardless, since the sentry itself
+  # did not run.
+  sentinel_emit_item_a 5
+  sentinel_emit_item_b
+
   state_tmp="$STATE_ROOT/.last-run.json.tmp-$$"
   cat > "$state_tmp" <<STATE_JSON
 {
@@ -150,13 +179,6 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
 }
 STATE_JSON
   mv "$state_tmp" "$STATE_ROOT/last-run.json"
-
-  # This invocation reached the job body (past the mode check) but failed
-  # before the orchestrator could ever run, so both check-ins fire red here:
-  # item A because the sentry did not actually run, item B because the
-  # minimal state file above just wrote lastSuccessfulLiveChatAt: null.
-  sentinel_emit_item_a 5
-  sentinel_emit_item_b
 
   if command -v curl >/dev/null 2>&1 && [ -n "${RESEND_API_KEY:-}" ] && [ -n "${RESOURCE_REVIEW_EMAIL_TO:-}" ]; then
     curl -s -o /dev/null --max-time 15 -X POST "https://api.resend.com/emails" \

@@ -8,6 +8,7 @@
     "dev:live": "node scripts/run-with-env.mjs DEV_MOCK_CHAT=false -- next dev",
     "build": "next build",
     "start": "next start",
+    "test:sentinel-v5": "node --test scripts/sentinel-v5/*.test.mjs",
     "lint": "eslint",
     "check:audit": "npm audit",
     "check:locales": "node scripts/report-missing-locales.mjs",
