@@ -162,3 +162,74 @@ the allowlisted `last-run.json` schema below — no new field carries content.
 - Any expansion beyond the exact scope above — more pages, a higher turn
   budget, a different cadence, any content in the report — requires another
   dated ADR, the same discipline the 2026-07-12 ADR established.
+
+## Amendment (2026-08-08): the tier 2 live-chat check never passed, one flag plus one retry
+
+Since this sentry went live, tier 2 (the live-chat turn, tested against
+production `streetlight.help`) had never once passed — every automated
+attempt came back Turnstile-blocked, the "known, standing condition"
+described above. A controlled experiment on 2026-08-08 isolated why and
+what, if anything, is safe to do about it.
+
+**What the experiment found.** A persistent browser profile and a
+"warmed" profile (aged cookies/storage, prior real navigation history) did
+**nothing** — both were blocked identically to a bare control. The
+blocker is not fingerprint novelty or a cold profile; it is the
+automation tell itself. Launching Chromium with
+`--disable-blink-features=AutomationControlled` on an otherwise plain,
+throwaway profile passed: a Turnstile token minted in ~4s, `/api/chat`
+returned 200, a real model reply came back. Four further cold repeat runs
+with the same flag gave 3 passes and 1 block — the flag works but is
+**not deterministic**.
+
+**Decision 1 — adopt exactly one flag, with a hard no-escalation rule.**
+`scripts/ui-sentry/tier2.mjs` now launches both the real-Chrome path and
+the bundled-Chromium fallback with `--disable-blink-features=AutomationControlled`
+and nothing else. Jesse's ruling, verbatim in intent: no stealth
+libraries, no fingerprint spoofing, no CAPTCHA-solving services. This
+sentry is a client of Turnstile, the same as any browser — it does not
+get to out-engineer the abuse control it is here to verify still works.
+If Cloudflare tightens automation detection further and this flag stops
+being enough, the sentry reports **DEGRADED** honestly, the same
+blocked/fail verdict machinery this ADR already describes — it does not
+grow a second, more aggressive flag to compensate. That ceiling is
+enforced by review discipline, not by code; a future session tempted to
+"improve" this into stealth tooling should read this paragraph first.
+
+**Decision 2 — one retry, only when the first attempt was fully
+blocked.** One attempt in four still comes back blocked even with the
+flag, and a single-attempt check would flap between `pass` and
+`DEGRADED` on pure Turnstile luck, not on anything actually wrong with
+the site. Jesse approved a second, complete attempt (fresh browser, fresh
+context) before tier 2 calls itself degraded. This is affordable
+specifically because a fully-blocked attempt never receives a Turnstile
+token, and without a token the page never makes a single `/api/chat`
+POST — a blocked attempt costs zero model spend, so retrying it costs
+nothing extra. The retry is narrow on purpose: it fires only when the
+first attempt's own three-state verdict is `blocked` (every turn
+client-withheld). A `fail` verdict is never retried — `fail` can mean
+turns that already reached `/api/chat` and spent real money, and
+re-running a run that already spent would be exactly the kind of money
+trap this sentry's every other design choice has avoided. The existing
+three-state verdict and its "mixed pass/blocked = fail" rule are
+unchanged; the retry sits outside that logic, deciding only whether to
+run it a second time, never how a single attempt is scored.
+
+**The turn cap is shared, not doubled.** `installTurnBudgetGuard` now
+takes an optional shared budget object; `tier2.mjs` creates one budget
+per run and passes the same object into both attempts' guards, so the
+request-boundary cap (R17) accumulates across attempts instead of
+resetting. Worst case after this change is unchanged from before it:
+**8 `/api/chat` POSTs allowed through per run**, no matter how the 8 are
+split between a blocked-then-retried first attempt and a second one, with
+every request past the cap aborted before it reaches the network exactly
+as today. The per-run cap in the "What this sentry is allowed to do,
+precisely" section above, and in `docs/data_architecture.md`'s Deliberate
+Absences entry for this sentry, still reads correctly as written — this
+amendment does not raise it.
+
+**Consequence:** tier 2 now has a realistic chance of actually passing
+against production, which the original design did not, while the
+no-escalation rule and the shared, unraised turn cap mean this is a
+resilience fix, not a bigger foothold against the site's own abuse
+controls.
