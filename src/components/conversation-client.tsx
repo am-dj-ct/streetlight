@@ -2415,6 +2415,7 @@ export function ConversationClient({
                 >
                   <div className="min-w-0 max-w-[88%] sm:max-w-[78%] lg:max-w-[72%]">
                     <article
+                      data-message-role={message.role}
                       ref={(element) => {
                         if (!isAssistant) {
                           return;

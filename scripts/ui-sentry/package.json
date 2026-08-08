@@ -1,0 +1,14 @@
+{
+  "name": "streetlight-ui-sentry",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Standalone scheduled UI sentry that drives production streetlight.help in a real browser and emails a content-free pass/fail report. Not part of the app build (same pattern as scripts/prod-validation).",
+  "scripts": {
+    "sentry": "node orchestrator.mjs"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.62.1"
+  }
+}

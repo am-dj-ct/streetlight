@@ -50,6 +50,17 @@ and produce a dated ADR in `docs/decisions/` justifying the change.
 - **No automated harm-detection systems.** No anomaly detection on content,
   no sentiment classifiers, no automated red-flagging beyond the
   weak-category classifier explicitly defined in the spec.
+- **No third-party monitoring or alerting vendor, and no local monitor
+  calling chat, TTS, usage, or other user-connected routes**, beyond two
+  narrow, dated exceptions in `docs/data_architecture.md`'s Deliberate
+  Absences: (1) an operator-owned local dashboard may poll `/healthz` and
+  GitHub workflow metadata only (`docs/decisions/2026-07-12-operator-owned-local-health-polling.md`);
+  (2) the scheduled UI sentry (`com.streetlight.ui-sentry`,
+  `scripts/ui-sentry/`) may additionally call `/api/chat` with synthetic
+  content, capped and content-free
+  (`docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`).
+  Neither exception authorizes a hosted vendor, content retention, or any
+  other local tool calling chat routes without its own dated ADR.
 - **No cookies, no localStorage tracking, no fingerprinting.** Browser-side
   storage is limited to user-created saves and small local UI preferences
   (voice choice, speech speed, and whether the save warning was already
