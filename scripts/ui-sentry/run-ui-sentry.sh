@@ -39,6 +39,68 @@ if [ "$mode" != "--live" ]; then
   exit 2
 fi
 
+# Sentinel-v5 check-in wiring (shadow phase — see
+# docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md and
+# config/sentinel-v5-registry-fragment.streetlight.json). This emits BOTH
+# items every real invocation, alongside the existing per-run email — it is
+# additive wiring, not a replacement for that email or for
+# ~/caller-track-pager's checkUiSentry(). `at`/`slot` are captured TOGETHER
+# right here, before any of the job body (PATH preflight, lock, tests) runs,
+# per spec v5.9 §3.2 — never recomputed at completion. Both items share the
+# exact same schedule (23 7 * * 1,3,5 America/Los_Angeles), so one capture
+# (keyed off sl-ui-sentry) is reused for both check-ins from this run.
+STREETLIGHT_SENTINEL_FALLBACK_LOG="$STATE_ROOT/sentinel-v5-fallback.log"
+export STREETLIGHT_SENTINEL_FALLBACK_LOG
+# shellcheck source=./sentinel-v5/checkin-lib.sh
+. "$SCRIPT_DIR/../sentinel-v5/checkin-lib.sh"
+sentinel_capture_invocation sl-ui-sentry
+UI_SENTRY_SENTINEL_AT="$SENTINEL_AT"
+UI_SENTRY_SENTINEL_SLOT="$SENTINEL_SLOT"
+
+# sentinel_emit_item_a <exit_code> — "the sentry ran": green/red from the
+# job's own exit code (spec v5.9 fragment item A). Producer failures are
+# already swallowed inside sentinel_checkin (log + return 0); this never
+# affects this wrapper's own exit code.
+sentinel_emit_item_a() {
+  local exit_code="$1"
+  if [ "$exit_code" = "0" ]; then
+    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT"
+  else
+    sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT"
+  fi
+}
+
+# sentinel_emit_item_b — "live chat has succeeded recently": status comes
+# ONLY from the age of lastSuccessfulLiveChatAt in last-run.json, NEVER from
+# this run's exit code (fragment item B; expected RED on day one and
+# continuously until Turnstile is solved — that is the point, not a bug).
+# Threshold N = 10 days. Reads whatever last-run.json currently holds,
+# including a previous run's value on a code path (e.g. node_modules
+# missing) where this invocation never got to run the orchestrator.
+SENTINEL_LIVE_CHAT_THRESHOLD_DAYS=10
+sentinel_emit_item_b() {
+  local state_file="$STATE_ROOT/last-run.json"
+  local last_success status reason
+  last_success=""
+  if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
+    last_success="$(jq -r '.lastSuccessfulLiveChatAt // empty' "$state_file" 2>/dev/null || true)"
+  fi
+  if [ -z "$last_success" ]; then
+    status="red"; reason="degraded"
+  elif node -e '
+      const last = new Date(process.argv[1]).getTime();
+      const now = new Date(process.argv[2]).getTime();
+      const thresholdMs = Number(process.argv[3]) * 86400000;
+      if (!Number.isFinite(last) || !Number.isFinite(now)) process.exit(1);
+      process.exit((now - last) <= thresholdMs ? 0 : 1);
+    ' "$last_success" "$UI_SENTRY_SENTINEL_AT" "$SENTINEL_LIVE_CHAT_THRESHOLD_DAYS" 2>/dev/null; then
+    status="green"; reason="ok"
+  else
+    status="red"; reason="degraded"
+  fi
+  sentinel_checkin sl-ui-sentry-live-chat "$status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT"
+}
+
 mkdir -p "$STATE_ROOT/logs"
 
 # PATH preflight. launchd's default minimal PATH for a GUI agent
@@ -89,6 +151,13 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
 STATE_JSON
   mv "$state_tmp" "$STATE_ROOT/last-run.json"
 
+  # This invocation reached the job body (past the mode check) but failed
+  # before the orchestrator could ever run, so both check-ins fire red here:
+  # item A because the sentry did not actually run, item B because the
+  # minimal state file above just wrote lastSuccessfulLiveChatAt: null.
+  sentinel_emit_item_a 5
+  sentinel_emit_item_b
+
   if command -v curl >/dev/null 2>&1 && [ -n "${RESEND_API_KEY:-}" ] && [ -n "${RESOURCE_REVIEW_EMAIL_TO:-}" ]; then
     curl -s -o /dev/null --max-time 15 -X POST "https://api.resend.com/emails" \
       -H "Authorization: Bearer $RESEND_API_KEY" \
@@ -125,6 +194,11 @@ cd "$SCRIPT_DIR"
 
 if [ ! -d node_modules ]; then
   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ui-sentry: node_modules missing — run install.sh first (never installed at scheduled-run time, R11)" >&2
+  # The orchestrator never ran this invocation, so last-run.json (if any)
+  # still reflects a prior run's lastSuccessfulLiveChatAt — item B reads
+  # whatever is actually there rather than assuming null.
+  sentinel_emit_item_a 4
+  sentinel_emit_item_b
   exit 4
 fi
 
@@ -135,4 +209,14 @@ export PLAYWRIGHT_BROWSERS_PATH=0
 
 # One doppler-wrapped call runs tests AND sends the email (R14).
 doppler run --project agent-secrets --config dev -- node orchestrator.mjs
-exit $?
+ui_sentry_exit_code=$?
+
+# Both check-ins fire after the orchestrator's own finalizer has already
+# written last-run.json (R13's one-finalizer-path), so item B reads this
+# run's real lastSuccessfulLiveChatAt, not a stale value. This wrapper's own
+# exit code is unaffected either way (sentinel_checkin never fails the
+# caller).
+sentinel_emit_item_a "$ui_sentry_exit_code"
+sentinel_emit_item_b
+
+exit "$ui_sentry_exit_code"
