@@ -5,9 +5,16 @@
 // unbounded live spend. Manual runs share the same cap (spec: "manual runs
 // use the same caps") because this guard is installed by the orchestrator
 // regardless of how the run was invoked.
-export function installTurnBudgetGuard(context, cap) {
-  const budget = { used: 0, cap, aborted: 0 };
-
+//
+// tier2.mjs's Turnstile retry (docs/decisions/2026-08-07-...-live-chat-check.md
+// amendment) can install this guard twice in one run — once per attempt,
+// each with its own browser/context — and the two attempts MUST NOT get
+// separate caps, or a blocked-then-retried run could spend up to 2x the
+// budget. Pass the same `budget` object into both calls so the counter (and
+// therefore the cap) is shared across attempts; a fresh object is created
+// only when the caller omits one, which keeps every other, single-attempt
+// caller of this function working unchanged.
+export function installTurnBudgetGuard(context, cap, budget = { used: 0, cap, aborted: 0 }) {
   context.route("**/api/chat", async (route, request) => {
     // A route handler throwing becomes an unhandledRejection at the
     // process level, detached from any case-level try/catch — never let

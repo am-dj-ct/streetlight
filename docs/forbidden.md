@@ -61,6 +61,15 @@ and produce a dated ADR in `docs/decisions/` justifying the change.
   (`docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`).
   Neither exception authorizes a hosted vendor, content retention, or any
   other local tool calling chat routes without its own dated ADR.
+- **No stealth automation tooling, fingerprint spoofing, or CAPTCHA-solving
+  services in the scheduled UI sentry, ever.** The sentry's tier 2 check is
+  a client of Cloudflare Turnstile like any other browser; it does not get
+  to out-engineer the abuse control it exists to verify. One narrow launch
+  flag (`--disable-blink-features=AutomationControlled`) is adopted, and
+  nothing beyond it — if Cloudflare tightens automation detection further,
+  the sentry reports `DEGRADED` honestly instead of escalating
+  (`docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`,
+  2026-08-08 amendment).
 - **No cookies, no localStorage tracking, no fingerprinting.** Browser-side
   storage is limited to user-created saves and small local UI preferences
   (voice choice, speech speed, and whether the save warning was already

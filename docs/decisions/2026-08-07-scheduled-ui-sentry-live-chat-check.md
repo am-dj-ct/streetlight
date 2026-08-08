@@ -162,3 +162,184 @@ the allowlisted `last-run.json` schema below — no new field carries content.
 - Any expansion beyond the exact scope above — more pages, a higher turn
   budget, a different cadence, any content in the report — requires another
   dated ADR, the same discipline the 2026-07-12 ADR established.
+
+## Amendment (2026-08-08): the tier 2 live-chat check never passed, one flag plus one retry
+
+Since this sentry went live, tier 2 (the live-chat turn, tested against
+production `streetlight.help`) had never once passed — every automated
+attempt came back Turnstile-blocked, the "known, standing condition"
+described above. A controlled experiment on 2026-08-08 isolated why and
+what, if anything, is safe to do about it.
+
+**What the experiment found.** A persistent browser profile and a
+"warmed" profile (aged cookies/storage, prior real navigation history) did
+**nothing** — both were blocked identically to a bare control. The
+blocker is not fingerprint novelty or a cold profile; it is the
+automation tell itself. Launching Chromium with
+`--disable-blink-features=AutomationControlled` on an otherwise plain,
+throwaway profile passed: a Turnstile token minted in ~4s, `/api/chat`
+returned 200, a real model reply came back. Four further cold repeat runs
+with the same flag gave 3 passes and 1 block — the flag works but is
+**not deterministic**.
+
+**Decision 1 — adopt exactly one flag, with a hard no-escalation rule.**
+`scripts/ui-sentry/tier2.mjs` now launches both the real-Chrome path and
+the bundled-Chromium fallback with `--disable-blink-features=AutomationControlled`
+and nothing else. Jesse's ruling, verbatim in intent: no stealth
+libraries, no fingerprint spoofing, no CAPTCHA-solving services. This
+sentry is a client of Turnstile, the same as any browser — it does not
+get to out-engineer the abuse control it is here to verify still works.
+If Cloudflare tightens automation detection further and this flag stops
+being enough, the sentry reports **DEGRADED** honestly, the same
+blocked/fail verdict machinery this ADR already describes — it does not
+grow a second, more aggressive flag to compensate. That ceiling is
+enforced by review discipline, not by code; a future session tempted to
+"improve" this into stealth tooling should read this paragraph first.
+
+**Decision 2 — one retry, only when the first attempt was fully
+blocked.** One attempt in four still comes back blocked even with the
+flag, and a single-attempt check would flap between `pass` and
+`DEGRADED` on pure Turnstile luck, not on anything actually wrong with
+the site. Jesse approved a second, complete attempt (fresh browser, fresh
+context) before tier 2 calls itself degraded. This is affordable
+specifically because a fully-blocked attempt never receives a Turnstile
+token, and without a token the page never makes a single `/api/chat`
+POST — a blocked attempt costs zero model spend, so retrying it costs
+nothing extra. The retry is narrow on purpose: it fires only when the
+first attempt's own three-state verdict is `blocked` (every turn
+client-withheld). A `fail` verdict is never retried — `fail` can mean
+turns that already reached `/api/chat` and spent real money, and
+re-running a run that already spent would be exactly the kind of money
+trap this sentry's every other design choice has avoided. The existing
+three-state verdict and its "mixed pass/blocked = fail" rule are
+unchanged; the retry sits outside that logic, deciding only whether to
+run it a second time, never how a single attempt is scored.
+
+**The turn cap is shared, not doubled.** `installTurnBudgetGuard` now
+takes an optional shared budget object; `tier2.mjs` creates one budget
+per run and passes the same object into both attempts' guards, so the
+request-boundary cap (R17) accumulates across attempts instead of
+resetting. Worst case after this change is unchanged from before it:
+**8 `/api/chat` POSTs allowed through per run**, no matter how the 8 are
+split between a blocked-then-retried first attempt and a second one, with
+every request past the cap aborted before it reaches the network exactly
+as today. The per-run cap in the "What this sentry is allowed to do,
+precisely" section above, and in `docs/data_architecture.md`'s Deliberate
+Absences entry for this sentry, still reads correctly as written — this
+amendment does not raise it.
+
+**Consequence:** tier 2 now has a realistic chance of actually passing
+against production, which the original design did not, while the
+no-escalation rule and the shared, unraised turn cap mean this is a
+resilience fix, not a bigger foothold against the site's own abuse
+controls.
+
+## Amendment (2026-08-08, same day): the flag alone does not survive headless — tier 2 now opens a visible browser window
+
+The flag adopted above was proven in a **visible** browser window
+(`headless: false`): 4 cold starts, 3 passed. A follow-up measurement,
+same day, isolated whether that result holds headless, which is how the
+scheduled sentry had been running. It does not:
+
+- Visible window + flag: 4 cold starts → **3 passed**.
+- Headless + flag: 4 cold starts → **0 passed** (2 of these were this
+  sentry's own production runs, already reported as blocked; 2 were
+  isolation runs against the same flag with nothing else changed).
+
+Four straight blocks in a row would be roughly a 0.4% event if headless
+behaved like the visible-window baseline above — it does not, so headless
+itself, not bad luck, is the reason tier 2 has never once passed against
+production. The automation tell the flag addresses is apparently detected
+differently (or additionally) when Chrome has no visible window at all.
+
+**Decision 3 — run tier 2 in a visible browser window, not headless.**
+Jesse authorized a real, visible Chrome window opening on the operator's
+own Mac when the scheduled or manual `--live` sentry run reaches tier 2.
+`scripts/ui-sentry/orchestrator.mjs` now calls `runTier2` with
+`headed: true` at its one real call site, with a comment pointing back
+here; `runTier2`'s own default (`headed = false`, in
+`scripts/ui-sentry/tier2.mjs`) is unchanged, so anything else that calls
+it directly — a future test, a one-off structural check — stays headless
+unless it opts in the same explicit way. No other launch behavior
+changes: same one flag from Decision 1, same real-Chrome-with-bundled-
+Chromium-fallback launch path, same retry logic from Decision 2, same
+shared 8-turn cap.
+
+**This stays inside the no-escalation rule, not outside it.** A visible,
+real browser window is the opposite of stealth tooling — it is strictly
+*more* honest about being an automated client than headless was, not
+less. It adds no fingerprint spoofing, no CAPTCHA-solving service, no new
+launch flag beyond the one Decision 1 already adopted. If Cloudflare
+later blocks even a visible-window real Chrome, this tier reports
+**DEGRADED** through the same three-state verdict machinery already
+described above — it does not escalate to a second, more aggressive
+technique. The no-escalation language in Decision 1 is unchanged and
+still governs.
+
+**Operational note, not a new rule:** a visible browser window opening
+periodically on the operator's own Mac is expected and cosmetic —
+already true of the manual proof runs used to validate this change. It
+carries no new cap, schedule, or content change; the ≤8-turn budget and
+Mon/Wed/Fri cadence in the base decision above are unaffected.
+
+## Amendment (2026-08-08, same day): phone emulation was the second blocker — tier 2 now runs visible desktop Chrome, not a phone
+
+Decision 3 above got tier 2 passing in isolation runs, but production runs
+through this sentry's actual `orchestrator.mjs` call site kept coming back
+blocked even visible and even with the flag. A further controlled
+experiment, same recipe as before (persistent context + the
+`--disable-blink-features=AutomationControlled` flag), isolated why:
+
+- Visible window + desktop viewport + Chrome's own identity: **pass**
+  (Turnstile token in 4.5s, `/api/chat` 200).
+- Visible window + iPhone 13 emulation (WebKit UA via Playwright's device
+  descriptor): **blocked**.
+- Visible window + Pixel 7 emulation (Android Chrome UA): **blocked**.
+- Headless + flag, 4 cold starts: **0 passed** (matches the prior
+  headless finding above).
+
+The iPhone 13 and Pixel 7 results are the finding that matters: two
+different phone identities, one WebKit-flavored and one an Android Chrome
+UA, were blocked identically. **Which phone the browser claimed to be did
+not matter — emulating a phone at all was the blocker**, independent of
+and in addition to the headless blocker Decision 3 already fixed. This is
+not a user-agent string mismatch (a Chrome UA on a phone-shaped emulation
+was blocked exactly like a Safari UA was); it is device emulation itself
+that Turnstile's automation signal picks up on. Tier 2 had been running
+`browser.newContext({ ...mobileDevice })` (Playwright's iPhone 13 profile,
+the same device tier 1's webkit-mobile pass uses) since it was first
+built, which is why it kept failing even after Decisions 1–3 landed.
+
+**Decision 4 — tier 2 runs as a normal desktop Chrome, not a phone.**
+Jesse ruled: tier 2's live-chat check may run as a visible desktop Chrome
+— desktop viewport (1280x800, the same profile `desktopViewport` already
+defines for tier 1's Chromium pass), Chrome's own user agent, no device
+emulation — **accepting that it no longer exercises the phone-shaped
+path**. `scripts/ui-sentry/tier2.mjs` now opens `browser.newContext({
+viewport: desktopViewport })` instead of spreading in `mobileDevice`. This
+is the cost of the ruling, stated plainly: Streetlight is a mobile-web
+tool, and tier 2's live model turn — the one part of this sentry that
+actually types into the composer and gets a real reply — no longer runs
+in a mobile-shaped session. Tier 1's `webkit-mobile` engine still covers
+the mobile UI (page loads, composer, navigation, locale switch, in a real
+WebKit iPhone-viewport context) on every run, but tier 1 makes no
+`/api/chat` call at all and never observes a live model turn under any
+device. No check in this sentry exercises "the phone-shaped path with a
+live model reply" after this amendment; that gap is accepted, not hidden.
+
+**This stays inside the no-escalation rule.** Dropping device emulation is
+the opposite of an evasion technique — it makes this sentry look *less*
+distinctive to Turnstile, not more, and adds no new flag, library, or
+spoofing beyond what Decision 1 already adopted. If Cloudflare later
+blocks even a visible desktop Chrome, tier 2 reports **DEGRADED** through
+the same three-state verdict machinery already described above.
+
+**What is still untested and intentionally not re-derived:** whether an
+ephemeral `browser.newContext()` (tier 2's existing shape) or a persistent
+`launchPersistentContext()` with a throwaway profile is required for the
+desktop pass to hold up over repeated runs. The one real production run
+performed to validate this amendment used the simple ephemeral shape and
+passed on the first try (6/6 turns, `/api/chat` 200 each), so tier 2 keeps
+that shape rather than switching to a persistent context pre-emptively. If
+future runs show the ephemeral shape flaking the way headless did, that is
+a candidate follow-up, not assumed here.
