@@ -110,6 +110,9 @@ sentinel_emit_item_a() {
 # including a previous run's value on a code path (e.g. node_modules
 # missing) where this invocation never got to run the orchestrator.
 SENTINEL_LIVE_CHAT_THRESHOLD_DAYS=10
+# Tolerance for the future-dated guard below, in ms. NOT related to job
+# runtime — see the comment at its use for why this exists at all.
+SENTINEL_LIVE_CHAT_FUTURE_TOLERANCE_MS=300000  # 5 minutes
 sentinel_emit_item_b() {
   local state_file="$STATE_ROOT/last-run.json"
   local status reason
@@ -125,16 +128,34 @@ sentinel_emit_item_b() {
     status="red"; reason="degraded"
   elif node -e '
       const last = new Date(process.argv[1]).getTime();
-      const now = new Date(process.argv[2]).getTime();
-      const thresholdMs = Number(process.argv[3]) * 86400000;
-      if (!Number.isFinite(last) || !Number.isFinite(now)) process.exit(1);
+      const thresholdMs = Number(process.argv[2]) * 86400000;
+      const toleranceMs = Number(process.argv[3]);
+      if (!Number.isFinite(last)) process.exit(1);
+      // Freshness is judged against the REAL current time, not against
+      // $UI_SENTRY_SENTINEL_AT — that is the invocation-time timestamp,
+      // captured before the job body ran, and it MUST stay that way (it is
+      // also what gets reported as this check-ins `at`/`slot`, per spec
+      // v5.9 s3.2 — see sentinel_capture_invocations header). Using it as
+      // "now" here made ageMs negative for every genuinely fresh success,
+      // because last-run.jsons lastSuccessfulLiveChatAt is written minutes
+      // AFTER invocation once the orchestrator actually runs — so a
+      // successful run always computed a negative age and, combined with
+      // the future-dated guard below, always reported red. That was the
+      // bug: real freshness, not the guard, needed fixing.
+      const now = Date.now();
       const ageMs = now - last;
-      // A future-dated timestamp (age < 0) is garbage, not "very fresh" —
-      // require the age to be non-negative as well as under the threshold,
-      // or a bogus future value would read green for threshold-plus-however-
-      // far-ahead days.
-      process.exit((ageMs >= 0 && ageMs <= thresholdMs) ? 0 : 1);
-    ' "$UI_SENTRY_LAST_SUCCESS_AT" "$UI_SENTRY_SENTINEL_AT" "$SENTINEL_LIVE_CHAT_THRESHOLD_DAYS" 2>/dev/null; then
+      // Still reject a genuinely future-dated timestamp as garbage (a
+      // future-dated last-run.json is corruption, not freshness), but allow
+      // a small explicit tolerance rather than requiring ageMs >= 0
+      // outright: a success recorded during this run is legitimately later
+      // than the runs own invocation instant, and last-run.json is written
+      // moments before this check runs against the real "now" above, so a
+      // little clock skew between that write and this read should not flip
+      // a real success to red. toleranceMs bounds how far into the future
+      // we will still call "fresh enough" — comfortably above any realistic
+      // clock skew, nowhere near the 10-day threshold.
+      process.exit((ageMs >= -toleranceMs && ageMs <= thresholdMs) ? 0 : 1);
+    ' "$UI_SENTRY_LAST_SUCCESS_AT" "$SENTINEL_LIVE_CHAT_THRESHOLD_DAYS" "$SENTINEL_LIVE_CHAT_FUTURE_TOLERANCE_MS" 2>/dev/null; then
     status="green"; reason="ok"
   else
     status="red"; reason="degraded"
