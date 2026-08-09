@@ -109,7 +109,7 @@ async function finalize() {
     consecutiveBlockedRuns = tier2Status === "blocked" ? previousConsecutiveBlocked + 1 : 0;
     blockedEscalationActive = previousBlockedEscalationActive;
 
-    if (tier2Status === "pass" && previousBlockedEscalationActive) {
+    if ((tier2Status === "pass" || tier2Status === "partial") && previousBlockedEscalationActive) {
       blockedNarrative = "recovery";
       blockedEscalationActive = false;
     } else if (tier2Status === "blocked") {
@@ -183,6 +183,7 @@ async function finalize() {
     blockedNarrative,
     consecutiveBlockedRuns,
     tier2Skipped: partial.tier2Skipped,
+    tier2Status: partial.tier2?.status ?? null,
   });
   const body = buildEmailBody(state);
 
