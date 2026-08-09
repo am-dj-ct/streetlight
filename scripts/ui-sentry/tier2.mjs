@@ -1,8 +1,11 @@
-// Tier 2 — live LLM conversation, best-effort, THREE-STATE (pass / blocked
-// / fail). Real Chrome channel (R11), request-boundary turn budget guard
-// (R17), R1-R6 send/reply classification (see lib/conversation.mjs and
-// lib/chat-status.mjs). Screenshots are hard-off in this tier always (R7) —
-// even on error, this module never calls page.screenshot().
+// Tier 2 — live LLM conversation, best-effort, FOUR-STATE (pass / partial /
+// blocked / fail). "Partial" means a real model reply proved the chat path
+// works while Turnstile refused another turn; that refusal is evidence about
+// this bot, not about the site. Real Chrome channel (R11), request-boundary
+// turn budget guard (R17), R1-R6 send/reply classification (see
+// lib/conversation.mjs and lib/chat-status.mjs). Screenshots are hard-off in
+// this tier always (R7) — even on error, this module never calls
+// page.screenshot().
 //
 // Turnstile retry (2026-08-08 ADR amendment): a controlled experiment found
 // Turnstile withholds a token from every automated browser unless
@@ -12,10 +15,8 @@
 // blocked, because a fully-blocked attempt never gets a token and therefore
 // never makes a single /api/chat POST (see turnBucket in chat-status.mjs:
 // "client_blocked" and "paused_confirmed" both mean the client withheld the
-// request entirely). A mixed or failed attempt already spent real money and
-// must never be retried — see the shared-budget note below and the "mixed
-// or unexplained failures = red" rule this module already enforced before
-// the retry existed.
+// request entirely). A partial or failed attempt may already have spent real
+// money and must never be retried — see the shared-budget note below.
 //
 // Visible window (2026-08-08, same-day follow-up): a second measurement
 // found the flag above does not survive headless at all — 4 cold headless
@@ -43,7 +44,7 @@ import { desktopViewport } from "./playwright.config.mjs";
 import { blockUsageEvents } from "./lib/browser.mjs";
 import { gotoConversation, runTurn } from "./lib/conversation.mjs";
 import { installTurnBudgetGuard } from "./lib/budget-guard.mjs";
-import { turnBucket } from "./lib/chat-status.mjs";
+import { tier2Verdict, turnBucket } from "./lib/chat-status.mjs";
 import { TIER2_ENTRY_ID, TIER2_TURNS } from "./fixtures/tier2-prompts.mjs";
 
 const HARD_TURN_CAP = 8; // spec: hard cap 8 chat turns per run in code.
@@ -79,7 +80,7 @@ async function launchRealChrome({ headed }) {
 }
 
 // Runs one complete attempt (fresh browser, fresh context, fresh page) and
-// returns its own three-state verdict plus whatever it observed. `budget`
+// returns its own four-state verdict plus whatever it observed. `budget`
 // is shared across attempts by the caller — see runTier2 — so this never
 // creates its own cap.
 async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
@@ -130,23 +131,7 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
   }
 
   const buckets = turns.map((t) => turnBucket(t.label));
-  const allPass = buckets.every((b) => b === "pass");
-  const allBlocked = buckets.every((b) => b === "blocked");
-  const anyFail = buckets.some((b) => b === "fail");
-
-  let status;
-  if (anyFail) {
-    status = "fail";
-  } else if (allPass) {
-    status = "pass";
-  } else if (allBlocked) {
-    status = "blocked";
-  } else {
-    // A mix of pass and blocked turns — inconsistent, not the clean
-    // "every automated request gets challenged" story validate-live.mjs
-    // documents as expected. Spec: "Mixed or unexplained failures = red."
-    status = "fail";
-  }
+  const status = tier2Verdict(buckets);
 
   logger.line(
     `tier2 attempt ${attemptNum} verdict: status=${status} turnsUsed=${budget.used}/${HARD_TURN_CAP} aborted=${budget.aborted}`,
@@ -180,7 +165,8 @@ export async function runTier2({ baseUrl, logger, headed = false }) {
   }
 
   logger.line(
-    `tier2 verdict: status=${final.status} turnsUsed=${budget.used}/${HARD_TURN_CAP} aborted=${budget.aborted} ` +
+    `tier2 verdict (pass / partial / blocked / fail; partial means a real model reply proved chat works while a Turnstile refusal describes this bot, not the site): status=${final.status} ` +
+      `turnsUsed=${budget.used}/${HARD_TURN_CAP} aborted=${budget.aborted} ` +
       `attempts=${final === first ? 1 : 2}`,
   );
 

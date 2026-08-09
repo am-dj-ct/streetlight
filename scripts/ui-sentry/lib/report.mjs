@@ -23,7 +23,7 @@ export function computeOverallLevel({ tier0, tier1, tier2, tier2Skipped = false 
   if (!tier2 || tier2.status === "fail") {
     return { level: "FAIL", siteDown: false };
   }
-  if (tier2.status === "blocked") {
+  if (tier2.status === "blocked" || tier2.status === "partial") {
     return { level: "DEGRADED", siteDown: false };
   }
   return { level: "PASS", siteDown: false };
@@ -47,7 +47,14 @@ export function computeOverallLevel({ tier0, tier1, tier2, tier2Skipped = false 
 // `level`/`siteDown` are computeOverallLevel's raw output. `blockedNarrative`
 // is computed by the caller (orchestrator.mjs) from the persisted
 // consecutiveBlockedRuns/blockedEscalationActive state.
-export function buildSubject({ level, siteDown, blockedNarrative, consecutiveBlockedRuns, tier2Skipped }) {
+export function buildSubject({
+  level,
+  siteDown,
+  blockedNarrative,
+  consecutiveBlockedRuns,
+  tier2Skipped,
+  tier2Status,
+}) {
   if (level === "FAIL" && siteDown) {
     return "Streetlight UI sentry: FAIL (site down)";
   }
@@ -62,6 +69,9 @@ export function buildSubject({ level, siteDown, blockedNarrative, consecutiveBlo
   }
   if (blockedNarrative === "recovery") {
     return "Streetlight UI sentry: PASS (chat recovered)";
+  }
+  if (level === "DEGRADED" && tier2Status === "partial") {
+    return "Streetlight UI sentry: DEGRADED (some chat turns passed)";
   }
   if (level === "DEGRADED") {
     return "Streetlight UI sentry: DEGRADED (chat blocked)";

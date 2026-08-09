@@ -64,7 +64,7 @@ export function classifyChatResponse({ status, bodyText }) {
 
 export const PAUSED_LABELS = new Set(["paused_soft_pause", "paused_daily_spend"]);
 
-// A turn's classification, folded into the run-level three-state verdict.
+// A turn's classification, folded into the run-level four-state verdict.
 // "pass" and turns confirmed as an on-purpose pause (via the /healthz
 // recheck the caller must perform for any paused_* label before calling
 // this — see runTurn in conversation.mjs) both belong to the non-failing
@@ -75,5 +75,19 @@ export function turnBucket(label) {
   if (label === "pass") return "pass";
   if (label === "client_blocked") return "blocked";
   if (label === "paused_confirmed") return "blocked";
+  return "fail";
+}
+
+export function tier2Verdict(buckets) {
+  const allPass = buckets.every((bucket) => bucket === "pass");
+  const allBlocked = buckets.every((bucket) => bucket === "blocked");
+  const anyPass = buckets.some((bucket) => bucket === "pass");
+  const anyBlocked = buckets.some((bucket) => bucket === "blocked");
+  const anyFail = buckets.some((bucket) => bucket === "fail");
+
+  if (anyFail) return "fail";
+  if (allPass) return "pass";
+  if (allBlocked) return "blocked";
+  if (anyPass && anyBlocked) return "partial";
   return "fail";
 }
