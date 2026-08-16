@@ -38,9 +38,34 @@ test("every fragment item id matches the sentinel-v5 item id pattern", () => {
   }
 });
 
-test("every fragment item carries shadow:true (REQUIRED on every check-in item)", () => {
+// 2026-08-16: the fleet flipped to zero shadow rows at the full-live
+// cutover, and these two rows were merged into blt-hub's authoritative
+// config/sentinel-v5-registry.json as shadow:false / enabled:true. The
+// fragment is the producer-side declaration of the same rows, so it has to
+// say the same thing or the two drift silently -- which is exactly what
+// happened between 2026-08-08 and 2026-08-16, when this fragment existed,
+// the producer emitted real check-ins on every run, and no registry row
+// existed anywhere for them to land on. Ten check-ins, including one red
+// job_failed and one red degraded, were discarded.
+test("every fragment item carries shadow:false (fleet is zero-shadow since the 2026-08-16 cutover)", () => {
   const fragment = JSON.parse(readFileSync(fragmentPath, "utf8"));
   for (const item of fragment.items) {
-    assert.equal(item.shadow, true, `item ${item.id} must have shadow:true`);
+    assert.equal(item.shadow, false, `item ${item.id} must have shadow:false`);
+    assert.equal(item.enabled, true, `item ${item.id} must be enabled`);
+  }
+});
+
+// reason_codes became REQUIRED on every check-in item in spec v5.11 and this
+// fragment predates it. The arrays must match what run-ui-sentry.sh actually
+// emits, not what looks reasonable: the sentry reports green/ok or
+// red/job_failed, and the live-chat check reports green/ok or red/degraded.
+test("every fragment item declares the reason codes its producer really emits", () => {
+  const fragment = JSON.parse(readFileSync(fragmentPath, "utf8"));
+  const expected = {
+    "sl-ui-sentry": ["ok", "job_failed"],
+    "sl-ui-sentry-live-chat": ["ok", "degraded"]
+  };
+  for (const item of fragment.items) {
+    assert.deepEqual(item.reason_codes, expected[item.id], `item ${item.id} reason_codes drifted from the producer`);
   }
 });
