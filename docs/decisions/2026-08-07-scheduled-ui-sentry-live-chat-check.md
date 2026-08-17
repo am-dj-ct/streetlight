@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-07
 
+> **Partly superseded (2026-08-17).** The reporting decision below — "every run sends an email regardless of outcome" — no longer holds. The sentry sends no email on any path; it writes its report to the run log and `last-run.json`, and two external monitors read those. See `docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`, which also closes the R12 dead-man gap admitted under Consequences. Everything else in this ADR stands.
+
 ## Context
 
 The 2026-07-12 ADR (`docs/decisions/2026-07-12-operator-owned-local-health-polling.md`)
@@ -343,3 +345,26 @@ passed on the first try (6/6 turns, `/api/chat` 200 each), so tier 2 keeps
 that shape rather than switching to a persistent context pre-emptively. If
 future runs show the ephemeral shape flaking the way headless did, that is
 a candidate follow-up, not assumed here.
+
+## Amendment (2026-08-17): reporting moves off email entirely
+
+The "every run sends an email" mechanism described above is removed. The
+reasoning, the options rejected (including why failure mail cannot simply be
+re-pointed at the sentinel mailbox), and the costs accepted are recorded in
+`docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`.
+
+Two corrections to what this ADR asserted:
+
+- **The R12 gap is closed, from outside.** This ADR said "nothing external
+  notices a missing email" and listed the pager checking `last-run.json`
+  staleness as a "Later" candidate. That candidate exists —
+  `~/caller-track-pager`'s `checkUiSentry()` pages on a record older than
+  74h — and the sentinel-v5 items `sl-ui-sentry` / `sl-ui-sentry-live-chat`
+  independently report a slot that never checked in. Neither depends on the
+  sentry being alive to send anything.
+- **"No new vendor" is now "no vendor."** The sentry no longer calls Resend
+  at all. Resend remains in use for the resource-review and usage-digest
+  GitHub Actions workflows, which are unrelated to this job.
+
+The subject strings enumerated above are unchanged; they are now the run's
+headline line in the log rather than an email subject.

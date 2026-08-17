@@ -1,9 +1,14 @@
-// Builds the content-free email body and subject. Plain text, visually
-// plain (Jesse's standing rule for generated email — no colored boxes, no
-// explainer paragraphs). Tier table only: case names, HTTP statuses,
-// latencies, durations, and the log path on disk. Never a typed prompt or
-// a model reply (data_architecture.md:754 precedent — the recall suite
-// prints only synthetic case names and category results, never content).
+// Builds the content-free report body and its one-line headline. Plain
+// text, visually plain (Jesse's standing rule for generated reports — no
+// colored boxes, no explainer paragraphs). Tier table only: case names,
+// HTTP statuses, latencies, durations, and the log path on disk. Never a
+// typed prompt or a model reply (data_architecture.md:754 precedent — the
+// recall suite prints only synthetic case names and category results,
+// never content).
+//
+// Nothing here sends anything. The body is written to the run log by
+// orchestrator.mjs; this sentry has no mail path at all (ADR
+// 2026-08-17-ui-sentry-reports-without-email).
 
 // tier0/tier1/tier2 may be null — a crash or signal can reach the finalizer
 // before a tier ever produced a result. Null is always treated as a fail,
@@ -37,9 +42,8 @@ export function computeOverallLevel({ tier0, tier1, tier2, tier2Skipped = false 
 //   - The subject escalates to FAIL exactly ONCE, the run where the
 //     3-consecutive-blocked threshold is first crossed.
 //   - Every subsequent run while still blocked returns to a steady
-//     "DEGRADED (chat blocked, Nth consecutive)" — still emailed every
-//     run (the absence of the email is still the dead-man signal), still
-//     visibly abnormal, but not re-alarming.
+//     "DEGRADED (chat blocked, Nth consecutive)" — still recorded every
+//     run, still visibly abnormal, but not re-alarming.
 //   - The moment a live turn actually succeeds, the escalation state
 //     clears and that run gets a recovery-flavored subject (only when the
 //     rest of the run is otherwise clean — a concurrent unrelated failure
@@ -89,7 +93,7 @@ function fmtCase(c, indent = "  ") {
   return `${indent}${parts.join(" | ")}`;
 }
 
-export function buildEmailBody(state) {
+export function buildReportBody(state) {
   const lines = [];
   lines.push(`Streetlight UI sentry — ${state.overallLevel}`);
   lines.push(`Run: ${state.startedAt} -> ${state.finishedAt}`);
