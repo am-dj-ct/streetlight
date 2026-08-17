@@ -4,8 +4,13 @@ A scheduled, real-browser check of production `https://streetlight.help`,
 run 3x/week (Mon/Wed/Fri 07:23 local) from this Mac. It walks the site the
 way a person would — page loads, buttons, navigation, scrolling, locale
 switch — and best-effort exercises a short live-model conversation, then
-emails Jesse a content-free pass/fail report so he doesn't have to test by
+records a content-free pass/fail report so Jesse doesn't have to test by
 hand.
+
+**It sends no email.** The report is written to this run's log and to
+`last-run.json`; the verdict reaches a human through the two monitors that
+read those files (see Reporting below). Removing the old every-run email is
+ADR `docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`.
 
 Standalone package (own `package.json`, own lockfile), same pattern as
 `scripts/prod-validation/`. The app build does not depend on it.
@@ -24,11 +29,10 @@ nothing here runs through `npx playwright test`.
 ## Layout
 
 - `orchestrator.mjs` — the one entry point. Runs tier 0, then tier 1 (both
-  engines), then tier 2, then sends the report email — all inside one
-  `doppler run` invocation so `RESEND_API_KEY` reaches the mailer (R14) and
-  every possible ending (pass, fail, crash, signal) goes through the same
-  finalizer: atomic state write, bounded-timeout email with retries,
-  correct exit code (R13).
+  engines), then tier 2, then writes the report — all inside one
+  `doppler run` invocation (R14), and every possible ending (pass, fail,
+  crash, signal) goes through the same finalizer: report written to the run
+  log, atomic state write, correct exit code (R13).
 - `tier0.mjs` — browser preflight, site-up gate (3x bounded `fetch` at the
   root URL), `/healthz` gate.
 - `tier1.mjs` — structural checks, no model spend, run once per engine
@@ -38,8 +42,7 @@ nothing here runs through `npx playwright test`.
   turns, hard-capped at 8 by request-boundary interception).
 - `lib/` — shared helpers (browser/session setup, human-like typing, the
   conversation send/reply state machine, chat-response classification,
-  `/healthz` fetch, atomic state I/O, the bounded email sender, the
-  content-free report builder).
+  `/healthz` fetch, atomic state I/O, the content-free report builder).
 - `fixtures/tier2-prompts.mjs` — the six synthetic benefits/shelter-arc
   prompts. Never real user content.
 - `run-ui-sentry.sh` — the scheduled entry point (caffeinate, single-instance
@@ -58,7 +61,8 @@ cd scripts/ui-sentry
 ```
 
 Manual runs share the exact same turn budget, single-instance lock, and
-email path as the scheduled run (R17) — there is no separate "test mode."
+reporting path as the scheduled run (R17) — there is no separate "test
+mode."
 
 ## State
 
@@ -66,9 +70,10 @@ Everything lives under `~/.streetlight/ui-sentry/`, never inside the repo
 working tree:
 
 - `last-run.json` — status, timestamps, tier results, turn budget used,
-  `lastSuccessfulLiveChatAt`, `consecutiveBlockedRuns`, email
-  accepted/status, exit code. Content-free — see the ADR for the exact
-  schema this allowlists.
+  `lastSuccessfulLiveChatAt`, `consecutiveBlockedRuns`, exit code.
+  Content-free — see the ADR for the exact schema this allowlists. This is
+  the file `~/caller-track-pager`'s `checkUiSentry()` pages on, so its
+  status and `finishedAt` are load-bearing.
 - `logs/<timestamp>.log` — one file per run, content-free structured lines
   only (case names, HTTP statuses, timings — never typed prompts or model
   replies).
@@ -81,10 +86,23 @@ Playwright artifacts: trace and video are off everywhere. Screenshots are
 only-on-failure in tier 1 and hard-off in tier 2 (R7). Any tier 1 failure
 screenshot is written under the state root, never uploaded anywhere.
 
-## Reporting: subject lines and the persistent-blocked escalation
+## Reporting: headlines and the persistent-blocked escalation
 
-Every run sends an email — the absence of the Mon/Wed/Fri email is itself
-the dead-man signal. The subject is one of:
+Every run writes a report; nothing is emailed. Two independent monitors read
+what the run wrote, and between them they are the whole alerting surface:
+
+- **`~/caller-track-pager`'s `checkUiSentry()`** reads `last-run.json` and
+  pages (Pushover) on `status: FAIL` or a record older than 74h — so a
+  missed Mon/Wed/Fri fire is caught by staleness, which is what the old
+  "absence of the email is the dead-man signal" was reaching for.
+- **sentinel-v5 check-ins** `sl-ui-sentry` (green/`ok` or red/`job_failed`
+  from this run's exit code) and `sl-ui-sentry-live-chat` (green/`ok` or
+  red/`degraded` from the age of `lastSuccessfulLiveChatAt`). Both are live
+  registry items with digest escalation and a 45-minute grace window, so a
+  slot that never checks in is itself reported.
+
+The headline line — written first into the run log, and the same string the
+email subject used to be — is one of:
 
 - `Streetlight UI sentry: PASS`
 - `Streetlight UI sentry: DEGRADED (chat blocked)` — tier 2 came back
@@ -121,8 +139,8 @@ rationale.
 ## Structural-only runs (`--skip-tier2`)
 
 `--skip-tier2` (equivalently `UI_SENTRY_SKIP_TIER2=1`) runs tier 0 and tier
-1 only — no `/api/chat` calls, no model spend — and reports/emails
-normally with a subject tagged `(structural only, tier 2 skipped)`. It
+1 only — no `/api/chat` calls, no model spend — and reports normally with a
+headline tagged `(structural only, tier 2 skipped)`. It
 does not touch the persistent blocked-streak state
 (`consecutiveBlockedRuns`, `blockedEscalationActive`) — a run that made no
 observation about the chat path must not reset or otherwise disturb that
@@ -145,11 +163,8 @@ launchd's default minimal PATH for a GUI agent
 doing anything else, in case that plist setting is ever dropped or a manual
 invocation runs under a shell with its own broken PATH. If either is
 missing: the wrapper writes a content-free `last-run.json` directly (no
-node required), attempts an email with whatever's on PATH (this normally
-still fails closed, since `RESEND_API_KEY` is only ever sourced via
-`doppler`, which is exactly what's missing), and exits nonzero either way
-so the failure is visible in `launchd.err.log` even if the email never
-went out.
+node required), emits both sentinel check-ins (item A red), and exits
+nonzero so the failure is also visible in `launchd.err.log`.
 
 ## Turn budget and abuse controls
 
@@ -169,14 +184,16 @@ runs/week — see the ADR for the full weekly ceiling this implies.
   of the GUI session kills GUI `launchd` agents entirely.
 - Missed fire: `StartCalendarInterval` does not queue or catch up a missed
   fire (Mac asleep/off at 07:23). The job simply does not run that day; the
-  next scheduled day is the recovery path. See the ADR for the honest
-  dead-man-detection gap this leaves (R12) — this sentry's own email cannot
-  prove anything if the Mac, launchd, or Doppler itself is what died.
+  next scheduled day is the recovery path. This sentry cannot report on its
+  own death — if the Mac, launchd, or Doppler is what failed, nothing here
+  runs at all. That gap (R12) is covered from outside: the pager's 74h
+  staleness check on `last-run.json`, and the sentinel's grace window on a
+  slot that never checked in.
 
 ## What this does not do (v1, deliberate)
 
 - No self-heal, no auto-remediation of any kind. This job detects and
-  emails; a human decides what runs next.
+  records; a human decides what runs next.
 - No dry-run form submission on the report-problem page (structural checks
   only, never submitted).
 - No exploratory-agent session.

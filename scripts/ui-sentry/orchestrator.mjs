@@ -1,16 +1,21 @@
 #!/usr/bin/env node
-// Single doppler-wrapped orchestrator: runs tier 0/1/2 AND sends the email,
-// so RESEND_API_KEY reaches the mailer in the same process that ran the
-// tests (R14). One finalizer path (R13): whatever happens, including an
-// early crash, state is written atomically, the email is attempted with a
-// bounded timeout, and the correct exit code is preserved.
+// Single doppler-wrapped orchestrator: runs tier 0/1/2 and writes the
+// report. One finalizer path (R13): whatever happens, including an early
+// crash, the report is written to the run log, state is written
+// atomically, and the correct exit code is preserved.
+//
+// This sentry sends no email. It used to mail a report to Jesse's personal
+// inbox on every run, pass or fail; both halves of that are now redundant
+// and the success half was pure noise. See
+// docs/decisions/2026-08-17-ui-sentry-reports-without-email.md — the run
+// verdict reaches a human through two independent monitors that both read
+// last-run.json / the sentinel spine, never through this process.
 import { chromium, webkit } from "@playwright/test";
 import { desktopViewport, mobileDevice } from "./playwright.config.mjs";
 import { Logger } from "./lib/logger.mjs";
 import { LOG_DIR } from "./lib/paths.mjs";
 import { readPreviousState, writeStateAtomic } from "./lib/state.mjs";
-import { sendReportEmail } from "./lib/email.mjs";
-import { buildEmailBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
+import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
 import { runTier0 } from "./tier0.mjs";
 import { runTier1 } from "./tier1.mjs";
 import { runTier2 } from "./tier2.mjs";
@@ -23,21 +28,6 @@ const BASE_URL = process.env.UI_SENTRY_BASE_URL ?? "https://streetlight.help";
 // Scheduled/manual live runs never set this.
 const SKIP_TIER2 =
   process.argv.includes("--skip-tier2") || process.env.UI_SENTRY_SKIP_TIER2 === "1";
-const REPORT_FROM = process.env.RESOURCE_REVIEW_EMAIL_FROM ?? "Streetlight UI Sentry <onboarding@resend.dev>";
-// The shared agent-secrets RESEND_API_KEY's Resend account has no verified
-// domain (only balancedlivingtherapy.com, status "not_started" — a BLT
-// domain, not appropriate for this public-good project's FROM address
-// anyway) so the sandbox onboarding@resend.dev sender is in play, which
-// Resend restricts to delivering only to the account's own registered
-// address. Confirmed empirically (403 "You can only send testing emails to
-// your own email address (jesse.c.dunn@outlook.com)") — that address is
-// the only one this API key can actually deliver to today. Flagged as an
-// open question in the PR body; not a default to keep assuming silently.
-const REPORT_TO = process.env.RESOURCE_REVIEW_EMAIL_TO ?? "jesse.c.dunn@outlook.com";
-// send-resend-email.mjs reads these exact env names (R14: FROM/TO exported
-// inside the doppler-wrapped child).
-process.env.RESOURCE_REVIEW_EMAIL_FROM = REPORT_FROM;
-process.env.RESOURCE_REVIEW_EMAIL_TO = REPORT_TO;
 
 const startedAt = new Date();
 const logPath = `${LOG_DIR}/${startedAt.toISOString().replace(/[:.]/g, "-")}.log`;
@@ -166,8 +156,6 @@ async function finalize() {
     blockedNarrative,
     crashError: partial.crashError,
     overallLevel: effectiveLevel,
-    emailAccepted: null,
-    emailHttpStatus: null,
   };
 
   if (partial.crashError) {
@@ -185,23 +173,14 @@ async function finalize() {
     tier2Skipped: partial.tier2Skipped,
     tier2Status: partial.tier2?.status ?? null,
   });
-  const body = buildEmailBody(state);
+  // The report goes to this run's log, nowhere else. It is the same
+  // content-free body the email used to carry, so a human diagnosing a red
+  // run reads the tier table here instead of in their inbox. The headline
+  // goes in ahead of the table so the verdict is the first thing in the
+  // report block rather than something you scroll to.
+  logger.line(subject);
+  logger.line(buildReportBody(state));
 
-  let emailResult;
-  try {
-    emailResult = await sendReportEmail({ subject, bodyText: body });
-  } catch (error) {
-    emailResult = { accepted: false, httpStatus: null, error: String(error).slice(0, 300) };
-  }
-  state.emailAccepted = emailResult.accepted;
-  state.emailHttpStatus = emailResult.httpStatus ?? null;
-  logger.line(
-    `email: accepted=${emailResult.accepted} httpStatus=${emailResult.httpStatus ?? "n/a"} attempts=${emailResult.attempts ?? "n/a"}` +
-      (emailResult.error ? ` error=${emailResult.error}` : ""),
-  );
-
-  // State is written last, after the email fields are known, still inside
-  // the same atomic write (R13).
   writeStateAtomic(state);
 
   process.exitCode = exitCode;

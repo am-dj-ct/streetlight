@@ -38,8 +38,11 @@ checklist). When ready:
 Then verify:
   - Fresh state: cat ~/.streetlight/ui-sentry/last-run.json
   - Fresh log:   ls -t ~/.streetlight/ui-sentry/logs | head -1
-  - Email delivered to the inbox in RESOURCE_REVIEW_EMAIL_TO (or the
-    orchestrator's default) within a few minutes.
+  - The run's headline and tier table are in that log. This job sends no
+    email, so there is nothing to check in an inbox.
+  - Both sentinel check-ins landed for this slot (sl-ui-sentry and
+    sl-ui-sentry-live-chat); no lines added to
+    ~/.streetlight/ui-sentry/sentinel-v5-fallback.log.
   - Repeat once with the screen locked (screen lock is fine; logging out
     of the GUI session kills GUI launchd agents, so stay logged in).
 EOF

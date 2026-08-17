@@ -7,13 +7,19 @@
 # caller-track, and a separate restart loop there burned ~$52 of metered
 # traffic; this wrapper has neither, and the plist carries no KeepAlive).
 #
-# Almost all of the real logic (tier 0/1/2, browser preflight, the email
-# send) lives in orchestrator.mjs, run once, doppler-wrapped, so
-# RESEND_API_KEY reaches the mailer and the email always goes through the
-# same one finalizer path (R13/R14) — including for a site-down or
-# missing-browser failure. This wrapper's job is armor around that single
-# invocation: caffeinate, the state root, the single-instance lock, and
-# nothing that could itself become a second place logic lives.
+# Almost all of the real logic (tier 0/1/2, browser preflight, writing the
+# report) lives in orchestrator.mjs, run once, doppler-wrapped, so the
+# report always goes through the same one finalizer path (R13/R14) —
+# including for a site-down or missing-browser failure. This wrapper's job
+# is armor around that single invocation: caffeinate, the state root, the
+# single-instance lock, and nothing that could itself become a second place
+# logic lives.
+#
+# Nothing in this file or in orchestrator.mjs sends mail. The run verdict
+# reaches a human two ways, both of which read what this job writes rather
+# than what it sends: the sentinel-v5 check-ins below, and
+# ~/caller-track-pager's checkUiSentry(), which pages on a FAIL status or a
+# last-run.json older than 74h.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,11 +48,13 @@ fi
 # Sentinel-v5 check-in wiring (shadow phase — see
 # docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md and
 # config/sentinel-v5-registry-fragment.streetlight.json). This emits BOTH
-# items every real invocation, alongside the existing per-run email — it is
-# additive wiring, not a replacement for that email or for
-# ~/caller-track-pager's checkUiSentry(). `at`/`slot` are captured TOGETHER
-# right here, before any of the job body (PATH preflight, lock, tests) runs,
-# per spec v5.9 §3.2 — never recomputed at completion. Both items share the
+# items every real invocation. Since the per-run email was removed (ADR
+# 2026-08-17-ui-sentry-reports-without-email) these check-ins and
+# ~/caller-track-pager's checkUiSentry() are the whole alerting surface, so
+# a silently skipped emit here is a real blind spot, not just missing
+# telemetry. `at`/`slot` are captured TOGETHER right here, before any of the
+# job body (PATH preflight, lock, tests) runs, per spec v5.9 §3.2 — never
+# recomputed at completion. Both items share the
 # exact same schedule (23 7 * * 1,3,5 America/Los_Angeles), so one capture
 # (keyed off sl-ui-sentry) is reused for both check-ins from this run.
 STREETLIGHT_SENTINEL_FALLBACK_LOG="$STATE_ROOT/sentinel-v5-fallback.log"
@@ -172,7 +180,7 @@ mkdir -p "$STATE_ROOT/logs"
 # com.callertrack.ui-health.plist), but a future edit could drop that, or a
 # manual invocation could run under a shell with its own broken PATH. Fail
 # loudly here rather than dying silently before orchestrator.mjs — which is
-# the only place that would otherwise write state and send the email — ever
+# the only place that would otherwise write state and the report — ever
 # starts.
 missing_tools=()
 command -v doppler >/dev/null 2>&1 || missing_tools+=("doppler")
@@ -186,11 +194,13 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
   # This failure happens BEFORE the doppler-wrapped orchestrator.mjs ever
   # starts, so the normal one-finalizer-path (R13) can't run. Do the closest
   # bash-only equivalent: write a content-free state file directly (no node
-  # needed), then attempt the email with whatever is actually on PATH.
-  # RESEND_API_KEY is only ever sourced via doppler, which is exactly what's
-  # missing here, so this email attempt will normally fail closed — that's
-  # expected, not a bug in this fallback. The nonzero exit below is what
-  # actually surfaces the failure (launchd's stderr log).
+  # needed). There is deliberately no mail attempt here — this path used to
+  # curl Resend directly, which could only ever have reached Jesse's personal
+  # inbox and, because RESEND_API_KEY is sourced via the very doppler that is
+  # missing on this path, essentially never fired anyway. What actually
+  # surfaces this failure is the red sl-ui-sentry check-in emitted just below,
+  # the FAIL status written into last-run.json (which caller-track-pager pages
+  # on), and the nonzero exit into launchd's stderr log.
   # Item B must be computed and emitted BEFORE the fallback state write
   # below, not after: that write has no way to know this run's real
   # lastSuccessfulLiveChatAt (this fires before node/doppler are even known
@@ -227,20 +237,10 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
   "lastSuccessfulLiveChatAt": $last_success_json,
   "escalatedFromBlocked": false,
   "crashError": "$reason",
-  "overallLevel": "FAIL",
-  "emailAccepted": null,
-  "emailHttpStatus": null
+  "overallLevel": "FAIL"
 }
 STATE_JSON
   mv "$state_tmp" "$STATE_ROOT/last-run.json"
-
-  if command -v curl >/dev/null 2>&1 && [ -n "${RESEND_API_KEY:-}" ] && [ -n "${RESOURCE_REVIEW_EMAIL_TO:-}" ]; then
-    curl -s -o /dev/null --max-time 15 -X POST "https://api.resend.com/emails" \
-      -H "Authorization: Bearer $RESEND_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d "{\"from\":\"${RESOURCE_REVIEW_EMAIL_FROM:-Streetlight UI Sentry <onboarding@resend.dev>}\",\"to\":[\"$RESOURCE_REVIEW_EMAIL_TO\"],\"subject\":\"Streetlight UI sentry: FAIL (PATH misconfigured)\",\"text\":\"$reason\"}" \
-      || true
-  fi
 
   echo "$STAMP_ISO ui-sentry: cannot proceed without doppler/node on PATH — exiting" >&2
   exit 5
@@ -296,7 +296,7 @@ fi
 # shared ~/Library/Caches/ms-playwright other tools on this machine use.
 export PLAYWRIGHT_BROWSERS_PATH=0
 
-# One doppler-wrapped call runs tests AND sends the email (R14).
+# One doppler-wrapped call runs the tests and writes the report (R14).
 doppler run --project agent-secrets --config dev -- node orchestrator.mjs
 ui_sentry_exit_code=$?
 

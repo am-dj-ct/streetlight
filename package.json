@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "test:sentinel-v5": "node --test scripts/sentinel-v5/*.test.mjs",
+    "test:ui-sentry": "node --test scripts/ui-sentry/ui-sentry.test.mjs",
     "lint": "eslint",
     "check:audit": "npm audit",
     "check:locales": "node scripts/report-missing-locales.mjs",

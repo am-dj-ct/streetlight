@@ -1258,9 +1258,16 @@ One-line summary of every decision in this document, dated for traceability.
 **2026-08-07 — scheduled UI sentry, narrow live-chat monitoring exception:**
 
 - A `launchd` job on the operator's own machine (`com.streetlight.ui-sentry`, `scripts/ui-sentry/`) drives production in a real browser Mon/Wed/Fri and, as a named exception to the operator-monitoring boundary above, may additionally call `/api/chat` with synthetic fixture content — capped at 8 live turns per run, enforced at the request boundary, ≤3 runs/week.
-- Reporting stays content-free: the emailed report and `last-run.json` contain only case names, HTTP statuses, latencies, durations, and the on-disk log path — never typed prompts or model replies.
-- No new vendor (Resend, already in use for the resource-review and usage-digest emails). No self-heal or auto-remediation triggered by a failure.
+- Reporting stays content-free: the run report and `last-run.json` contain only case names, HTTP statuses, latencies, durations, and the on-disk log path — never typed prompts or model replies.
+- No self-heal or auto-remediation triggered by a failure.
 - Full rationale, the precise allowlist, and the honest dead-man-detection gap this leaves in `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
+
+**2026-08-17 — the UI sentry reports without email:**
+
+- The sentry no longer sends mail on any path. It writes the run headline and tier table to its own run log and `last-run.json`; nothing leaves the machine. The sentry itself is now a zero-vendor job — Resend remains in use for the resource-review and usage-digest workflows only.
+- The verdict reaches a human through two monitors that read what the run wrote: `~/caller-track-pager`'s `checkUiSentry()` (pages on `status: FAIL` or a `last-run.json` older than 74h) and the live sentinel-v5 items `sl-ui-sentry` / `sl-ui-sentry-live-chat`.
+- `last-run.json` drops `emailAccepted` and `emailHttpStatus`. The rest of the allowlisted schema is unchanged.
+- Full rationale in `docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`.
 
 ---
 

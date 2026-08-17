@@ -125,6 +125,8 @@ Routine checks:
 - `npm run check:translation-worklist`
 - `npm run check:forbidden-integrations`
 - `npm run check:no-tracked-secrets`
+- `npm run test:ui-sentry`
+- `npm run test:sentinel-v5`
 - `npm run diagnostics:local`
 
 Broad checks:
