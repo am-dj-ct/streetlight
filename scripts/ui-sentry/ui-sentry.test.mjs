@@ -3,6 +3,7 @@ import test from "node:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { launchTier1Browser } from "./lib/browser.mjs";
 import { tier2Verdict } from "./lib/chat-status.mjs";
 import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
 
@@ -18,6 +19,22 @@ test("tier 2 keeps the pass, blocked, and fail verdicts", () => {
   assert.equal(tier2Verdict(["pass", "pass"]), "pass");
   assert.equal(tier2Verdict(["blocked", "blocked"]), "blocked");
   assert.equal(tier2Verdict(["fail", "fail"]), "fail");
+});
+
+test("tier 1 uses only the package-pinned browser, never the system Chrome channel", async () => {
+  const calls = [];
+  const expectedBrowser = { kind: "test-browser" };
+  const browserType = {
+    async launch(options) {
+      calls.push(options);
+      return expectedBrowser;
+    },
+  };
+
+  const browser = await launchTier1Browser(browserType);
+
+  assert.equal(browser, expectedBrowser);
+  assert.deepEqual(calls, [{ headless: true }]);
 });
 
 test("a partial tier 2 result reports DEGRADED without claiming chat is blocked", () => {

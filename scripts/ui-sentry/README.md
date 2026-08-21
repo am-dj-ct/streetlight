@@ -52,6 +52,20 @@ nothing here runs through `npx playwright test`.
 - `com.streetlight.ui-sentry.plist` — Mon/Wed/Fri 07:23 local, no
   `KeepAlive`, no `RunAtLoad`.
 
+## Tier 1 browser pin
+
+Tier 1 always uses the Chromium and WebKit binaries installed by this
+standalone package. It never prefers the separately updated system Chrome.
+That keeps structural results bound to the reviewed Playwright lockfile;
+real Chrome is reserved for tier 2 because Turnstile behavior requires it.
+
+On 2026-08-19 the system-Chrome tier 1 produced three early command
+timeouts even though its first expected element was already visible. The
+same session passed its remaining 19 checks, pinned WebKit passed all 23,
+and a current structural rerun passed. That was a browser-command false
+failure, not a missing production page. Pinning tier 1 removes that drift
+without adding a retry or weakening a real structural failure.
+
 ## Running manually
 
 ```
@@ -100,6 +114,28 @@ what the run wrote, and between them they are the whole alerting surface:
   red/`degraded` from the age of `lastSuccessfulLiveChatAt`). Both are live
   registry items with digest escalation and a 45-minute grace window, so a
   slot that never checks in is itself reported.
+
+### Sentinel incident closure contract
+
+For `sl-ui-sentry` + `job_failed`, the one content-free incident lifecycle
+is:
+
+1. **DETECT:** the red check-in or missed slot opens the Sentinel incident;
+   `last-run.json.status`, tier statuses, failed-case count, and fixed error
+   class are the diagnostic evidence. Never copy page or chat content.
+2. **OWN:** Sentinel assigns a Streetlight repair lane. Class R must not
+   blindly kickstart the normal label because that default path can reach
+   tier 2 and spend live-model turns.
+3. **REPAIR:** fix the source cause in review. A deliberately authorized
+   structural verification uses `UI_SENTRY_SKIP_TIER2=1` on the same locked
+   wrapper path; it makes no `/api/chat` calls.
+4. **COALESCE:** keep one incident keyed by item and failure episode. The
+   local pager and Sentinel currently lack a shared delivery key, so direct
+   cross-monitor notification coalescing remains a caller-track-pager
+   follow-up outside this repo's single-writer boundary.
+5. **VERIFY:** close only after a fresh structural run is PASS, its
+   `sl-ui-sentry` check-in is green for the repair run, and the Sentinel
+   incident is resolved. A passing ad hoc browser probe alone is not enough.
 
 The headline line — written first into the run log, and the same string the
 email subject used to be — is one of:
