@@ -368,3 +368,32 @@ Two corrections to what this ADR asserted:
 
 The subject strings enumerated above are unchanged; they are now the run's
 headline line in the log rather than an email subject.
+
+## Amendment (2026-08-20): tier 1 is pinned; real Chrome stays tier 2-only
+
+The 2026-08-19 scheduled run produced one tier 1 failure with a distinctive
+content-free shape: tier 0 passed, pinned WebKit passed all 23 structural
+cases, and the system-Chrome session timed out on its first three commands but
+passed its remaining 19. The first timeout's own Playwright call log said
+the expected heading had already resolved visible. A current run of the
+same 22-case Chromium structural path passed fully. This proves the public
+page was present and the failure was a transient command stall in the
+independently updated system-Chrome path, not missing production UI.
+
+**Decision:** tier 1 always launches Playwright's package-installed
+Chromium and WebKit binaries. The install process already pins and installs
+both under this standalone package (R11); preferring system Chrome before
+falling back silently defeated that guarantee. Real Chrome remains exactly
+where it is required: tier 2's visible desktop path for Turnstile. This
+change adds no retry, no self-heal, no new page, no model call, no logging
+field, and no spend.
+
+**Sentinel closure:** `sl-ui-sentry` + `job_failed` is one incident episode.
+The content-free evidence is the run status, tier statuses, failed-case
+count, and fixed error class in `last-run.json`/the run log. Sentinel owns a
+Streetlight repair lane; it must not blindly Class-R kickstart the default
+label because that path can reach tier 2 and spend live turns. Closure
+requires a fresh structural PASS, a green `sl-ui-sentry` check-in for that
+repair run, and the Sentinel incident resolving. Cross-monitor delivery
+coalescing with `caller-track-pager` remains blocked on that other repo's
+single-writer lane and is not claimed complete here.

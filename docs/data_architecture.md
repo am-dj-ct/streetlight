@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-08-07
-**Last meaningful change:** 2026-08-07 (named exception permitting the scheduled UI sentry, `com.streetlight.ui-sentry`, to call `/api/chat` with synthetic content on a capped, content-free basis — see `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
+**Last reviewed:** 2026-08-20
+**Last meaningful change:** 2026-08-20 (the UI sentry's no-spend tier 1 is pinned to its package-owned Playwright browsers, and its Sentinel closure contract is explicit — see `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -1268,6 +1268,12 @@ One-line summary of every decision in this document, dated for traceability.
 - The verdict reaches a human through two monitors that read what the run wrote: `~/caller-track-pager`'s `checkUiSentry()` (pages on `status: FAIL` or a `last-run.json` older than 74h) and the live sentinel-v5 items `sl-ui-sentry` / `sl-ui-sentry-live-chat`.
 - `last-run.json` drops `emailAccepted` and `emailHttpStatus`. The rest of the allowlisted schema is unchanged.
 - Full rationale in `docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`.
+
+**2026-08-20 — tier 1 uses only its package-pinned browsers:**
+
+- The structural tier no longer prefers the independently updated system Chrome; it uses the Chromium and WebKit binaries installed from its own Playwright lockfile.
+- Real Chrome remains limited to tier 2, where the 2026-08-08 Turnstile decision requires it. No cadence, page allowlist, live-turn budget, logging field, or user-connected path changes.
+- A red `sl-ui-sentry` episode is owned as one Sentinel lifecycle and closes only after a fresh structural PASS, a green check-in, and incident resolution. Blind Class R kickstart remains prohibited because the normal launchd path can spend live-model turns.
 
 ---
 

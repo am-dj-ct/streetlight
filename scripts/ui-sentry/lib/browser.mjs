@@ -53,7 +53,7 @@ export async function blockUsageEvents(context) {
 // armed (tier 1 structural requirement) and the perf probe init script
 // installed. Returns everything the caller needs to tear down cleanly.
 export async function launchPage({ browserType, contextOptions = {}, browser }) {
-  const ownBrowser = browser ?? (await launchBrowser(browserType));
+  const ownBrowser = browser ?? (await launchTier1Browser(browserType));
   const context = await ownBrowser.newContext(contextOptions);
   await blockUsageEvents(context);
   await context.addInitScript(PERF_INIT_SCRIPT);
@@ -103,14 +103,15 @@ export async function launchPage({ browserType, contextOptions = {}, browser }) 
   return { browser: ownBrowser, ownsBrowser: !browser, context, page, watch };
 }
 
-async function launchBrowser(browserType) {
-  if (browserType.name() === "chromium") {
-    try {
-      return await browserType.launch({ channel: "chrome", headless: true });
-    } catch {
-      // Fall through to the pinned bundled Chromium (R11).
-    }
-  }
+// Tier 1 is a deterministic structural check, so it always uses the
+// Playwright browser installed by this standalone package. Real Chrome is
+// intentionally reserved for tier 2, where the 2026-08-08 ADR requires it
+// for Turnstile behavior. Letting tier 1 prefer the independently updated
+// system Chrome defeated R11's version pin and caused the 2026-08-19 false
+// failure: Playwright commands stalled early in that Chrome session even
+// while the expected page element was already visible, while the pinned
+// WebKit pass and the rest of the production UI were healthy.
+export async function launchTier1Browser(browserType) {
   return browserType.launch({ headless: true });
 }
 
