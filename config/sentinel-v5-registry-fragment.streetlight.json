@@ -46,6 +46,27 @@
       "reason_codes": ["ok", "degraded"],
       "maintenance_label": "com.streetlight.ui-sentry",
       "registered_at": "2026-08-16T14:30:00Z"
+    },
+    {
+      "id": "sl-error-stream-health",
+      "repo": "streetlight",
+      "shadow": false,
+      "enabled": true,
+      "schedule": { "cron": "*/5 * * * *", "tz": "America/Los_Angeles" },
+      "grace_minutes": 4,
+      "skew_minutes": 1,
+      "tier": "T1",
+      "protected_paths": [
+        "scripts/error-stream-health/",
+        "scripts/sentinel-v5/",
+        "config/sentinel-v5-registry-fragment.streetlight.json"
+      ],
+      "escalation": { "digest": true },
+      "oracle": "self_report",
+      "dependency_keys": ["sl-production-site"],
+      "reason_codes": ["ok", "degraded", "job_failed"],
+      "maintenance_label": "com.streetlight.error-stream-health",
+      "registered_at": "2026-08-23T17:00:00Z"
     }
   ]
 }

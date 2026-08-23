@@ -97,7 +97,13 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
   // finding and Jesse's ruling accepting that trade-off.
   const context = await browser.newContext({ viewport: desktopViewport });
   await blockUsageEvents(context);
-  installTurnBudgetGuard(context, HARD_TURN_CAP, budget);
+  installTurnBudgetGuard(
+    context,
+    HARD_TURN_CAP,
+    budget,
+    process.env.OPS_READ_TOKEN,
+    baseUrl,
+  );
 
   const page = await context.newPage();
   const turns = [];

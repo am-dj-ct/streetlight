@@ -24,6 +24,8 @@ export const STREETLIGHT_ITEMS = {
   // schema-locked to the literal string "self_report" (blt-hub
   // registry.ts's ORACLE_KEYS), so it cannot itself carry prose.
   "sl-ui-sentry-live-chat": { group: false },
+  // Five-minute, count-only rolling error-stream rate watcher.
+  "sl-error-stream-health": { group: false },
 };
 
 export function isKnownItem(item) {

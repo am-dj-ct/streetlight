@@ -63,9 +63,18 @@ test("every fragment item declares the reason codes its producer really emits", 
   const fragment = JSON.parse(readFileSync(fragmentPath, "utf8"));
   const expected = {
     "sl-ui-sentry": ["ok", "job_failed"],
-    "sl-ui-sentry-live-chat": ["ok", "degraded"]
+    "sl-ui-sentry-live-chat": ["ok", "degraded"],
+    "sl-error-stream-health": ["ok", "degraded", "job_failed"]
   };
   for (const item of fragment.items) {
     assert.deepEqual(item.reason_codes, expected[item.id], `item ${item.id} reason_codes drifted from the producer`);
   }
+});
+
+test("error-stream health check-in is scheduled on every five-minute slot", () => {
+  const fragment = JSON.parse(readFileSync(fragmentPath, "utf8"));
+  const item = fragment.items.find((candidate) => candidate.id === "sl-error-stream-health");
+  assert.equal(item.schedule.cron, "*/5 * * * *");
+  assert.equal(item.maintenance_label, "com.streetlight.error-stream-health");
+  assert.deepEqual(item.reason_codes, ["ok", "degraded", "job_failed"]);
 });

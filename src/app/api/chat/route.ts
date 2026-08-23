@@ -51,6 +51,7 @@ import {
   type ChatRequestBody,
   type WeakCategory,
 } from "../../../lib/chat-types";
+import { isAuthenticatedSyntheticUiSentryRequest } from "../../../lib/ops-auth";
 
 type ChatTurnMessage = {
   attachments: ChatAttachment[];
@@ -229,6 +230,16 @@ type MainModelAttempt = {
   tier: MainModelTier;
 };
 
+class AnthropicStreamEventError extends Error {
+  readonly errorType: string;
+
+  constructor(errorType: string) {
+    super("Anthropic returned a stream error event.");
+    this.name = "AnthropicStreamEventError";
+    this.errorType = errorType;
+  }
+}
+
 function dedupeModelAttempts(attempts: MainModelAttempt[]): MainModelAttempt[] {
   const seen = new Set<string>();
   const result: MainModelAttempt[] = [];
@@ -301,6 +312,10 @@ function getApiErrorStatus(error: unknown): null | number {
 }
 
 function getApiErrorName(error: unknown): string {
+  if (error instanceof AnthropicStreamEventError) {
+    return error.errorType;
+  }
+
   return error instanceof Anthropic.APIError ? error.name : "UnknownError";
 }
 
@@ -382,27 +397,21 @@ async function createOpenAiSuggestionsFallback(responseText: string) {
   });
 }
 
-function getStreamEventErrorDescription(event: unknown): string {
+export function getStreamEventErrorType(event: unknown): string {
   if (!event || typeof event !== "object") {
     return "unknown";
   }
 
   const candidate = event as {
     error?: {
-      message?: unknown;
       type?: unknown;
     };
   };
-  const type =
-    typeof candidate.error?.type === "string"
-      ? candidate.error.type
-      : "unknown";
-  const message =
-    typeof candidate.error?.message === "string"
-      ? candidate.error.message
-      : "stream error";
+  const type = candidate.error?.type;
 
-  return `${type}: ${message}`;
+  return typeof type === "string" && /^[a-z0-9_]{1,80}$/i.test(type)
+    ? type
+    : "unknown";
 }
 
 async function readLimitedRequestBody(request: Request) {
@@ -523,6 +532,8 @@ export async function POST(request: Request) {
     hasKvConfig() &&
     hasHashedIpSalt();
   const hashedIp = getHashedIp(request);
+  const isAuthenticatedSyntheticUiSentry =
+    isAuthenticatedSyntheticUiSentryRequest(request);
   let loggedTurnMetadata = false;
 
   async function logTurnMetadataOnce({
@@ -579,16 +590,20 @@ export async function POST(request: Request) {
       suggestionsStatus,
       suggestionsUsage,
     });
-    await recordChatTurnOutcomeUsage({
-      buttonId: body.entryId,
-      classifierCategory,
-      language: body.language,
-      mainStatus,
-      modelMain: model,
-    });
+    if (!isAuthenticatedSyntheticUiSentry) {
+      await recordChatTurnOutcomeUsage({
+        buttonId: body.entryId,
+        classifierCategory,
+        language: body.language,
+        mainStatus,
+        modelMain: model,
+      });
+    }
   }
 
-  await recordChatRequestUsage({ hashedIp });
+  if (!isAuthenticatedSyntheticUiSentry) {
+    await recordChatRequestUsage({ hashedIp });
+  }
 
   try {
     if (isProductionMockMisconfigured()) {
@@ -790,7 +805,9 @@ export async function POST(request: Request) {
       );
     }
 
-    await recordLlmTurnStartedUsage({ hashedIp });
+    if (!isAuthenticatedSyntheticUiSentry) {
+      await recordLlmTurnStartedUsage({ hashedIp });
+    }
 
     const anthropic = new Anthropic({
       apiKey: getAnthropicApiKey(),
@@ -857,8 +874,8 @@ export async function POST(request: Request) {
                 const eventType = (event as { type?: unknown }).type;
 
                 if (eventType === "error") {
-                  throw new Error(
-                    `Anthropic stream error: ${getStreamEventErrorDescription(event)}`,
+                  throw new AnthropicStreamEventError(
+                    getStreamEventErrorType(event),
                   );
                 }
 
@@ -1205,12 +1222,11 @@ export async function POST(request: Request) {
           controller.close();
         } catch (error: unknown) {
           const responseTimeMs = Date.now() - requestStartedAt;
-          const apiError = error instanceof Anthropic.APIError ? error : null;
 
           console.error({
             code: "anthropic_stream_failed",
-            errorType: apiError?.name ?? "UnknownError",
-            status: apiError?.status ?? 500,
+            errorType: getApiErrorName(error),
+            status: getApiErrorStatus(error) ?? 500,
             model,
             responseTimeMs,
           });

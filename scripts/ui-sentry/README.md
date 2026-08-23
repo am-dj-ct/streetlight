@@ -52,6 +52,12 @@ nothing here runs through `npx playwright test`.
 - `com.streetlight.ui-sentry.plist` — Mon/Wed/Fri 07:23 local, no
   `KeepAlive`, no `RunAtLoad`.
 
+Tier 2 adds `x-streetlight-synthetic: ui-sentry` only alongside an
+`Authorization: Bearer` value from `OPS_READ_TOKEN`. Production excludes a
+turn from usage totals only when that bearer token passes the normal ops-auth
+check; the marker alone is never trusted. Missing credentials fail the sentry
+closed before a live chat request is sent.
+
 ## Tier 1 browser pin
 
 Tier 1 always uses the Chromium and WebKit binaries installed by this
