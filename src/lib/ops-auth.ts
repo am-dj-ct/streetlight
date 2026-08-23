@@ -107,6 +107,15 @@ export function isOpsRequestAuthorized(request: Request): boolean {
   );
 }
 
+export function isAuthenticatedSyntheticUiSentryRequest(
+  request: Request,
+): boolean {
+  return (
+    request.headers.get("x-streetlight-synthetic") === "ui-sentry" &&
+    isOpsRequestAuthorized(request)
+  );
+}
+
 export function makeOpsSessionCookie({ secure }: { secure: boolean }): string {
   return [
     `${opsSessionCookieName}=${encodeURIComponent(getExpectedSessionValue())}`,

@@ -18,6 +18,12 @@ const periodUniqueTrackingStartedDateKey = "2026-06-27";
 const usageVersion = "v1";
 const usageLaunchDateKey = "2026-06-24";
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
+const errorStreamBucketMinutes = 5;
+const errorStreamBucketMilliseconds = errorStreamBucketMinutes * 60 * 1000;
+const errorStreamHealthWindowMinutes = 60;
+const errorStreamHealthBucketCount =
+  errorStreamHealthWindowMinutes / errorStreamBucketMinutes + 1;
+const errorStreamHealthRetentionSeconds = 90 * 60;
 
 type UsageFieldMap = Record<string, number>;
 type UniqueScope =
@@ -89,6 +95,15 @@ export type UsageSummary = {
   retentionDays: number;
 };
 
+export type ErrorStreamHealthSummary = {
+  generatedAt: string;
+  windowMinutes: number;
+  totalInteractions: number;
+  errorStreamCount: number;
+  errorStreamRate: number;
+  status: "green" | "red";
+};
+
 export function getDefaultUsageDays(now = new Date()): number {
   const launchDate = new Date(`${usageLaunchDateKey}T00:00:00.000Z`);
   const todayUtc = Date.UTC(
@@ -123,6 +138,26 @@ function getSecondsUntilUtcMidnight(now: Date): number {
 
 function getUsageDayKey(dateKey: string): string {
   return `usage:${usageVersion}:day:${dateKey}`;
+}
+
+function getErrorStreamBucketStart(now: Date): number {
+  return (
+    Math.floor(now.getTime() / errorStreamBucketMilliseconds) *
+    errorStreamBucketMilliseconds
+  );
+}
+
+function getErrorStreamBucketKey(bucketStart: number): string {
+  return `usage:${usageVersion}:error_stream_health:${new Date(bucketStart).toISOString()}`;
+}
+
+export function getErrorStreamHealthBucketStarts(now = new Date()): number[] {
+  const currentBucketStart = getErrorStreamBucketStart(now);
+
+  return Array.from(
+    { length: errorStreamHealthBucketCount },
+    (_, index) => currentBucketStart - index * errorStreamBucketMilliseconds,
+  );
 }
 
 function getUsagePeriodKey(): string {
@@ -547,6 +582,25 @@ export async function recordChatTurnOutcomeUsage({
       incrementField(dateKey, `chat.button.${sanitizeFieldPart(buttonId)}`),
     ];
 
+    const bucketKey = getErrorStreamBucketKey(
+      getErrorStreamBucketStart(new Date()),
+    );
+
+    increments.push(
+      (async () => {
+        const bucketIncrements = [kv.hincrby(bucketKey, "total", 1)];
+
+        if (mainStatus === "error_stream") {
+          bucketIncrements.push(kv.hincrby(bucketKey, "error_stream", 1));
+        }
+
+        await Promise.all(bucketIncrements);
+        await kv
+          .expire(bucketKey, errorStreamHealthRetentionSeconds)
+          .catch(() => undefined);
+      })(),
+    );
+
     if (llmReachedProvider) {
       increments.push(
         incrementField(
@@ -559,6 +613,55 @@ export async function recordChatTurnOutcomeUsage({
 
     await Promise.all(increments);
   });
+}
+
+export function buildErrorStreamHealthSummary({
+  buckets,
+  now = new Date(),
+}: {
+  buckets: UsageFieldMap[];
+  now?: Date;
+}): ErrorStreamHealthSummary {
+  const totalInteractions = buckets.reduce(
+    (sum, fields) => sum + numberFromField(fields.total),
+    0,
+  );
+  const errorStreamCount = buckets.reduce(
+    (sum, fields) => sum + numberFromField(fields.error_stream),
+    0,
+  );
+  const errorStreamRate =
+    totalInteractions > 0 ? errorStreamCount / totalInteractions : 0;
+
+  return {
+    generatedAt: now.toISOString(),
+    windowMinutes: errorStreamHealthWindowMinutes,
+    totalInteractions,
+    errorStreamCount,
+    errorStreamRate,
+    status:
+      totalInteractions > 0 && errorStreamRate > 0.5 ? "red" : "green",
+  };
+}
+
+export async function getErrorStreamHealthSummary({
+  now = new Date(),
+}: {
+  now?: Date;
+} = {}): Promise<ErrorStreamHealthSummary> {
+  if (!hasKvConfig()) {
+    throw new Error("Error-stream health storage is unavailable.");
+  }
+
+  const buckets = await Promise.all(
+    getErrorStreamHealthBucketStarts(now).map(async (bucketStart) =>
+      ((await kv.hgetall<UsageFieldMap>(
+        getErrorStreamBucketKey(bucketStart),
+      )) ?? {}),
+    ),
+  );
+
+  return buildErrorStreamHealthSummary({ buckets, now });
 }
 
 function numberFromField(value: unknown): number {

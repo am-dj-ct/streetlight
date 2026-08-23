@@ -67,10 +67,31 @@ async function waitForFirstToken(page, beforeAssistantCount, deadlineMs) {
       const text = latest.textContent ?? "";
       return text.length > 0 && text !== "Thinking...";
     }, beforeAssistantCount);
-    if (gotToken) return Date.now();
-    if (Date.now() >= deadline) return null;
+    if (gotToken) return { firstTokenAt: Date.now(), failureNoticeSeen: false };
+    if (await hasFailureNotice(page)) {
+      return { firstTokenAt: null, failureNoticeSeen: true };
+    }
+    if (Date.now() >= deadline) return { firstTokenAt: null, failureNoticeSeen: false };
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
+}
+
+// Record the response as soon as Playwright exposes its headers. Awaiting
+// response.text() here used to delay the array insertion until a stream
+// finished (or failed), so a fixed failure notice could win the race and be
+// mislabeled client_blocked even though the POST had reached the server.
+export function observeChatResponse(response) {
+  const observed = {
+    status: response.status(),
+    bodyTextPromise: Promise.resolve().then(() => response.text()).catch(() => null),
+  };
+  return observed;
+}
+
+export function successfulStreamLabel({ firstTokenAt, streamDone, failureNoticeSeen }) {
+  if (failureNoticeSeen) return "stream_error";
+  if (!firstTokenAt || !streamDone) return "reply_timeout";
+  return "pass";
 }
 
 async function waitForStreamDone(page, remainingMs) {
@@ -95,16 +116,10 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
   const before = await messageCounts(page);
   const chatResponses = [];
 
-  const onResponse = async (response) => {
+  const onResponse = (response) => {
     if (!response.url().includes("/api/chat")) return;
     if (response.request().method() !== "POST") return;
-    let bodyText = null;
-    try {
-      bodyText = await response.text();
-    } catch {
-      bodyText = null;
-    }
-    chatResponses.push({ status: response.status(), bodyText });
+    chatResponses.push(observeChatResponse(response));
   };
   page.on("response", onResponse);
 
@@ -154,7 +169,8 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
     });
 
     const response = chatResponses[0];
-    let classification = classifyChatResponse(response);
+    const bodyText = response.status === 200 ? null : await response.bodyTextPromise;
+    let classification = classifyChatResponse({ status: response.status, bodyText });
 
     if (PAUSED_LABELS.has(classification.label)) {
       const healthz = await fetchHealthz(baseUrl);
@@ -172,13 +188,18 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
       };
     }
 
-    const firstTokenAt = await waitForFirstToken(page, before.assistant, perTurnDeadlineMs);
+    const firstTokenResult = await waitForFirstToken(page, before.assistant, perTurnDeadlineMs);
+    const firstTokenAt = firstTokenResult.firstTokenAt;
     const remainingMs = perTurnDeadlineMs - (Date.now() - turnStartedAt);
-    const streamDone = await waitForStreamDone(page, remainingMs);
+    const streamDone = firstTokenResult.failureNoticeSeen
+      ? false
+      : await waitForStreamDone(page, remainingMs);
+    const failureNoticeSeen = firstTokenResult.failureNoticeSeen || await hasFailureNotice(page);
+    const streamLabel = successfulStreamLabel({ firstTokenAt, streamDone, failureNoticeSeen });
 
-    if (!streamDone) {
+    if (streamLabel !== "pass") {
       return {
-        label: "reply_timeout",
+        label: streamLabel,
         httpStatus: response.status,
         ttftMs: firstTokenAt ? firstTokenAt - turnStartedAt : null,
         totalMs: Date.now() - turnStartedAt,

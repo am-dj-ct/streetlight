@@ -4,6 +4,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchTier1Browser } from "./lib/browser.mjs";
+import { installTurnBudgetGuard } from "./lib/budget-guard.mjs";
+import { observeChatResponse, successfulStreamLabel } from "./lib/conversation.mjs";
 import { tier2Verdict } from "./lib/chat-status.mjs";
 import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
 
@@ -35,6 +37,79 @@ test("tier 1 uses only the package-pinned browser, never the system Chrome chann
 
   assert.equal(browser, expectedBrowser);
   assert.deepEqual(calls, [{ headless: true }]);
+});
+
+test("chat response headers mark a POST before its streaming body settles", async () => {
+  let resolveBody;
+  const body = new Promise((resolve) => { resolveBody = resolve; });
+  const observed = observeChatResponse({ status: () => 200, text: () => body });
+
+  assert.equal(observed.status, 200);
+  let settled = false;
+  observed.bodyTextPromise.then(() => { settled = true; });
+  await Promise.resolve();
+  assert.equal(settled, false);
+
+  resolveBody("done");
+  assert.equal(await observed.bodyTextPromise, "done");
+});
+
+test("a successful 200 stream requires a first token and a completed stream", () => {
+  assert.equal(successfulStreamLabel({ firstTokenAt: 1, streamDone: true, failureNoticeSeen: false }), "pass");
+  assert.equal(successfulStreamLabel({ firstTokenAt: null, streamDone: true, failureNoticeSeen: false }), "reply_timeout");
+  assert.equal(successfulStreamLabel({ firstTokenAt: 1, streamDone: false, failureNoticeSeen: false }), "reply_timeout");
+  assert.equal(successfulStreamLabel({ firstTokenAt: 1, streamDone: true, failureNoticeSeen: true }), "stream_error");
+});
+
+test("tier 2 authenticates its synthetic marker with the ops bearer token", async () => {
+  let handler;
+  let continued;
+  const context = { route(_pattern, candidate) { handler = candidate; } };
+  installTurnBudgetGuard(context, 8, { used: 0, cap: 8, aborted: 0 }, "test-token");
+
+  await handler(
+    { async continue(options) { continued = options; }, async abort() {} },
+    {
+      method: () => "POST",
+      headers: () => ({ accept: "text/event-stream" }),
+      url: () => "https://streetlight.help/api/chat",
+    },
+  );
+
+  assert.equal(continued.headers.authorization, "Bearer test-token");
+  assert.equal(continued.headers["x-streetlight-synthetic"], "ui-sentry");
+  assert.equal(continued.headers.accept, "text/event-stream");
+});
+
+test("tier 2 never sends the ops token to another origin", async () => {
+  let handler;
+  let continued;
+  const context = { route(_pattern, candidate) { handler = candidate; } };
+  installTurnBudgetGuard(
+    context,
+    8,
+    { used: 0, cap: 8, aborted: 0 },
+    "test-token",
+    "https://streetlight.help",
+  );
+
+  await handler(
+    { async continue(options) { continued = options ?? null; }, async abort() {} },
+    {
+      method: () => "POST",
+      headers: () => ({}),
+      url: () => "https://example.com/api/chat",
+    },
+  );
+
+  assert.equal(continued, null);
+});
+
+test("tier 2 refuses to send a synthetic turn without ops authentication", () => {
+  assert.throws(
+    () => installTurnBudgetGuard({ route() {} }, 8, { used: 0, cap: 8, aborted: 0 }, ""),
+    /OPS_READ_TOKEN is required/,
+  );
 });
 
 test("a partial tier 2 result reports DEGRADED without claiming chat is blocked", () => {

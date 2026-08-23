@@ -14,7 +14,17 @@
 // therefore the cap) is shared across attempts; a fresh object is created
 // only when the caller omits one, which keeps every other, single-attempt
 // caller of this function working unchanged.
-export function installTurnBudgetGuard(context, cap, budget = { used: 0, cap, aborted: 0 }) {
+export function installTurnBudgetGuard(
+  context,
+  cap,
+  budget = { used: 0, cap, aborted: 0 },
+  opsReadToken = process.env.OPS_READ_TOKEN,
+  baseUrl = process.env.STREETLIGHT_BASE_URL ?? "https://streetlight.help",
+) {
+  if (!opsReadToken) {
+    throw new Error("OPS_READ_TOKEN is required to authenticate synthetic UI-sentry chat turns");
+  }
+
   context.route("**/api/chat", async (route, request) => {
     // A route handler throwing becomes an unhandledRejection at the
     // process level, detached from any case-level try/catch — never let
@@ -22,6 +32,11 @@ export function installTurnBudgetGuard(context, cap, budget = { used: 0, cap, ab
     // try, so budget accounting stays correct even if the actual
     // continue/abort call itself races another handler.
     try {
+      if (new URL(request.url()).origin !== new URL(baseUrl).origin) {
+        await route.continue();
+        return;
+      }
+
       if (request.method() !== "POST") {
         await route.continue();
         return;
@@ -35,7 +50,13 @@ export function installTurnBudgetGuard(context, cap, budget = { used: 0, cap, ab
         return;
       }
 
-      await route.continue();
+      await route.continue({
+        headers: {
+          ...request.headers(),
+          authorization: `Bearer ${opsReadToken}`,
+          "x-streetlight-synthetic": "ui-sentry",
+        },
+      });
     } catch {
       // best-effort only
     }
