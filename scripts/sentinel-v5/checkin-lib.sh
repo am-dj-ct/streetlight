@@ -105,3 +105,123 @@ sentinel_checkin() {
   fi
   return 0
 }
+
+# sentinel_doppler_run <project> <config> -- <command...>
+#
+# Doppler-wrapped command runner for streetlight's sentinel-v5 jobs, added
+# 2026-09-04 after com.streetlight.error-stream-health went red three times
+# in one day (10:05, 10:34, 13:47) with "Doppler Error: Exceeded rate limit
+# of 240 requests within 60 seconds" — every scheduled job on this Mac calls
+# `doppler run` on start, and a fan-out of many jobs/lanes trips the shared
+# per-minute cap. A 429 says the shared limit is busy, not that this job's
+# secrets or health check are broken, so it must not turn into a red
+# job_failed check-in on its own.
+#
+# Behavior:
+#   - Each project/config gets its own local Doppler fallback file under
+#     $SENTINEL_DOPPLER_FALLBACK_DIR (default: ~/.streetlight/doppler-fallback),
+#     named "<project>-<config>.fallback". Doppler itself encrypts/decrypts
+#     this file; this function never reads or logs its contents.
+#   - If that file exists and was written within the last
+#     SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS (default 21600 = 6h), the command
+#     runs straight off the cache via `doppler run --fallback-only`: zero
+#     network calls, so zero rate-limit exposure.
+#   - Otherwise this makes one live `doppler run --fallback <path> -- ...`
+#     call, which both runs the command and refreshes the fallback file on
+#     success.
+#   - If that live call fails specifically because Doppler is rate-limited
+#     (429 / "exceeded rate limit" in its stderr) AND a fallback file of ANY
+#     age already exists, this retries once via `--fallback-only` off that
+#     file instead of surfacing the 429 as a failure. Only a rate limit with
+#     NO usable fallback at all is a real failure — there is no way to reach
+#     secrets at all in that case, so callers should still treat it as red.
+#   - Any other failure (bad token, missing project, network down, etc.) is
+#     never masked — it propagates with doppler's real exit code and stderr,
+#     the same as a bare `doppler run` would.
+#
+# Sets SENTINEL_DOPPLER_RUN_STATUS to one of: cache_fresh, live_ok,
+# rate_limited_used_fallback, rate_limited_no_fallback, live_failed — for a
+# caller that wants to log which path was taken. This function itself never
+# aborts the caller (same contract as the two above): callers read its
+# return code, exactly like a bare `doppler run`.
+SENTINEL_DOPPLER_FALLBACK_DIR="${SENTINEL_DOPPLER_FALLBACK_DIR:-$HOME/.streetlight/doppler-fallback}"
+SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS="${SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS:-21600}"
+SENTINEL_DOPPLER_BIN="${SENTINEL_DOPPLER_BIN:-doppler}"
+SENTINEL_DOPPLER_RUN_STATUS=""
+
+# sentinel_doppler_fallback_age_seconds <file> — prints the file's age in
+# seconds, or -1 if it does not exist / its mtime cannot be read. BSD stat
+# (-f %m, this Mac) first, GNU stat (-c %Y, Linux CI) as a fallback — see
+# blt-hub's deploy/lib/doppler-cached-run.sh for why the order matters: the
+# reverse order silently misparses on the other platform instead of erroring.
+sentinel_doppler_fallback_age_seconds() {
+  local file="$1" mtime
+  if [ -f "$file" ]; then
+    mtime="$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null || true)"
+    if [ -n "$mtime" ]; then
+      echo $(( $(date -u +%s) - mtime ))
+      return 0
+    fi
+  fi
+  echo -1
+}
+
+sentinel_doppler_run() {
+  local project="$1" config="$2"
+  shift 2 2>/dev/null || true
+  if [ "${1:-}" = "--" ]; then shift; fi
+
+  mkdir -p "$SENTINEL_DOPPLER_FALLBACK_DIR" 2>/dev/null || true
+  local fallback_file="$SENTINEL_DOPPLER_FALLBACK_DIR/${project}-${config}.fallback"
+  local age rc errfile err
+  age="$(sentinel_doppler_fallback_age_seconds "$fallback_file")"
+
+  if [ "$age" -ge 0 ] && [ "$age" -lt "$SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS" ]; then
+    SENTINEL_DOPPLER_RUN_STATUS="cache_fresh"
+    "$SENTINEL_DOPPLER_BIN" run --fallback-only --fallback "$fallback_file" \
+      --project "$project" --config "$config" -- "$@"
+    return $?
+  fi
+
+  # Cache missing or stale: one live call, isolated stderr so a rate-limit
+  # message can be told apart from the wrapped command's own output.
+  errfile="$(mktemp 2>/dev/null || true)"
+  if [ -n "$errfile" ]; then
+    "$SENTINEL_DOPPLER_BIN" run --fallback "$fallback_file" \
+      --project "$project" --config "$config" -- "$@" 2>"$errfile"
+    rc=$?
+    err="$(cat "$errfile" 2>/dev/null || true)"
+    rm -f "$errfile" 2>/dev/null || true
+  else
+    "$SENTINEL_DOPPLER_BIN" run --fallback "$fallback_file" \
+      --project "$project" --config "$config" -- "$@"
+    rc=$?
+    err=""
+  fi
+
+  if [ "$rc" -eq 0 ]; then
+    SENTINEL_DOPPLER_RUN_STATUS="live_ok"
+    [ -n "$err" ] && printf '%s\n' "$err" >&2
+    return 0
+  fi
+
+  if printf '%s' "$err" | grep -qiE '429|exceeded rate limit|rate.?limit'; then
+    local fallback_age
+    fallback_age="$(sentinel_doppler_fallback_age_seconds "$fallback_file")"
+    if [ "$fallback_age" -ge 0 ]; then
+      SENTINEL_DOPPLER_RUN_STATUS="rate_limited_used_fallback"
+      sentinel_log_fallback_failure "doppler_rate_limited:$project:$config" \
+        "fallback_age_seconds=$fallback_age"
+      "$SENTINEL_DOPPLER_BIN" run --fallback-only --fallback "$fallback_file" \
+        --project "$project" --config "$config" -- "$@"
+      return $?
+    fi
+    SENTINEL_DOPPLER_RUN_STATUS="rate_limited_no_fallback"
+    [ -n "$err" ] && printf '%s\n' "$err" >&2
+    return "$rc"
+  fi
+
+  SENTINEL_DOPPLER_RUN_STATUS="live_failed"
+  [ -n "$err" ] && printf '%s\n' "$err" >&2
+  return "$rc"
+}

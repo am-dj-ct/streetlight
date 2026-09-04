@@ -297,7 +297,10 @@ fi
 export PLAYWRIGHT_BROWSERS_PATH=0
 
 # One doppler-wrapped call runs the tests and writes the report (R14).
-doppler run --project agent-secrets --config dev -- node orchestrator.mjs
+# sentinel_doppler_run (checkin-lib.sh, sourced above) serves this off a
+# local fallback file when fresh, and tolerates a 429 the same way
+# error-stream-health does — see its header (2026-09-04 rate-limit finding).
+sentinel_doppler_run "agent-secrets" "dev" -- node orchestrator.mjs
 ui_sentry_exit_code=$?
 
 # Both check-ins fire after the orchestrator's own finalizer has already

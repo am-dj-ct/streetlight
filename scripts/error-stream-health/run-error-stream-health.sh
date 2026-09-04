@@ -22,7 +22,12 @@ if ! command -v doppler >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; th
   exit 1
 fi
 
-doppler run --project agent-secrets --config dev -- node "$SCRIPT_DIR/run-health.mjs"
+# sentinel_doppler_run (checkin-lib.sh) serves this off a local fallback
+# file when it is fresher than 6h, and falls back to it on a 429 too — see
+# its header for why: this job hit Doppler's shared 240-req/60s rate limit
+# three times on 2026-09-04 and reported status error each time even though
+# the secrets it needed hadn't changed in hours.
+sentinel_doppler_run "agent-secrets" "dev" -- node "$SCRIPT_DIR/run-health.mjs"
 health_exit=$?
 
 case "$health_exit" in
