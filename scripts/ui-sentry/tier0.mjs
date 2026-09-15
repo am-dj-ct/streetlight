@@ -21,20 +21,45 @@ async function curlRootOnce(baseUrl, timeoutMs) {
 
 export async function runTier0({ baseUrl, logger }) {
   const preflight = await checkBrowsersInstalled();
-  logger.line(`tier0 browser preflight: ok=${preflight.ok} missing=${preflight.missing.join(",") || "none"}`);
+  const detailSummary = Object.entries(preflight.results)
+    .map(([name, r]) => `${name}=${r.status}${r.elapsedMs != null ? `(${r.elapsedMs}ms)` : ""}`)
+    .join(" ");
+  logger.line(`tier0 browser preflight: ok=${preflight.ok} ${detailSummary}`);
   if (!preflight.ok) {
+    // Two different failure classes get two different messages and exit
+    // codes (2026-09-15 incident): "executable_missing" means install.sh
+    // never ran or was incomplete — a real install problem. "launch_failed"
+    // means the executable is there but launch() didn't come back ok inside
+    // the timeout — an environment/timing problem (the ProcessType=
+    // Background throttling that caused this incident was exactly this
+    // case), not a missing install. A run that mixes both reports as an
+    // install problem, since that's the more actionable fix.
+    const anyExecutableMissing = preflight.missing.some((name) => preflight.results[name].status === "executable_missing");
+    const reason = anyExecutableMissing ? "browsers_not_installed" : "browser_launch_failed";
+
+    const cases = preflight.missing.map((name) => {
+      const r = preflight.results[name];
+      if (r.status === "executable_missing") {
+        return {
+          name: `browser preflight: ${name}`,
+          status: "fail",
+          error: `browser executable missing (checked ${r.path ?? "the path Playwright's registry names"}) — run install.sh, never downloaded at run time`,
+        };
+      }
+      return {
+        name: `browser preflight: ${name}`,
+        status: "fail",
+        detail: `not checked: browser launch failed/timed out (${r.elapsedMs}ms)`,
+        error: r.error,
+      };
+    });
+
     return {
       status: "fail",
-      reason: "browsers_not_installed",
+      reason,
       siteUp: null,
       healthz: null,
-      cases: [
-        {
-          name: "browser preflight",
-          status: "fail",
-          error: `missing browsers: ${preflight.missing.join(", ")} — run install.sh, never downloaded at run time`,
-        },
-      ],
+      cases,
     };
   }
 

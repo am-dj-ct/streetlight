@@ -8,6 +8,7 @@ import { installTurnBudgetGuard } from "./lib/budget-guard.mjs";
 import { observeChatResponse, successfulStreamLabel } from "./lib/conversation.mjs";
 import { tier2Verdict } from "./lib/chat-status.mjs";
 import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
+import { checkBrowserLaunch } from "./lib/preflight.mjs";
 
 const SENTRY_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -112,6 +113,92 @@ test("tier 2 refuses to send a synthetic turn without ops authentication", () =>
   );
 });
 
+// 2026-09-15 incident regression: a headless launch that timed out under
+// ProcessType=Background throttling used to be reported identically to a
+// browser that was never installed at all ("missing browsers"). These two
+// pin the classification apart so it can't quietly merge back together.
+test("preflight reports executable_missing when Playwright's own registry has no path for the browser", async () => {
+  const browserType = {
+    executablePath: () => "",
+    async launch() {
+      throw new Error("should never attempt to launch when the executable is missing");
+    },
+  };
+
+  const result = await checkBrowserLaunch(browserType, { existsSyncFn: () => false });
+
+  assert.equal(result.status, "executable_missing");
+  assert.equal(result.elapsedMs, null);
+});
+
+test("preflight reports executable_missing when the registry path doesn't exist on disk", async () => {
+  const browserType = {
+    executablePath: () => "/fake/path/to/chromium",
+    async launch() {
+      throw new Error("should never attempt to launch when the executable path is absent");
+    },
+  };
+
+  const result = await checkBrowserLaunch(browserType, { existsSyncFn: (p) => p !== "/fake/path/to/chromium" });
+
+  assert.equal(result.status, "executable_missing");
+  assert.match(result.error, /no browser executable/);
+});
+
+test("preflight reports launch_failed, with elapsed time and the error's first line, when the executable exists but launch() rejects", async () => {
+  const browserType = {
+    executablePath: () => "/fake/path/to/webkit",
+    async launch() {
+      throw new Error("browserType.launch: Timeout 60000ms exceeded.\nCall log:\n  - <launching>");
+    },
+  };
+
+  const result = await checkBrowserLaunch(browserType, { existsSyncFn: () => true });
+
+  assert.equal(result.status, "launch_failed");
+  assert.equal(typeof result.elapsedMs, "number");
+  assert.equal(result.error, "browserType.launch: Timeout 60000ms exceeded.");
+});
+
+test("preflight reports ok when the executable exists and launch() succeeds", async () => {
+  let closed = false;
+  const browserType = {
+    executablePath: () => "/fake/path/to/chromium",
+    async launch() {
+      return { async close() { closed = true; } };
+    },
+  };
+
+  const result = await checkBrowserLaunch(browserType, { existsSyncFn: () => true });
+
+  assert.equal(result.status, "ok");
+  assert.equal(closed, true);
+});
+
+// The exit code and rendered message must tell "not installed" apart from
+// "launch timed out" (2026-09-15) all the way out to what launchd sees and
+// what the log says — not just at the preflight layer.
+test("a browser launch failure exits distinctly from a site failure and is never worded as a site problem", () => {
+  const overall = computeOverallLevel({
+    tier0: { status: "fail", reason: "browser_launch_failed" },
+    tier1: null,
+    tier2: null,
+  });
+
+  assert.deepEqual(overall, { level: "FAIL", siteDown: false, browserLaunchFailed: true });
+
+  const subject = buildSubject({
+    ...overall,
+    blockedNarrative: "none",
+    consecutiveBlockedRuns: 0,
+    tier2Skipped: false,
+    tier2Status: null,
+  });
+
+  assert.match(subject, /browser launch failed\/timed out/);
+  assert.doesNotMatch(subject, /site down/);
+});
+
 test("a partial tier 2 result reports DEGRADED without claiming chat is blocked", () => {
   const overall = computeOverallLevel({
     tier0: { status: "pass" },
@@ -119,7 +206,7 @@ test("a partial tier 2 result reports DEGRADED without claiming chat is blocked"
     tier2: { status: "partial" },
   });
 
-  assert.deepEqual(overall, { level: "DEGRADED", siteDown: false });
+  assert.deepEqual(overall, { level: "DEGRADED", siteDown: false, browserLaunchFailed: false });
   assert.equal(
     buildSubject({
       ...overall,

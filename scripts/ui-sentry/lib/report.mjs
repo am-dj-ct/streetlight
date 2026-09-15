@@ -17,21 +17,25 @@
 // (structural-only verification, --skip-tier2) rather than lost to a crash.
 export function computeOverallLevel({ tier0, tier1, tier2, tier2Skipped = false }) {
   if (!tier0 || tier0.status === "fail") {
-    return { level: "FAIL", siteDown: tier0?.reason === "site_down" };
+    return {
+      level: "FAIL",
+      siteDown: tier0?.reason === "site_down",
+      browserLaunchFailed: tier0?.reason === "browser_launch_failed",
+    };
   }
   if (!tier1 || tier1.status === "fail") {
-    return { level: "FAIL", siteDown: false };
+    return { level: "FAIL", siteDown: false, browserLaunchFailed: false };
   }
   if (tier2Skipped) {
-    return { level: "PASS", siteDown: false };
+    return { level: "PASS", siteDown: false, browserLaunchFailed: false };
   }
   if (!tier2 || tier2.status === "fail") {
-    return { level: "FAIL", siteDown: false };
+    return { level: "FAIL", siteDown: false, browserLaunchFailed: false };
   }
   if (tier2.status === "blocked" || tier2.status === "partial") {
-    return { level: "DEGRADED", siteDown: false };
+    return { level: "DEGRADED", siteDown: false, browserLaunchFailed: false };
   }
-  return { level: "PASS", siteDown: false };
+  return { level: "PASS", siteDown: false, browserLaunchFailed: false };
 }
 
 // R4's persistent-blocked escalation, revised: a structurally blocked chat
@@ -54,6 +58,7 @@ export function computeOverallLevel({ tier0, tier1, tier2, tier2Skipped = false 
 export function buildSubject({
   level,
   siteDown,
+  browserLaunchFailed,
   blockedNarrative,
   consecutiveBlockedRuns,
   tier2Skipped,
@@ -61,6 +66,9 @@ export function buildSubject({
 }) {
   if (level === "FAIL" && siteDown) {
     return "Streetlight UI sentry: FAIL (site down)";
+  }
+  if (level === "FAIL" && browserLaunchFailed) {
+    return "Streetlight UI sentry: FAIL (browser launch failed/timed out, not a site failure)";
   }
   if (tier2Skipped) {
     return `Streetlight UI sentry: ${level} (structural only, tier 2 skipped)`;
