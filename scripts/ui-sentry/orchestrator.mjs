@@ -70,7 +70,7 @@ async function finalize() {
   finalized = true;
 
   const finishedAt = new Date();
-  const { level, siteDown } = computeOverallLevel(partial);
+  const { level, siteDown, browserLaunchFailed } = computeOverallLevel(partial);
 
   // R4, revised after review: three consecutive BLOCKED runs escalates the
   // subject to FAIL exactly ONCE (the run that first crosses the
@@ -123,8 +123,15 @@ async function finalize() {
   const lastSuccessfulLiveChatAt =
     partial.tier2?.lastSuccessfulLiveChatAt ?? previousState?.lastSuccessfulLiveChatAt ?? null;
 
+  // Exit codes are deliberately distinct per failure class so a human or
+  // caller-track-pager reading launchd's own exit status (not just the log)
+  // can tell them apart without opening anything: 2 = site down, 3 =
+  // browser launch failed/timed out (2026-09-15 incident — this used to be
+  // indistinguishable from a real site failure), 1 = any other FAIL, 0 =
+  // pass/degraded-not-fail.
   let exitCode;
   if (siteDown) exitCode = 2;
+  else if (browserLaunchFailed) exitCode = 3;
   else if (effectiveLevel === "FAIL") exitCode = 1;
   else exitCode = 0;
 
@@ -168,6 +175,7 @@ async function finalize() {
   const subject = buildSubject({
     level,
     siteDown,
+    browserLaunchFailed,
     blockedNarrative,
     consecutiveBlockedRuns,
     tier2Skipped: partial.tier2Skipped,
