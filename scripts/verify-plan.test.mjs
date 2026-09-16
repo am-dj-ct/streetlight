@@ -1,0 +1,165 @@
+// Guards for the category-aware verify plan.
+//
+// These exist because the failure mode of a selective check is silent: it
+// picks a smaller set, everything goes green faster, and nobody finds out
+// that the check which would have caught the bug is no longer selected. Each
+// test below is a specific way that could happen.
+
+import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import test from "node:test";
+import { alwaysChecks, checkIds, classifyPath, planVerify } from "./lib/verify-plan.mjs";
+import { launchRequiredFiles } from "./lib/repo-readiness.mjs";
+
+function checksFor(changedPaths, overrideChecks = []) {
+  return planVerify({ changedPaths, overrideChecks }).checks.map((check) => check.id);
+}
+
+test("a plain docs change does not build or start a server", () => {
+  const plan = planVerify({ changedPaths: ["docs/access_tool_thesis.md"] });
+  assert.equal(plan.status, "ok");
+  assert.deepEqual(plan.categories, ["docs"]);
+  assert.equal(plan.needsBuild, false);
+  assert.equal(plan.needsRuntime, false);
+});
+
+test("product-consumed documentation still runs check:launch", () => {
+  for (const relativePath of launchRequiredFiles) {
+    const ids = checksFor([relativePath]);
+    assert.ok(
+      ids.includes("check:launch"),
+      `${relativePath} is read by check-launch-readiness.mjs but did not select check:launch`,
+    );
+  }
+});
+
+test("every product-consumed documentation path actually exists", () => {
+  // If one is renamed and the planner list is not updated, the rule silently
+  // stops matching and those docs fall back to the cheap lane.
+  for (const relativePath of launchRequiredFiles) {
+    assert.ok(existsSync(relativePath), `${relativePath} is in launchRequiredFiles but is not in the repo`);
+  }
+});
+
+test("product docs are not classified by the plain-doc rule", () => {
+  const rule = classifyPath("docs/partners/launch-packet.md");
+  assert.equal(rule.id, "product-consumed-doc");
+  assert.notEqual(classifyPath("docs/access_tool_thesis.md").id, "product-consumed-doc");
+});
+
+test("resource data selects validation, staleness and the rendered pass", () => {
+  const ids = checksFor(["src/data/referrals.json"]);
+  assert.ok(ids.includes("validate:data"));
+  assert.ok(ids.includes("check:launch"));
+  assert.ok(ids.includes("smoke"));
+  assert.deepEqual(planVerify({ changedPaths: ["src/data/referrals.json"] }).categories, ["data"]);
+});
+
+test("translated copy selects the locale checks and the rendered pass", () => {
+  const ids = checksFor(["src/data/ui-copy/es.json"]);
+  assert.ok(ids.includes("check:locales:summary"));
+  assert.ok(ids.includes("check:content"));
+  assert.ok(ids.includes("smoke"));
+});
+
+test("UI source selects lint, build, parity and the rendered pass", () => {
+  const ids = checksFor(["src/components/crisis-footer.tsx"]);
+  assert.ok(ids.includes("lint"));
+  assert.ok(ids.includes("build"));
+  assert.ok(ids.includes("parity"));
+  assert.ok(ids.includes("smoke"));
+  assert.deepEqual(planVerify({ changedPaths: ["src/components/crisis-footer.tsx"] }).categories, ["ui"]);
+});
+
+test("a rendered check can never be selected without the parity proof", () => {
+  // This is the whole justification for testing the production build rather
+  // than the development server. If a rule ever selects smoke without parity,
+  // the production-build claim stops being backed by anything.
+  for (const relativePath of [
+    "src/components/crisis-footer.tsx",
+    "src/data/referrals.json",
+    "src/data/ui-copy/es.json",
+    "package.json",
+  ]) {
+    const ids = checksFor([relativePath]);
+
+    if (ids.some((id) => ["check:ops", "regression:mock", "smoke"].includes(id))) {
+      assert.ok(ids.includes("parity"), `${relativePath} selected a rendered check without parity`);
+      assert.ok(ids.includes("build"), `${relativePath} selected a rendered check without a build`);
+    }
+  }
+});
+
+test("toolchain and script changes run the whole catalog", () => {
+  for (const relativePath of ["package.json", ".github/workflows/verify.yml", "scripts/smoke.mjs"]) {
+    assert.deepEqual(checksFor([relativePath]), checkIds, `${relativePath} did not select every check`);
+  }
+});
+
+test("the plan itself is a toolchain input", () => {
+  assert.deepEqual(checksFor(["scripts/lib/verify-plan.mjs"]), checkIds);
+});
+
+test("the non-negotiable scans run on every plan", () => {
+  for (const changed of [[], ["docs/access_tool_thesis.md"], ["src/app/page.tsx"]]) {
+    const ids = checksFor(changed);
+
+    for (const alwaysId of alwaysChecks) {
+      assert.ok(ids.includes(alwaysId), `${alwaysId} missing for ${JSON.stringify(changed)}`);
+    }
+  }
+});
+
+test("an unclassified path blocks and names itself", () => {
+  const plan = planVerify({ changedPaths: ["some/brand-new-surface/thing.bin"] });
+  assert.equal(plan.status, "blocked");
+  assert.deepEqual(plan.unmapped, ["some/brand-new-surface/thing.bin"]);
+});
+
+test("an unclassified path is not masked by a mapped one", () => {
+  // The dangerous version of the previous test: a real change alongside an
+  // unknown one must not come back green because the known half selected
+  // something.
+  const plan = planVerify({
+    changedPaths: ["src/app/page.tsx", "some/brand-new-surface/thing.bin"],
+  });
+  assert.equal(plan.status, "blocked");
+  assert.deepEqual(plan.unmapped, ["some/brand-new-surface/thing.bin"]);
+});
+
+test("an operator can resolve a missing relationship with a bounded list", () => {
+  const plan = planVerify({
+    changedPaths: ["some/brand-new-surface/thing.bin"],
+    overrideChecks: ["lint", "build"],
+  });
+  assert.equal(plan.status, "ok");
+  assert.deepEqual(plan.unmapped, ["some/brand-new-surface/thing.bin"]);
+  assert.ok(plan.checks.map((check) => check.id).includes("lint"));
+});
+
+test("every catalog entry is reachable from some rule or the always list", () => {
+  const reachable = new Set(alwaysChecks);
+
+  for (const relativePath of [
+    "package.json",
+    "docs/partners/launch-packet.md",
+    "docs/access_tool_thesis.md",
+    "src/data/referrals.json",
+    "src/data/ui-copy/es.json",
+    "src/app/page.tsx",
+  ]) {
+    for (const id of checksFor([relativePath])) {
+      reachable.add(id);
+    }
+  }
+
+  assert.deepEqual([...reachable].sort(), [...checkIds].sort());
+});
+
+test("the plan reports something for every run", () => {
+  // Always-reporting: even an empty change set produces a manifest with
+  // checks in it, never an empty skipped result.
+  const plan = planVerify({ changedPaths: [] });
+  assert.equal(plan.status, "ok");
+  assert.ok(plan.checks.length > 0);
+});

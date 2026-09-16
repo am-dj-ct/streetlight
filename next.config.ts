@@ -8,6 +8,12 @@ const deployAssetPrefix =
 
 const nextConfig: NextConfig = {
   assetPrefix: deployAssetPrefix,
+  // scripts/check-build-runtime-parity.mjs runs the production server and a
+  // development server side by side to prove they agree. They cannot share
+  // one build directory -- `next dev` rewrites it underneath `next start` --
+  // so the development side of that comparison gets its own. Unset
+  // everywhere else, including on Vercel, so the default stays `.next`.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   devIndicators: false,
   async rewrites() {
     if (!deployAssetPrefix) {

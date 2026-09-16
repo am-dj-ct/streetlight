@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-parity-dev/
 /out/
 
 # production
@@ -58,3 +59,8 @@ scripts/prod-validation/evil
 # ui-sentry local artifacts (state root is ~/.streetlight/ui-sentry/, never
 # in-repo; this is only the standalone package's own node_modules)
 scripts/ui-sentry/node_modules
+
+# category-aware verify plan artifacts (scripts/plan-verify.mjs,
+# scripts/run-verify-plan.mjs)
+/verify-manifest.json
+/verify-artifacts/
