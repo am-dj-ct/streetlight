@@ -57,12 +57,22 @@ for (const checkId of options.checks) {
   }
 }
 
+let resolvedComparison = null;
+
 function changedPathsFromGit(base) {
   const merged = spawnSync("git", ["merge-base", base, "HEAD"], { encoding: "utf8" });
   const comparison = merged.status === 0 ? merged.stdout.trim() : base;
-  const diff = spawnSync("git", ["diff", "--name-only", "--diff-filter=ACMRTD", `${comparison}...HEAD`], {
-    encoding: "utf8",
-  });
+  resolvedComparison = comparison;
+  // --name-status, not --name-only: with rename detection on, --name-only
+  // reports only the destination, so renaming docs/partners/launch-packet.md
+  // out of the way classified as a plain doc and check:launch -- the check
+  // whose required-file list that rename breaks -- never ran. Both sides of a
+  // rename or copy are inputs.
+  const diff = spawnSync(
+    "git",
+    ["diff", "--name-status", "--diff-filter=ACMRTD", `${comparison}...HEAD`],
+    { encoding: "utf8" },
+  );
 
   if (diff.status !== 0) {
     // An unusable comparison base is a hard failure. Treating it as "nothing
@@ -71,7 +81,13 @@ function changedPathsFromGit(base) {
     process.exit(2);
   }
 
-  return diff.stdout.split("\n").filter((line) => line.trim() !== "");
+  return diff.stdout
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .flatMap((line) => {
+      const [, ...paths] = line.split("\t");
+      return paths.filter((value) => value.trim() !== "");
+    });
 }
 
 // `--all` is the deliberate full pass: the post-merge run on the default
@@ -97,6 +113,7 @@ const changedPaths =
 const plan = planVerify({ changedPaths, overrideChecks: options.checks });
 const manifest = {
   base: options.base,
+  diffBase: options.all ? null : options.base ? resolvedComparison : null,
   generatedAt: new Date().toISOString(),
   overrideChecks: options.checks,
   ...plan,

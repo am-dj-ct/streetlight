@@ -176,19 +176,36 @@ everything else per request, so a production build served under a different
 environment than it was built in is a test of the wrong artifact, and nothing
 in the output says so.
 
-The check does two separate things and writes both into
+The check does three things and writes all of them into
 `verify-artifacts/build-runtime-parity.json`:
 
-- Compares the environment the build was handed against the environment the
-  server runs under, and fails naming the key on any drift.
+- Compares the configuration the build was handed -- read from `process.env`
+  *and* from the `.env` files Next loads itself, since those never reach this
+  process's environment -- against the configuration the server runs under,
+  and fails naming the key on any drift.
+- Checks what the build actually **baked**: every `NEXT_PUBLIC_*` value the
+  configuration says is in force has to be findable in the emitted client
+  bundle, because that is where Next inlines it. A value the runtime expects
+  and the bundle does not contain means the build was made under a different
+  configuration. When nothing is configured to inline, it says so rather than
+  reporting a pass.
 - Starts the production server and a development server side by side on
-  scratch ports under one identical environment and compares what they
-  actually serve: the `/healthz` configuration surface, the rendered text of
-  real pages, and the mock chat stream's event shape.
+  scratch ports and compares what they actually serve across seven routes in
+  two languages: the `/healthz` configuration surface, the rendered text, and
+  the mock chat stream's event shape. Each page must return 200 on both --
+  two identical 404s would otherwise compare equal.
 
-No receipt, no production-build claim. The plan cannot select a rendered check
-without also selecting the parity proof, and
-`scripts/verify-plan.test.mjs` fails if a rule ever tries.
+What it does **not** cover, stated so nobody over-reads the receipt: the
+rendered comparison is text, so it strips `<script>` blocks and every
+attribute, and both servers run under one environment, so it is a check of
+plumbing rather than a second check of baking. The bundle check above is what
+covers baking.
+
+No receipt, no production-build claim. No rule may select a rendered check
+without also selecting the parity proof and a build;
+`scripts/verify-plan.test.mjs` iterates the exported rules and fails if any
+rule tries, and the runner refuses to start the server if the plan lacks a
+parity step.
 
 ## Verification Expectations
 

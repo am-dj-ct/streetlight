@@ -42,9 +42,15 @@ import { launchRequiredFiles } from "./repo-readiness.mjs";
 // adding a check that cannot pass is how a gate gets ignored.
 export const checkCatalog = [
   {
+    // {{base}} is substituted by scripts/run-verify-plan.mjs from the
+    // manifest's comparison base. It used to be a literal "HEAD", which
+    // compares the working tree to HEAD -- always clean on a CI checkout, so
+    // this check passed unconditionally and the docs lane verified nothing at
+    // all. With no base to substitute, the runner records it as skipped with
+    // a reason rather than as a pass.
     id: "docs:whitespace",
-    command: ["git", "diff", "--check", "HEAD"],
-    label: "git diff --check",
+    command: ["git", "diff", "--check", "{{base}}...HEAD"],
+    label: "whitespace and conflict markers in the diff",
     phase: "static",
   },
   {

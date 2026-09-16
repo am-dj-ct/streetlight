@@ -21,7 +21,7 @@
 // "selected nothing" rather than an absent or skipped check.
 
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
@@ -74,6 +74,43 @@ const mockEnv = {
 };
 
 const buildEnvPath = path.join(options.receiptDir, "build-env.json");
+
+function parseEnvFile(filePath) {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+
+  const parsed = {};
+
+  for (const line of readFileSync(filePath, "utf8").split("\n")) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+
+    if (!match) {
+      continue;
+    }
+
+    parsed[match[1]] = match[2]
+      .trim()
+      .replace(/^["'](.*)["']$/s, "$1");
+  }
+
+  return parsed;
+}
+
+function collectBuildConfiguration(env) {
+  // Next's precedence for a production start, lowest first.
+  const fromFiles = {
+    ...parseEnvFile(".env"),
+    ...parseEnvFile(".env.production"),
+    ...parseEnvFile(".env.local"),
+  };
+  const merged = { ...fromFiles, ...env };
+  const keys = Object.keys(merged)
+    .filter((key) => key.startsWith("NEXT_PUBLIC_") || key === "DEV_MOCK_CHAT" || key === "VERCEL_ENV")
+    .sort();
+
+  return Object.fromEntries(keys.map((key) => [key, merged[key] ?? null]));
+}
 const results = [];
 let appProcess = null;
 
@@ -83,7 +120,31 @@ function record(id, label, phase, status, seconds, detail = "") {
   console.log(`\n==> ${marker}  ${id} (${seconds}s)  ${label}`);
 }
 
-function runCheck(check, extraEnv = {}) {
+function substituteBase(check) {
+  if (!check.command.some((part) => part.includes("{{base}}"))) {
+    return { command: check.command, skipReason: null };
+  }
+
+  if (!manifest.diffBase) {
+    return { command: null, skipReason: "no comparison base in the plan" };
+  }
+
+  return {
+    command: check.command.map((part) => part.replace("{{base}}", manifest.diffBase)),
+    skipReason: null,
+  };
+}
+
+function runCheck(rawCheck, extraEnv = {}) {
+  const { command: resolvedCommand, skipReason } = substituteBase(rawCheck);
+
+  if (skipReason) {
+    // Skipped, said out loud, with a reason. Never silently green.
+    record(rawCheck.id, rawCheck.label, rawCheck.phase, "skipped", 0, skipReason);
+    return true;
+  }
+
+  const check = { ...rawCheck, command: resolvedCommand };
   const [command, ...commandArgs] = check.command;
   console.log(`\n--- ${check.id}: ${check.command.join(" ")}`);
   const started = Date.now();
@@ -139,10 +200,12 @@ if (!failed) {
     // Record the exact environment the build baked in. The parity proof
     // compares this against the environment the server later runs under;
     // without it "we tested the production build" is an unbacked claim.
-    const buildEnvKeys = Object.keys(mockEnv)
-      .filter((key) => key.startsWith("NEXT_PUBLIC_") || key === "DEV_MOCK_CHAT" || key === "VERCEL_ENV")
-      .sort();
-    const snapshot = Object.fromEntries(buildEnvKeys.map((key) => [key, mockEnv[key] ?? null]));
+    // Next loads .env, .env.production and .env.local itself; those values
+    // never appear in this process's environment, so a snapshot built only
+    // from process.env could not see the values Next actually inlines. Read
+    // the same files Next would, then let the real environment win, which is
+    // Next's own precedence.
+    const snapshot = collectBuildConfiguration(mockEnv);
 
     if (!runCheck(check)) {
       failed = true;
@@ -207,6 +270,14 @@ if (!failed && runtimeChecks.length > 0) {
     }
 
     stopApp();
+  }
+}
+
+// Every planned check that never ran gets a row saying so. A report that
+// silently omits them under-states what was not verified.
+for (const check of manifest.checks) {
+  if (!results.some((entry) => entry.id === check.id)) {
+    record(check.id, check.label, check.phase, "skipped", 0, "not reached: an earlier check failed");
   }
 }
 

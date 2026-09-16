@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import test from "node:test";
-import { alwaysChecks, checkIds, classifyPath, planVerify } from "./lib/verify-plan.mjs";
+import { alwaysChecks, checkCatalog, checkIds, classifyPath, planVerify, rules } from "./lib/verify-plan.mjs";
 import { launchRequiredFiles } from "./lib/repo-readiness.mjs";
 
 function checksFor(changedPaths, overrideChecks = []) {
@@ -72,23 +72,38 @@ test("UI source selects lint, build, parity and the rendered pass", () => {
   assert.deepEqual(planVerify({ changedPaths: ["src/components/crisis-footer.tsx"] }).categories, ["ui"]);
 });
 
-test("a rendered check can never be selected without the parity proof", () => {
+test("no rule can select a rendered check without the parity proof", () => {
   // This is the whole justification for testing the production build rather
-  // than the development server. If a rule ever selects smoke without parity,
-  // the production-build claim stops being backed by anything.
-  for (const relativePath of [
-    "src/components/crisis-footer.tsx",
-    "src/data/referrals.json",
-    "src/data/ui-copy/es.json",
-    "package.json",
-  ]) {
-    const ids = checksFor([relativePath]);
+  // than the development server. Iterating the exported rules, not a list of
+  // example paths: a NEW rule that selects smoke without parity has to fail
+  // here, and a hardcoded list of four paths would not have noticed it.
+  const runtimeIds = checkCatalog.filter((check) => check.phase === "runtime").map((check) => check.id);
 
-    if (ids.some((id) => ["check:ops", "regression:mock", "smoke"].includes(id))) {
-      assert.ok(ids.includes("parity"), `${relativePath} selected a rendered check without parity`);
-      assert.ok(ids.includes("build"), `${relativePath} selected a rendered check without a build`);
+  for (const rule of rules) {
+    if (!rule.checks.some((id) => runtimeIds.includes(id))) {
+      continue;
+    }
+
+    assert.ok(rule.checks.includes("parity"), `rule ${rule.id} selects a rendered check without parity`);
+    assert.ok(rule.checks.includes("build"), `rule ${rule.id} selects a rendered check without a build`);
+  }
+});
+
+test("every rule names only checks that exist", () => {
+  for (const rule of rules) {
+    for (const id of rule.checks) {
+      assert.ok(checkIds.includes(id), `rule ${rule.id} names unknown check ${id}`);
     }
   }
+});
+
+test("the whitespace check diffs against the comparison base, not the worktree", () => {
+  // `git diff --check HEAD` compares the working tree to HEAD. A CI checkout
+  // is clean, so that form passed unconditionally and the docs lane verified
+  // nothing at all.
+  const whitespace = checkCatalog.find((check) => check.id === "docs:whitespace");
+  assert.ok(whitespace.command.some((part) => part.includes("{{base}}")), "docs:whitespace lost its comparison base");
+  assert.ok(!whitespace.command.includes("HEAD"), "docs:whitespace compares the worktree to HEAD again");
 });
 
 test("toolchain and script changes run the whole catalog", () => {

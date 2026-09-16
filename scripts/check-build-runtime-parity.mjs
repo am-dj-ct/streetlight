@@ -30,8 +30,9 @@
 // No receipt, no production-build claim.
 
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
@@ -64,7 +65,21 @@ for (let index = 0; index < args.length; index += 1) {
   }
 }
 
-const comparedPages = ["/?lang=en", "/find-human?entryId=understand-letter-or-form&lang=en"];
+// Resolve Next's own bin and run it with this Node. Going through `npx` put a
+// wrapper process between us and the server, so SIGTERM killed the wrapper and
+// left the server holding the stdio pipes open.
+const requireFromHere = createRequire(import.meta.url);
+const nextBin = requireFromHere.resolve("next/dist/bin/next");
+
+const comparedPages = [
+  "/?lang=en",
+  "/?lang=es",
+  "/about?lang=en",
+  "/privacy?lang=en",
+  "/conversation/understand-letter-or-form?lang=en",
+  "/find-human?entryId=understand-letter-or-form&lang=en",
+  "/report-problem?lang=en&area=main-screen",
+];
 const failures = [];
 const processes = [];
 
@@ -175,28 +190,110 @@ if (!existsSync(".next/BUILD_ID")) {
   fail("no production build found (.next/BUILD_ID missing); run `npm run build` first");
 }
 
-// 2. Build-time versus runtime configuration.
+// 2. What the build actually baked, versus what the runtime believes.
+//
+// Comparing the recorded build environment against this process's environment
+// alone would be close to a tautology: the runner writes the snapshot from the
+// same environment it hands the server. The check that is not a tautology is
+// against the built artifact itself -- every NEXT_PUBLIC_* value the
+// configuration says is in force has to be findable in the client bundle Next
+// emitted, because that is where Next inlines it. A value the runtime expects
+// and the bundle does not contain means the build was made under a different
+// configuration, which is exactly the failure this whole step exists for.
 const snapshotPath = options.buildEnv;
 let snapshot = null;
+const bakedFindings = [];
+
+function collectClientBundleText(directory, budgetBytes = 64 * 1024 * 1024) {
+  let text = "";
+  let used = 0;
+  const stack = [directory];
+
+  while (stack.length > 0 && used < budgetBytes) {
+    const current = stack.pop();
+
+    if (!existsSync(current)) {
+      continue;
+    }
+
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+
+      if (!/\.(js|mjs|json|txt|html)$/.test(entry.name)) {
+        continue;
+      }
+
+      const size = statSync(full).size;
+
+      if (used + size > budgetBytes) {
+        continue;
+      }
+
+      used += size;
+      text += readFileSync(full, "utf8");
+    }
+  }
+
+  return text;
+}
 
 if (!existsSync(snapshotPath)) {
-  fail(`${snapshotPath} missing; the build did not record the environment it baked in (run through \`npm run verify:plan\`)`);
+  fail(`${snapshotPath} missing; the build did not record the configuration it baked in (run through \`npm run verify:plan\`)`);
 } else {
   snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
-  const runtimeEnv = { ...process.env, DEV_MOCK_CHAT: "true" };
+  const runtimeEnv = {
+    ...process.env,
+    DEV_MOCK_CHAT: "true",
+  };
   let drifted = 0;
 
   for (const [key, bakedValue] of Object.entries(snapshot)) {
-    const runtimeValue = runtimeEnv[key] ?? null;
+    // A key that came from a .env file legitimately has no process.env entry;
+    // only a conflicting value is drift.
+    const runtimeValue = runtimeEnv[key];
 
-    if (bakedValue !== runtimeValue) {
+    if (runtimeValue !== undefined && bakedValue !== runtimeValue) {
       drifted += 1;
-      fail(`configuration drift on ${key}: built with ${JSON.stringify(bakedValue)}, running with ${JSON.stringify(runtimeValue)}`);
+      fail(
+        `configuration drift on ${key}: built with ${JSON.stringify(bakedValue)}, running with ${JSON.stringify(runtimeValue)}`,
+      );
     }
   }
 
   if (drifted === 0) {
-    pass(`${Object.keys(snapshot).length} build-time configuration key(s) match the runtime environment`);
+    pass(`${Object.keys(snapshot).length} configuration key(s) agree between the build and the runtime environment`);
+  }
+
+  const inlinedKeys = Object.entries(snapshot).filter(
+    ([key, value]) => key.startsWith("NEXT_PUBLIC_") && typeof value === "string" && value.trim() !== "",
+  );
+
+  if (inlinedKeys.length === 0) {
+    // Said out loud rather than reported as a passing check. Nothing was
+    // inlined, so nothing about inlining was verified.
+    console.log("  note  no NEXT_PUBLIC_* value is configured, so there is nothing baked into the bundle to check");
+  } else if (existsSync(".next/static")) {
+    const bundle = collectClientBundleText(".next/static");
+
+    for (const [key, value] of inlinedKeys) {
+      const present = bundle.includes(value);
+      bakedFindings.push({ key, present });
+
+      if (present) {
+        pass(`${key} is inlined in the client bundle with the value the runtime expects`);
+      } else {
+        fail(
+          `${key} is configured as ${JSON.stringify(value)} but that value is not in the client bundle; the production build was made under a different configuration`,
+        );
+      }
+    }
+  } else {
+    fail(".next/static is missing, so what the build inlined cannot be checked");
   }
 }
 
@@ -218,11 +315,11 @@ const devBase = `http://127.0.0.1:${options.devPort}`;
 const observation = { dev: {}, prod: {} };
 
 if (failures.length === 0) {
-  startServer("prod", "npx", ["next", "start", "-p", String(options.prodPort), "-H", "127.0.0.1"], parityEnv);
+  startServer("prod", process.execPath, [nextBin, "start", "-p", String(options.prodPort), "-H", "127.0.0.1"], parityEnv);
   // Separate build directory for the development side: `next dev` rewrites
   // .next as it compiles, which would pull the production server's own build
   // out from under it mid-comparison. next.config.ts reads NEXT_DIST_DIR.
-  startServer("dev", "npx", ["next", "dev", "-p", String(options.devPort), "-H", "127.0.0.1"], {
+  startServer("dev", process.execPath, [nextBin, "dev", "-p", String(options.devPort), "-H", "127.0.0.1"], {
     ...parityEnv,
     NEXT_DIST_DIR: ".next-parity-dev",
   });
@@ -256,10 +353,21 @@ if (failures.length === 0) {
     observation.dev.pages = {};
 
     for (const pagePath of comparedPages) {
-      const [prodHtml, devHtml] = await Promise.all([
-        fetch(new URL(pagePath, prodBase)).then((response) => response.text()),
-        fetch(new URL(pagePath, devBase)).then((response) => response.text()),
+      const [prodResponse, devResponse] = await Promise.all([
+        fetch(new URL(pagePath, prodBase)),
+        fetch(new URL(pagePath, devBase)),
       ]);
+
+      if (prodResponse.status !== 200 || devResponse.status !== 200) {
+        // Two identical 404s also compare equal. Same reasoning as the chat
+        // probe below: comparing two failures proves nothing.
+        fail(
+          `${pagePath} did not render on both servers (prod ${prodResponse.status}, dev ${devResponse.status})`,
+        );
+        continue;
+      }
+
+      const [prodHtml, devHtml] = await Promise.all([prodResponse.text(), devResponse.text()]);
       const prodSignature = renderedTextSignature(prodHtml);
       const devSignature = renderedTextSignature(devHtml);
       observation.prod.pages[pagePath] = { digest: digest(prodSignature), length: prodSignature.length };
@@ -306,6 +414,7 @@ if (tsconfigBefore !== null && readFileSync(tsconfigPath, "utf8") !== tsconfigBe
 }
 
 const receipt = {
+  bakedClientValues: bakedFindings,
   buildEnvSnapshot: snapshot,
   buildId: existsSync(".next/BUILD_ID") ? readFileSync(".next/BUILD_ID", "utf8").trim() : null,
   comparedPages,
