@@ -5,25 +5,11 @@ import {
   collectLaunchDocPlaceholderIssues,
   getResourceFreshness,
   getTranslationReadiness,
+  launchRequiredFiles as requiredFiles,
   staleAfterDays as staleResourceThresholdDays,
 } from "./lib/repo-readiness.mjs";
 
 const cwd = process.cwd();
-
-const requiredFiles = [
-  "README.md",
-  "OPERATIONAL_RUNBOOK.md",
-  "docs/partners/README.md",
-  "docs/partners/bug-report.md",
-  "docs/partners/current-limits.md",
-  "docs/partners/launch-packet.md",
-  "docs/partners/launch_checklist.md",
-  "docs/partners/one-sentence-framing.md",
-  "docs/resource_maintenance.md",
-  "docs/translation_handoff.md",
-  "docs/translation_worklist.md",
-  "incidents/log.md",
-];
 
 const requiredEnvVars = [
   "ANTHROPIC_API_KEY",

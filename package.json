@@ -10,6 +10,7 @@
     "start": "next start",
     "test:sentinel-v5": "node --test scripts/sentinel-v5/*.test.mjs",
     "test:ui-sentry": "node --test scripts/ui-sentry/ui-sentry.test.mjs",
+    "test:verify-plan": "node --test scripts/verify-plan.test.mjs",
     "lint": "eslint",
     "check:audit": "npm audit",
     "check:locales": "node scripts/report-missing-locales.mjs",
@@ -47,7 +48,10 @@
     "ops:status": "node scripts/ops-status.mjs",
     "verify:quick": "npm run lint && npm run build && npm run check:locales:summary && npm run check:translation-worklist && npm run check:content && npm run check:ops && npm run validate:data && npm run diagnostics:local && npm run smoke:quick && npm run regression:quick",
     "verify:mock": "npm run lint && npm run build && npm run check:locales:summary && npm run check:translation-worklist && npm run check:content && npm run check:ops && npm run validate:data && npm run diagnostics:local && npm run smoke && npm run regression:mock",
-    "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run check:content && npm run validate:data && npm run smoke && npm run regression:prompts"
+    "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run check:content && npm run validate:data && npm run smoke && npm run regression:prompts",
+    "plan:verify": "node scripts/plan-verify.mjs",
+    "verify:plan": "node scripts/run-verify-plan.mjs",
+    "check:parity": "node scripts/check-build-runtime-parity.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

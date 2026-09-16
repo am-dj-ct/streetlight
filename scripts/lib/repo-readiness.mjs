@@ -9,6 +9,26 @@ export const localeDirectories = [
   "src/data/static-pages",
 ];
 
+// Every file scripts/check-launch-readiness.mjs requires to exist. This list
+// lives here rather than in that script so scripts/lib/verify-plan.mjs can
+// import it: those paths are documentation the product's own checks read, and
+// a change to one of them must select check:launch instead of the cheap
+// docs lane. One writer, so the two cannot drift apart.
+export const launchRequiredFiles = [
+  "README.md",
+  "OPERATIONAL_RUNBOOK.md",
+  "docs/partners/README.md",
+  "docs/partners/bug-report.md",
+  "docs/partners/current-limits.md",
+  "docs/partners/launch-packet.md",
+  "docs/partners/launch_checklist.md",
+  "docs/partners/one-sentence-framing.md",
+  "docs/resource_maintenance.md",
+  "docs/translation_handoff.md",
+  "docs/translation_worklist.md",
+  "incidents/log.md",
+];
+
 export const launchFiles = [
   "README.md",
   "OPERATIONAL_RUNBOOK.md",

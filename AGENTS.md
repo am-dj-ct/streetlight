@@ -114,6 +114,20 @@ Dev:
 - `npm run dev:live`: live model path.
 - `npm run build`
 
+Category-aware checks (what CI runs):
+
+- `npm run plan:verify -- --base origin/main`: print the plan for your change
+  -- every changed path, the rule that classified it, and the checks that rule
+  selected. Add `--manifest verify-manifest.json` to write it out.
+- `npm run verify:plan -- --manifest verify-manifest.json`: run that plan and
+  print a per-check report. Builds and starts the production server only when
+  the plan says the change needs the rendered app.
+- `npm run plan:verify -- --all --manifest verify-manifest.json`: the
+  deliberate full pass, which is what a push to `main` runs.
+- `npm run check:parity`: prove the mock build and the real runtime agree.
+  `npm run verify:plan` runs this before it tests anything against the
+  production build; see "Build And Runtime Parity" below.
+
 Routine checks:
 
 - `npm run lint`
@@ -151,7 +165,68 @@ Ops:
 
 ---
 
+## Build And Runtime Parity
+
+Verification runs against the production build (`next build` + `next start`),
+not the development server -- but only after
+`scripts/check-build-runtime-parity.mjs` has proved the two agree under the
+mock configuration. That proof is not a formality. Next inlines every
+`NEXT_PUBLIC_*` value into the client bundle at build time and reads
+everything else per request, so a production build served under a different
+environment than it was built in is a test of the wrong artifact, and nothing
+in the output says so.
+
+The check does three things and writes all of them into
+`verify-artifacts/build-runtime-parity.json`:
+
+- Compares the configuration the build was handed -- read from `process.env`
+  *and* from the `.env` files Next loads itself, since those never reach this
+  process's environment -- against the configuration the server runs under,
+  and fails naming the key on any drift.
+- Checks what the build actually **baked**: every `NEXT_PUBLIC_*` value the
+  configuration says is in force has to be findable in the emitted client
+  bundle, because that is where Next inlines it. A value the runtime expects
+  and the bundle does not contain means the build was made under a different
+  configuration. When nothing is configured to inline, it says so rather than
+  reporting a pass.
+- Starts the production server and a development server side by side on
+  scratch ports and compares what they actually serve across seven routes in
+  two languages: the `/healthz` configuration surface, the rendered text, and
+  the mock chat stream's event shape. Each page must return 200 on both --
+  two identical 404s would otherwise compare equal.
+
+What it does **not** cover, stated so nobody over-reads the receipt: the
+rendered comparison is text, so it strips `<script>` blocks and every
+attribute, and both servers run under one environment, so it is a check of
+plumbing rather than a second check of baking. The bundle check above is what
+covers baking.
+
+No receipt, no production-build claim. No rule may select a rendered check
+without also selecting the parity proof and a build;
+`scripts/verify-plan.test.mjs` iterates the exported rules and fails if any
+rule tries, and the runner refuses to start the server if the plan lacks a
+parity step.
+
 ## Verification Expectations
+
+The executable version of this list is `scripts/lib/verify-plan.mjs`, and CI
+runs whatever it selects. If you change what a category needs, change it there
+so the plan and this list cannot drift apart.
+
+**Documentation the product's own checks read is not "just docs."**
+`README.md`, `OPERATIONAL_RUNBOOK.md`, `incidents/log.md`,
+`docs/partners/*.md`, `docs/resource_maintenance.md`,
+`docs/translation_handoff.md` and `docs/translation_worklist.md` are all read
+by `scripts/check-launch-readiness.mjs`. A `TBD` marker or a missing partner
+file in one of those is a real failure, so a change to any of them selects
+`npm run check:launch` rather than the cheap docs lane. The list lives once,
+in `scripts/lib/repo-readiness.mjs`, and both the check and the planner import
+it.
+
+A changed path the planner cannot classify does not pass quietly and does not
+expand to the whole suite on its own: the plan comes back `blocked` and names
+the path. Add a rule, or re-run with an explicit bounded list
+(`--check lint --check build`).
 
 - Docs-only: `git diff --check`; add targeted docs/content checks if relevant.
 - UI/copy: lint, build, content/locales/translation checks, and browser/mobile
@@ -227,3 +302,13 @@ evidence. Only the words "planning" or "scoping" stop the chain before landing. 
 JESSE is reserved for a physical action no automation can perform, stated as the exact
 command or click. Canonical text: blt-hub `CLAUDE.md` standing order 8 and the global
 `~/.claude/CLAUDE.md` Autonomy section.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

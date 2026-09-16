@@ -14,16 +14,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # One job, always run, always reporting.
+  #
+  # It used to do the same thing for every change: every static check, a Next
+  # build, a development server, smoke, regression -- whether the change was a
+  # sentence in a doc or a rewrite of the chat route. AGENTS.md has always
+  # described docs, data/resources and UI as three verification categories
+  # with three different expectations; scripts/lib/verify-plan.mjs is that
+  # description made executable, and this job runs whatever it selects.
+  #
+  # Deliberately one job rather than one job per category. Conditional jobs
+  # resolve as skipped checks, and a skipped check is indistinguishable from a
+  # check that never ran -- the exact shape this repo's non-negotiables are
+  # supposed to be protected from. So the plan is printed on every run,
+  # including the runs where it selects almost nothing, and the manifest and
+  # report are uploaded whatever happens.
+  #
+  # Pull requests plan against the base branch. Pushes to main run the full
+  # catalog, stated with --all rather than inferred, so a broken comparison
+  # base can never quietly become "everything ran".
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
+      ACCESS_TOOL_BASE_URL: http://127.0.0.1:3000
       NEXT_TELEMETRY_DISABLED: "1"
-      ACCESS_TOOL_BASE_URL: http://localhost:3000
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          # The planner diffs against the base branch, so the history has to
+          # be here.
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -34,42 +57,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Static checks
+      - name: Plan checks for this change
         run: |
-          npm run lint
-          npm run check:env
-          npm run check:forbidden-integrations
-          npm run check:no-tracked-secrets
-          npm run check:content
-          npm run check:locales:summary
-          npm run check:translation-worklist
-          npm run validate:data
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            node scripts/plan-verify.mjs \
+              --base "origin/${GITHUB_BASE_REF}" \
+              --manifest verify-manifest.json
+          else
+            node scripts/plan-verify.mjs --all --manifest verify-manifest.json
+          fi
 
-      - name: Build
-        run: npm run build
-
-      - name: Mock app smoke and regression
+      - name: Run the planned checks
         run: |
-          npm run dev:mock > /tmp/access-tool-next.log 2>&1 &
-          app_pid="$!"
+          node scripts/run-verify-plan.mjs \
+            --manifest verify-manifest.json \
+            --port 3000 \
+            --receipt-dir verify-artifacts
 
-          cleanup() {
-            kill "$app_pid" 2>/dev/null || true
-            tail -100 /tmp/access-tool-next.log 2>/dev/null || true
-          }
-
-          trap cleanup EXIT
-
-          for attempt in {1..60}; do
-            if curl -fsS "$ACCESS_TOOL_BASE_URL/healthz" > /tmp/access-tool-health.json; then
-              cat /tmp/access-tool-health.json
-              npm run check:ops
-              npm run smoke
-              npm run regression:mock
-              exit 0
-            fi
-            sleep 2
-          done
-
-          cat /tmp/access-tool-next.log
-          exit 1
+      - name: Upload plan, parity receipt and report
+        # Always. A run that failed before the report is exactly the run whose
+        # manifest someone needs.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-artifacts
+          path: |
+            verify-manifest.json
+            verify-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
