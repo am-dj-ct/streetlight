@@ -157,6 +157,7 @@ test("every catalog entry is reachable from some rule or the always list", () =>
 
   for (const relativePath of [
     "config/sentinel-v5-registry-fragment.streetlight.json",
+    ".gitignore",
     "package.json",
     "docs/partners/launch-packet.md",
     "docs/access_tool_thesis.md",

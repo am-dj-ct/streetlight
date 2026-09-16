@@ -32,6 +32,14 @@ import { launchRequiredFiles } from "./repo-readiness.mjs";
 
 // Ordered. The runner executes selected checks in this order, so cheap
 // static checks fail before anything builds or starts a server.
+//
+// Two of AGENTS.md's routine checks are deliberately absent, and were absent
+// from the workflow before this too. `npm run test:ui-sentry` needs
+// scripts/ui-sentry/node_modules, which is gitignored and never installed on
+// a runner, and `npm run test:sentinel-v5` drives a bash library that uses
+// BSD `stat` and a local Sentinel spool. Both fail on ubuntu for host reasons
+// rather than code reasons. Making them portable is its own change; quietly
+// adding a check that cannot pass is how a gate gets ignored.
 export const checkCatalog = [
   {
     id: "docs:whitespace",
@@ -97,18 +105,6 @@ export const checkCatalog = [
     id: "test:verify-plan",
     command: ["npm", "run", "test:verify-plan"],
     label: "verify-plan guard tests",
-    phase: "static",
-  },
-  {
-    id: "test:ui-sentry",
-    command: ["npm", "run", "test:ui-sentry"],
-    label: "ui-sentry tests",
-    phase: "static",
-  },
-  {
-    id: "test:sentinel-v5",
-    command: ["npm", "run", "test:sentinel-v5"],
-    label: "sentinel-v5 tests",
     phase: "static",
   },
   {
@@ -253,11 +249,11 @@ export const rules = [
   },
   {
     category: "meta",
-    checks: ["test:sentinel-v5"],
+    checks: ["docs:whitespace"],
     id: "sentinel-registry-config",
     match: (p) => isUnder(p, "config"),
     reason:
-      "checked-in configuration read by scripts/sentinel-v5; its registry sync test is what notices a bad fragment",
+      "checked-in configuration read by scripts/sentinel-v5; `npm run test:sentinel-v5` covers it but only runs on macOS, so it is not in the CI catalog (see checkCatalog)",
   },
   {
     category: "meta",
