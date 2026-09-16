@@ -252,6 +252,33 @@ export const rules = [
       "application source or public asset: linted, built, parity-proved, then verified against the production build in the rendered workflow",
   },
   {
+    category: "meta",
+    checks: ["test:sentinel-v5"],
+    id: "sentinel-registry-config",
+    match: (p) => isUnder(p, "config"),
+    reason:
+      "checked-in configuration read by scripts/sentinel-v5; its registry sync test is what notices a bad fragment",
+  },
+  {
+    category: "meta",
+    checks: ["docs:whitespace"],
+    id: "repo-hygiene",
+    match: (p) =>
+      p === ".gitignore" ||
+      p === ".gitattributes" ||
+      p === ".nvmrc" ||
+      p === "LICENSE",
+    reason:
+      "repository hygiene file; .gitignore in particular changes what is tracked, which the always-on tracked-secret scan is the check for",
+  },
+  {
+    category: "docs",
+    checks: [],
+    id: "outreach-asset",
+    match: (p) => !p.includes("/") && /\.(png|jpe?g|gif|svg|pdf|ico|webp)$/i.test(p),
+    reason: "outreach or print asset at the repository root; no check reads it",
+  },
+  {
     category: "docs",
     checks: ["docs:whitespace"],
     id: "plain-doc",

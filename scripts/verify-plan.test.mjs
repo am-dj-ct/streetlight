@@ -6,6 +6,7 @@
 // test below is a specific way that could happen.
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import test from "node:test";
 import { alwaysChecks, checkIds, classifyPath, planVerify } from "./lib/verify-plan.mjs";
@@ -110,6 +111,20 @@ test("the non-negotiable scans run on every plan", () => {
   }
 });
 
+test("every file already in the repository classifies", () => {
+  // The first real CI run of this plan blocked on `.gitignore`, which no rule
+  // claimed. Blocking was correct -- an unknown input must never pass quietly
+  // -- but a rule set that cannot classify files already sitting in the repo
+  // blocks the next unrelated change too. Anything tracked today has to be
+  // claimed by some rule.
+  const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+    .split("\n")
+    .filter((line) => line.trim() !== "");
+  const unclassified = tracked.filter((relativePath) => !classifyPath(relativePath));
+  assert.deepEqual(unclassified, [], `no rule claims: ${unclassified.join(", ")}`);
+  assert.ok(tracked.length > 100, "git ls-files returned suspiciously little");
+});
+
 test("an unclassified path blocks and names itself", () => {
   const plan = planVerify({ changedPaths: ["some/brand-new-surface/thing.bin"] });
   assert.equal(plan.status, "blocked");
@@ -141,6 +156,7 @@ test("every catalog entry is reachable from some rule or the always list", () =>
   const reachable = new Set(alwaysChecks);
 
   for (const relativePath of [
+    "config/sentinel-v5-registry-fragment.streetlight.json",
     "package.json",
     "docs/partners/launch-packet.md",
     "docs/access_tool_thesis.md",
