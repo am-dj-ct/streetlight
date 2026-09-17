@@ -44,6 +44,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // scripts/check-build-runtime-parity.mjs builds a second, separately
+    // rooted Next output here (next.config.ts reads NEXT_DIST_DIR) so the
+    // parity proof's dev server doesn't rewrite the production build's
+    // .next underneath itself. It is gitignored but not covered by the
+    // .next/** ignore above, so once a local or reused-workspace run has
+    // produced it, every later `npm run lint` fails on generated chunks
+    // instead of real source -- caught by running lint twice in the same
+    // worktree after a parity run.
+    ".next-parity-dev/**",
     // Gitignored scratch tooling (audit/stress scripts); not shipped code.
     "tmp/**",
   ]),
