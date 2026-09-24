@@ -132,7 +132,10 @@ sentinel_checkin() {
 #   - If that live call fails specifically because Doppler is rate-limited
 #     (429 / "exceeded rate limit" in its stderr) AND a fallback file of ANY
 #     age already exists, this retries once via `--fallback-only` off that
-#     file instead of surfacing the 429 as a failure. Only a rate limit with
+#     file instead of surfacing the 429 as a failure. The timestamped local
+#     ledger then keeps later scheduled runs on fallback-only for one hour,
+#     so a five-minute job cannot add twelve more live calls to the same
+#     vendor incident. Only a rate limit with
 #     NO usable fallback at all is a real failure — there is no way to reach
 #     secrets at all in that case, so callers should still treat it as red.
 #   - Any other failure (bad token, missing project, network down, etc.) is
@@ -140,12 +143,14 @@ sentinel_checkin() {
 #     the same as a bare `doppler run` would.
 #
 # Sets SENTINEL_DOPPLER_RUN_STATUS to one of: cache_fresh, live_ok,
-# rate_limited_used_fallback, rate_limited_no_fallback, live_failed — for a
+# rate_limited_used_fallback, rate_limit_backoff_used_fallback,
+# rate_limited_no_fallback, live_failed — for a
 # caller that wants to log which path was taken. This function itself never
 # aborts the caller (same contract as the two above): callers read its
 # return code, exactly like a bare `doppler run`.
 SENTINEL_DOPPLER_FALLBACK_DIR="${SENTINEL_DOPPLER_FALLBACK_DIR:-$HOME/.streetlight/doppler-fallback}"
 SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS="${SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS:-21600}"
+SENTINEL_DOPPLER_RATE_LIMIT_BACKOFF_SECONDS="${SENTINEL_DOPPLER_RATE_LIMIT_BACKOFF_SECONDS:-3600}"
 SENTINEL_DOPPLER_BIN="${SENTINEL_DOPPLER_BIN:-doppler}"
 SENTINEL_DOPPLER_RUN_STATUS=""
 
@@ -166,6 +171,24 @@ sentinel_doppler_fallback_age_seconds() {
   echo -1
 }
 
+# The existing timestamped fallback ledger is also the durable evidence of a
+# Doppler 429. Reuse that evidence for a bounded retry delay instead of making
+# another live request every five minutes while the shared vendor limit is
+# still busy. This reads only the fixed prefix and timestamp we wrote; secret
+# output is never parsed or echoed.
+sentinel_doppler_rate_limit_age_seconds() {
+  local project="$1" config="$2" line iso epoch now
+  if [ ! -f "$SENTINEL_FALLBACK_LOG" ]; then echo -1; return 0; fi
+  line="$(grep -E "^\[[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\] doppler_rate_limited:${project}:${config}:" "$SENTINEL_FALLBACK_LOG" 2>/dev/null | tail -n 1 || true)"
+  iso="${line#\[}"
+  iso="${iso%%\]*}"
+  [ -n "$line" ] && [ -n "$iso" ] || { echo -1; return 0; }
+  epoch="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$iso" +%s 2>/dev/null || date -u -d "$iso" +%s 2>/dev/null || true)"
+  [ -n "$epoch" ] || { echo -1; return 0; }
+  now="$(date -u +%s)"
+  echo $(( now - epoch ))
+}
+
 sentinel_doppler_run() {
   local project="$1" config="$2"
   shift 2 2>/dev/null || true
@@ -173,11 +196,20 @@ sentinel_doppler_run() {
 
   mkdir -p "$SENTINEL_DOPPLER_FALLBACK_DIR" 2>/dev/null || true
   local fallback_file="$SENTINEL_DOPPLER_FALLBACK_DIR/${project}-${config}.fallback"
-  local age rc errfile err
+  local age rc errfile err rate_limit_age
   age="$(sentinel_doppler_fallback_age_seconds "$fallback_file")"
 
   if [ "$age" -ge 0 ] && [ "$age" -lt "$SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS" ]; then
     SENTINEL_DOPPLER_RUN_STATUS="cache_fresh"
+    "$SENTINEL_DOPPLER_BIN" run --fallback-only --fallback "$fallback_file" \
+      --project "$project" --config "$config" -- "$@"
+    return $?
+  fi
+
+  rate_limit_age="$(sentinel_doppler_rate_limit_age_seconds "$project" "$config")"
+  if [ "$age" -ge 0 ] && [ "$rate_limit_age" -ge 0 ] \
+    && [ "$rate_limit_age" -lt "$SENTINEL_DOPPLER_RATE_LIMIT_BACKOFF_SECONDS" ]; then
+    SENTINEL_DOPPLER_RUN_STATUS="rate_limit_backoff_used_fallback"
     "$SENTINEL_DOPPLER_BIN" run --fallback-only --fallback "$fallback_file" \
       --project "$project" --config "$config" -- "$@"
     return $?
