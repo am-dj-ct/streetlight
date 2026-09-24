@@ -82,7 +82,7 @@ async function makeFixture() {
   return { dir, dopplerPath, fallbackDir, callLog: path.join(dir, "calls.log") };
 }
 
-function runSentinelDopplerRun({ dopplerPath, fallbackDir, callLog, liveMode, ttlSeconds }) {
+function runSentinelDopplerRun({ dopplerPath, fallbackDir, callLog, liveMode, ttlSeconds, backoffSeconds }) {
   const script = `
 set -uo pipefail
 source "${checkinLibPath}"
@@ -99,6 +99,7 @@ exit "$rc"
         HOME: process.env.HOME,
         SENTINEL_DOPPLER_FALLBACK_DIR: fallbackDir,
         SENTINEL_DOPPLER_FALLBACK_TTL_SECONDS: String(ttlSeconds ?? 21600),
+        SENTINEL_DOPPLER_RATE_LIMIT_BACKOFF_SECONDS: String(backoffSeconds ?? 3600),
         SENTINEL_FALLBACK_LOG: path.join(fallbackDir, "..", "sentinel-fallback.log"),
         DOPPLER_STUB_LIVE_MODE: liveMode,
         DOPPLER_STUB_CALL_LOG: callLog,
@@ -185,6 +186,25 @@ test("stale cache triggers exactly one live attempt, then one fallback-only retr
   const lines = log.trim().split("\n");
   assert.deepEqual(lines, [
     "fallback_only=0 mode=rate_limit",
+    "fallback_only=1 mode=rate_limit",
+  ]);
+});
+
+test("a recorded 429 backs off later scheduled runs instead of retrying live every five minutes", async () => {
+  const fx = await makeFixture();
+  await writeFallbackFile(fx.fallbackDir, 7 * 3600);
+
+  const first = await runSentinelDopplerRun({ ...fx, liveMode: "rate_limit" });
+  const second = await runSentinelDopplerRun({ ...fx, liveMode: "rate_limit" });
+
+  assert.equal(parseStatus(first.stdout), "rate_limited_used_fallback");
+  assert.equal(parseStatus(second.stdout), "rate_limit_backoff_used_fallback");
+  assert.match(second.stdout, /^ran$/m);
+  const { readFile } = await import("node:fs/promises");
+  const calls = (await readFile(fx.callLog, "utf8")).trim().split("\n");
+  assert.deepEqual(calls, [
+    "fallback_only=0 mode=rate_limit",
+    "fallback_only=1 mode=rate_limit",
     "fallback_only=1 mode=rate_limit",
   ]);
 });
