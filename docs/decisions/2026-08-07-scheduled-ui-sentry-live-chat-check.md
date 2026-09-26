@@ -430,16 +430,33 @@ unchanged and still shared with `sl-error-stream-health`. The same
 function's write to the sentinel-v5 spool (`~/.blt-sentinel/spool`) is
 removed — that consumer was retired 2026-09-24 and nothing read it.
 
-Separately, root-caused `client_blocked` on turns 2-6: today's run sent all
+Separately, investigated `client_blocked` on turns 2-6: today's run sent all
 6 fixture turns inside 48 seconds — turn 2 hung the full 30s token-wait
-timeout, turns 3-6 were each refused in about 3 seconds flat, a pattern
-consistent with Cloudflare's behavioral scoring flagging repeated challenge
-executions on the same widget/session in under a minute, not with Turnstile
-being down (tier 0's `/healthz` passed the entire time). No real user reads
-a reply and composes the next message that fast, turn after turn. Added a
-6-14s read-and-think pause before each turn after the first
-(`lib/human-type.mjs`'s `humanPause`) — no new launch flag, no fingerprint
-change, no new technique, only slower pacing. This stays inside the
-no-escalation rule from the 2026-08-08 amendments above: it fights nothing,
-it just stops looking like a script. A live run against production after
-the fix passed all 6 turns.
+timeout, turns 3-6 were each refused in about 3 seconds flat. **Hypothesis,
+not a proven cause:** this pattern is consistent with Cloudflare's
+behavioral scoring flagging repeated challenge executions on the same
+widget/session in under a minute — but nothing here actually observes
+Cloudflare's side, and tier 0's `/healthz` passing proves the deploy is
+configured, not that Turnstile itself is behaving normally for this
+browser. Added a 6-14s read-and-think pause before each turn after the
+first (`lib/human-type.mjs`'s `humanPause`) on the theory that no real user
+sends that fast — no new launch flag, no fingerprint change, no new
+technique, only slower pacing, so it stays inside the no-escalation rule
+from the 2026-08-08 amendments above regardless of whether the theory is
+right. A live run against production after adding the pause passed all 6
+turns, which is consistent with the theory but is one data point, not
+proof; a cross-vendor review the same day (see the amendment immediately
+below) found a real, separate, and previously undiagnosed bug that could
+independently produce exactly this same turn 2/turns-3-6 shape, which
+means the pacing pause's own contribution here is genuinely unknown and
+still unproven.
+
+**The pause is gone, superseded same day.** `docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`
+adds a separate, bounded, server-gated Turnstile pass for turns after the
+first (a quota-capped credential, never a fingerprint or timing trick) —
+Jesse's own call on how to actually solve turns 2+ rather than working
+around them with pacing. `lib/human-type.mjs`'s `humanPause` and its call
+site in `tier2.mjs` are removed; see the cross-vendor-review amendment
+below for the replacement wiring. The hypothesis above was never confirmed
+or refuted on its own terms — it was overtaken by a real fix before either
+happened.
