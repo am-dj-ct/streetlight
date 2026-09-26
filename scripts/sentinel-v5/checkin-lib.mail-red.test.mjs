@@ -40,11 +40,14 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const checkinLibPath = path.join(here, "checkin-lib.sh");
 
-// Always succeeds and hands the wrapped command straight through — these
-// tests are about sentinel_mail_red's own behavior, not sentinel_doppler_run
-// (already covered by checkin-lib.doppler-run.test.mjs).
+// Defaults to always succeeding and handing the wrapped command straight
+// through. DOPPLER_STUB_MODE=fail simulates a definite pre-send failure
+// (a bad token, say) — doppler itself refuses and the wrapped curl command
+// never runs at all, exactly like the real CLI's own documented behavior
+// when it cannot fetch secrets.
 const DOPPLER_STUB = `#!/usr/bin/env bash
 set -uo pipefail
+mode="\${DOPPLER_STUB_MODE:-success}"
 fallback_only=0
 fallback_file=""
 rest=()
@@ -61,6 +64,10 @@ while [ "$i" -lt "\${#args[@]}" ]; do
   esac
   i=$((i+1))
 done
+if [ "$mode" = "fail" ]; then
+  echo "Doppler Error: invalid access token" >&2
+  exit 1
+fi
 [ -n "$fallback_file" ] && printf 'stub-encrypted-secrets\\n' > "$fallback_file"
 exec "\${rest[@]}"
 `;
@@ -122,7 +129,9 @@ async function makeFixture() {
   };
 }
 
-function runCheckin({ binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode }) {
+function runCheckin({
+  binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode, dopplerMode, maxAttempts,
+}) {
   const script = `
 set -uo pipefail
 source "${checkinLibPath}"
@@ -138,8 +147,11 @@ printf 'RC=%s\\n' "$?"
         SENTINEL_FALLBACK_LOG: fallbackLog,
         SENTINEL_MAIL_RED_STATE_DIR: mailRedDir,
         SENTINEL_MAIL_RED_COOLDOWN_SECONDS: "21600",
+        SENTINEL_MAIL_RED_MAX_ATTEMPTS: String(maxAttempts ?? 3),
+        SENTINEL_MAIL_RED_RETRY_DELAY_SECONDS: "0",
         CURL_STUB_MODE: curlMode ?? "success",
         CURL_STUB_CALL_LOG: callLog,
+        DOPPLER_STUB_MODE: dopplerMode ?? "success",
       },
     });
     let stdout = "";
@@ -258,14 +270,74 @@ test("a curl-level failure (no HTTP response at all) is recorded as failed, not 
   assert.equal(receipts[0].resendId, null);
 });
 
-test("a curl-level failure keeps the reservation (ambiguous: Resend may have already accepted it) — an immediate retry does not resend", async () => {
+test("a curl-level (ambiguous) failure retries in-call, bounded, with the IDENTICAL idempotency key every attempt", async () => {
   const fx = await makeFixture();
-  await runCheckin({ ...fx, item: "sl-test-g", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error" });
-  await runCheckin({ ...fx, item: "sl-test-g", checkStatus: "red", reasonCode: "job_failed", curlMode: "success" });
-  assert.equal(await callCount(fx.callLog), 1, "the kept reservation must suppress the second attempt");
+  const result = await runCheckin({
+    ...fx, item: "sl-test-g", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error", maxAttempts: 3,
+  });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  const lines = await callLines(fx.callLog);
+  assert.equal(lines.length, 3, "should retry up to max_attempts times within this one call");
+  const keys = lines.map((line) => line.match(/idempotency=(\S+)/)?.[1]);
+  assert.equal(new Set(keys).size, 1, `every attempt must share the identical key; saw ${keys.join(", ")}`);
+  // Ambiguous — no confirmed accept was ever recorded, so no cooldown.
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
   assert.equal(receipts[0].httpStatus, null);
+  assert.equal(receipts[0].resendId, null);
+});
+
+test("after exhausting in-call retries still ambiguous, a LATER separate check-in reuses the same pending key and can still confirm", async () => {
+  const fx = await makeFixture();
+  await runCheckin({
+    ...fx, item: "sl-test-g2", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error", maxAttempts: 2,
+  });
+  const firstKeys = (await callLines(fx.callLog)).map((line) => line.match(/idempotency=(\S+)/)?.[1]);
+  assert.equal(firstKeys.length, 2);
+
+  // A later, separately-triggered check-in (not suppressed by any
+  // six-hour cooldown, since nothing was ever confirmed) — this time it
+  // succeeds.
+  await runCheckin({
+    ...fx, item: "sl-test-g2", checkStatus: "red", reasonCode: "job_failed", curlMode: "success", maxAttempts: 2,
+  });
+  const allKeys = (await callLines(fx.callLog)).map((line) => line.match(/idempotency=(\S+)/)?.[1]);
+  assert.equal(allKeys.length, 3, "the second check-in should have made exactly one more attempt");
+  assert.equal(new Set(allKeys).size, 1, "the later check-in must reuse the SAME pending key, not mint a new one");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 2);
+  assert.equal(receipts[1].httpStatus, 200);
+  assert.ok(receipts[1].resendId);
+
+  // NOW confirmed — a third call within the cooldown window must be
+  // suppressed, and any further retry would mint a fresh key (there is
+  // nothing pending left to reuse).
+  await runCheckin({ ...fx, item: "sl-test-g2", checkStatus: "red", reasonCode: "job_failed", curlMode: "success" });
+  const finalKeys = (await callLines(fx.callLog)).map((line) => line.match(/idempotency=(\S+)/)?.[1]);
+  assert.equal(finalKeys.length, 3, "confirmed acceptance must start the real six-hour cooldown");
+});
+
+test("a definite pre-send failure (Doppler never handed back secrets, curl never ran) releases the reservation immediately — no in-call retry, no cooldown", async () => {
+  const fx = await makeFixture();
+  const result = await runCheckin({
+    ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", dopplerMode: "fail", maxAttempts: 3,
+  });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await callCount(fx.callLog), 0, "curl must never run at all when Doppler itself fails pre-send");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].httpStatus, null);
+  assert.equal(receipts[0].resendId, null);
+
+  // Released, not kept — the next check-in gets a fresh attempt (and,
+  // since nothing is pending, a fresh key) immediately, not after 6h.
+  const result2 = await runCheckin({
+    ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", curlMode: "success",
+  });
+  assert.match(result2.stdout, /^RC=0$/m, result2.stderr);
+  assert.equal(await callCount(fx.callLog), 1, "the very next check-in must be free to try again, not suppressed");
 });
 
 test("a 2xx with a non-UUID id is not a confirmed accept — resendId is null and no cooldown starts", async () => {

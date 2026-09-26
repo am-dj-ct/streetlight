@@ -161,16 +161,41 @@ PY
 # it just acquired (see sentinel_mail_red's header for why a lock, not just
 # the marker file, is needed at all).
 #
-# Reserves the cooldown marker BEFORE sending, not after a confirmed send
-# (cross-vendor review, 2026-09-26): the previous version only wrote the
-# marker on a confirmed 2xx, so nothing stopped a caller that started a send
-# and then wedged mid-request — network stall, killed process, whatever —
-# from having wasted no cooldown at all, and a second (in-lock, so
-# sequential, not concurrent) call retrying the exact same alert. Reserving
-# first, and only releasing on a DEFINITE non-accept, closes that gap. It
-# also gives the Idempotency-Key below something stable to key off across a
-# retry, so Resend's own dedup — not this script's guess about what curl's
-# exit code means — is the real backstop against a duplicate send.
+# Three-way outcome model (2nd cross-vendor review, 2026-09-26 — the first
+# cut's two-way "confirmed vs. everything else keeps the reservation" model
+# was itself still wrong): every attempt ends in exactly one of —
+#   - CONFIRMED: a clean 2xx AND a UUID-validated id (review #4's rule).
+#     Starts the six-hour cooldown NOW, on confirmed acceptance only — not
+#     on merely having attempted a send — and clears the pending marker.
+#   - DEFINITE NO: Resend clearly did not queue this payload. Two different
+#     ways to land here, both released (no cooldown, pending marker
+#     cleared, so the NEXT red check-in gets a fresh reservation and a
+#     fresh Idempotency-Key):
+#       (a) a definite PRE-SEND failure — Doppler itself never handed back
+#           secrets, so curl never even ran (checked via
+#           SENTINEL_DOPPLER_RUN_STATUS, captured immediately after the
+#           call: "live_failed" / "rate_limited_no_fallback" are the only
+#           two statuses that mean the wrapped command never executed).
+#           The previous version treated this identically to a genuinely
+#           ambiguous curl-level failure and kept the reservation for six
+#           hours even though we know FOR CERTAIN nothing reached Resend.
+#       (b) a definite REJECTION — curl completed and Resend gave a real
+#           HTTP response, but it was not a confirmed accept (non-2xx, or a
+#           2xx with no valid id). Retrying the IDENTICAL payload would
+#           just get rejected again.
+#   - AMBIGUOUS: curl ran but never completed the round trip (timeout, DNS
+#     failure, connection reset) — Resend may already have accepted the
+#     request before the response was lost. Retried up to
+#     SENTINEL_MAIL_RED_MAX_ATTEMPTS times, ALL sharing the identical
+#     payload and Idempotency-Key (built once, before the retry loop) —
+#     never rebuilt or re-keyed between attempts, so Resend's own dedup on
+#     that key, not this script's guess about what curl's exit code means,
+#     is the real backstop against a duplicate send. If still ambiguous
+#     after the bounded retries, the pending key is written to disk and
+#     KEPT (no cooldown) so a LATER, separate invocation (the next
+#     scheduled check-in, whenever that is) reuses the exact same key
+#     instead of minting a new one — an outage-spanning retry chain that
+#     stays safe to dedupe the whole time.
 sentinel_mail_red_attempt() {
   local item="$1" reason="$2" at="$3" subject_prefix="${4:-}"
 
@@ -182,14 +207,24 @@ sentinel_mail_red_attempt() {
     return 0
   fi
 
-  printf '%s' "$now" > "$marker" 2>/dev/null || true
-  local idempotency_key="${item}-${now}"
+  # Pending key: reused across BOTH the in-call bounded-retry loop below
+  # AND, by persisting it to disk, across separate future invocations —
+  # only ever regenerated once the outcome is no longer ambiguous
+  # (confirmed or definitely rejected). This is what makes "identical
+  # payload and key across retries" actually true regardless of how many
+  # processes, or how much wall-clock time, those retries span.
+  local pending_marker="$SENTINEL_MAIL_RED_STATE_DIR/$item.pending-key"
+  local idempotency_key
+  idempotency_key="$(cat "$pending_marker" 2>/dev/null || true)"
+  if [ -z "$idempotency_key" ]; then
+    idempotency_key="${item}-${now}"
+    printf '%s' "$idempotency_key" > "$pending_marker" 2>/dev/null || true
+  fi
 
   local payload
   payload="$(mktemp 2>/dev/null || true)"
   if [ -z "$payload" ]; then
     sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable"
-    rm -f "$marker" 2>/dev/null || true
     return 0
   fi
   if ! python3 - "$payload" "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$subject_prefix" <<'PY' 2>/dev/null
@@ -210,40 +245,45 @@ PY
   then
     rm -f "$payload" 2>/dev/null || true
     sentinel_log_fallback_failure "mail-red:$item" "payload build failed"
-    rm -f "$marker" 2>/dev/null || true
     return 0
   fi
 
-  # Run the send with stdout (the Resend response body) and stderr (any
-  # curl-level failure text, e.g. a timeout) captured SEPARATELY, instead of
-  # the old `2>&1 >/dev/null` that routed the response body straight to
-  # /dev/null and kept only stderr — the actual Resend message id (needed
-  # for the receipt) was being thrown away on every send, pass or fail.
-  # `-w "\n%{http_code}"` appends the HTTP status after a newline so it can
-  # be split from the JSON body without needing `--fail` (which would have
-  # discarded the error body on a non-2xx response, and the error body is
-  # exactly what we want captured too). The Idempotency-Key header (review
-  # #3) makes a retry of THIS SAME reservation safe on Resend's side even
-  # if this script's own ambiguous-failure handling below ever changes.
-  local errfile raw rc http_status body resend_id_raw resend_id
-  errfile="$(mktemp 2>/dev/null || true)"
-  if [ -n "$errfile" ]; then
-    raw="$(SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>"$errfile")"
-    rc=$?
-  else
-    raw="$(SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>/dev/null)"
-    rc=$?
-  fi
+  local max_attempts="${SENTINEL_MAIL_RED_MAX_ATTEMPTS:-3}"
+  local attempt=1
+  local outcome="" http_status="" resend_id="" last_diag=""
 
-  http_status="${raw##*$'\n'}"
-  body="${raw%$'\n'*}"
-  case "$http_status" in *[!0-9]*|"") http_status="" ;; esac
+  while [ "$attempt" -le "$max_attempts" ]; do
+    # Run the send with stdout (the Resend response body) and stderr (any
+    # curl-level failure text, e.g. a timeout) captured SEPARATELY, instead
+    # of the old `2>&1 >/dev/null` that routed the response body straight
+    # to /dev/null and kept only stderr — the actual Resend message id
+    # (needed for the receipt) was being thrown away on every send, pass or
+    # fail. `-w "\n%{http_code}"` appends the HTTP status after a newline
+    # so it can be split from the JSON body without needing `--fail`
+    # (which would have discarded the error body on a non-2xx response,
+    # and the error body is exactly what we want captured too).
+    local errfile raw rc doppler_status body resend_id_raw
+    errfile="$(mktemp 2>/dev/null || true)"
+    if [ -n "$errfile" ]; then
+      raw="$(SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+          'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>"$errfile")"
+      rc=$?
+    else
+      raw="$(SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+          'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>/dev/null)"
+      rc=$?
+    fi
+    # Capture immediately — sentinel_doppler_run overwrites this global on
+    # every call, and the NEXT retry attempt below calls it again.
+    doppler_status="$SENTINEL_DOPPLER_RUN_STATUS"
 
-  resend_id_raw=""
-  if [ -n "$body" ]; then
-    resend_id_raw="$(printf '%s' "$body" | python3 -c '
+    http_status="${raw##*$'\n'}"
+    body="${raw%$'\n'*}"
+    case "$http_status" in *[!0-9]*|"") http_status="" ;; esac
+
+    resend_id_raw=""
+    if [ -n "$body" ]; then
+      resend_id_raw="$(printf '%s' "$body" | python3 -c '
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -252,51 +292,76 @@ try:
 except Exception:
     print("")
 ' 2>/dev/null || true)"
-  fi
-
-  # UUID-validate before trusting it for anything (review #4): reuse #45's
-  # exact rule (send-resend-email.mjs) instead of accepting whatever
-  # happens to be in the response body's "id" field.
-  resend_id=""
-  if [ -n "$resend_id_raw" ]; then
-    local resend_id_lower
-    resend_id_lower="$(printf '%s' "$resend_id_raw" | tr 'A-Z' 'a-z')"
-    if [[ "$resend_id_lower" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
-      resend_id="$resend_id_lower"
     fi
-  fi
 
-  if [ "$rc" -eq 0 ] && [ -n "$http_status" ] && [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ] && [ -n "$resend_id" ]; then
-    # Confirmed accept (review #4: a 2xx alone is not enough — it needs a
-    # validated id too, matching #45's own `accepted` rule exactly).
-    # Reservation already recorded above; nothing further to do.
-    :
-  elif [ "$rc" -eq 0 ]; then
-    # Resend definitely responded (we have a real HTTP status), and this
-    # was NOT a confirmed accept — either a non-2xx, or a 2xx with no valid
-    # id. Either way Resend did not queue this specific email under this
-    # reservation, so it's safe to release it: the very next red check-in
-    # retries with a fresh reservation and a fresh Idempotency-Key.
-    rm -f "$marker" 2>/dev/null || true
+    # UUID-validate before trusting it for anything (review #4): reuse
+    # #45's exact rule (send-resend-email.mjs) instead of accepting
+    # whatever happens to be in the response body's "id" field.
+    resend_id=""
+    if [ -n "$resend_id_raw" ]; then
+      local resend_id_lower
+      resend_id_lower="$(printf '%s' "$resend_id_raw" | tr 'A-Z' 'a-z')"
+      if [[ "$resend_id_lower" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+        resend_id="$resend_id_lower"
+      fi
+    fi
+
     local err=""
     [ -n "${errfile:-}" ] && err="$(cat "$errfile" 2>/dev/null || true)"
-    sentinel_log_fallback_failure "mail-red:$item" \
-      "curl_rc=$rc http_status=${http_status:-none} resend_id_valid=$([ -n "$resend_id" ] && echo yes || echo no) ${err:+stderr=$err}"
-  else
-    # curl itself never completed the round-trip (timeout, DNS failure,
-    # connection reset, etc.) — genuinely ambiguous: Resend may already have
-    # accepted the request before the response was lost in transit. KEEP
-    # the reservation (do NOT remove the marker) rather than retrying with a
-    # fresh key that could produce a real second email if the first attempt
-    # actually landed — a deliberate under-alert bias for this one
-    # ambiguous case only. The failed receipt below still makes this
-    # visible for a human to check by hand.
-    local err=""
-    [ -n "${errfile:-}" ] && err="$(cat "$errfile" 2>/dev/null || true)"
-    sentinel_log_fallback_failure "mail-red:$item" \
-      "curl_rc=$rc (no http response — ambiguous, reservation kept) ${err:+stderr=$err}"
-  fi
-  [ -n "${errfile:-}" ] && rm -f "$errfile" 2>/dev/null || true
+    [ -n "${errfile:-}" ] && rm -f "$errfile" 2>/dev/null || true
+
+    if [ "$rc" -eq 0 ] && [ -n "$http_status" ] && [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ] && [ -n "$resend_id" ]; then
+      outcome="confirmed"
+      break
+    fi
+
+    case "$doppler_status" in
+      live_failed | rate_limited_no_fallback)
+        # Definite pre-send failure — curl never ran at all, so we know
+        # FOR CERTAIN nothing reached Resend. No point retrying THIS
+        # attempt loop for a Doppler-layer problem (sentinel_doppler_run
+        # already has its own rate-limit backoff at a higher level); a
+        # later, separately-triggered check-in tries again fresh.
+        outcome="pre_send_failure"
+        last_diag="doppler_status=$doppler_status rc=$rc ${err:+stderr=$err}"
+        break
+        ;;
+    esac
+
+    if [ "$rc" -eq 0 ]; then
+      # Resend definitely responded (a real HTTP status came back), and it
+      # was not a confirmed accept — retrying the identical payload would
+      # just be rejected again.
+      outcome="rejected"
+      last_diag="http_status=${http_status:-none} resend_id_valid=$([ -n "$resend_id" ] && echo yes || echo no)"
+      break
+    fi
+
+    # curl ran but never completed the round trip — genuinely ambiguous.
+    # Retry with the SAME payload/key, bounded, before giving up on this
+    # in-call loop (the pending key then still carries forward to whatever
+    # triggers the next check-in).
+    outcome="ambiguous"
+    last_diag="curl_rc=$rc ${err:+stderr=$err}"
+    attempt=$((attempt + 1))
+    [ "$attempt" -le "$max_attempts" ] && sleep "${SENTINEL_MAIL_RED_RETRY_DELAY_SECONDS:-2}"
+  done
+
+  case "$outcome" in
+    confirmed)
+      printf '%s' "$now" > "$marker" 2>/dev/null || true
+      rm -f "$pending_marker" 2>/dev/null || true
+      ;;
+    pre_send_failure | rejected)
+      rm -f "$pending_marker" 2>/dev/null || true
+      sentinel_log_fallback_failure "mail-red:$item" "$outcome: $last_diag"
+      ;;
+    ambiguous)
+      # Pending marker deliberately left in place — see the function
+      # header. Not started: the six-hour cooldown.
+      sentinel_log_fallback_failure "mail-red:$item" "$outcome after $max_attempts attempt(s), reservation kept: $last_diag"
+      ;;
+  esac
 
   sentinel_record_mail_receipt "$item" "$reason" "${http_status:-}" "$resend_id"
 
