@@ -573,3 +573,148 @@ wiring defect, since turns 2-3 succeeding is direct proof the wiring
 itself works). This is recorded rather than re-run repeatedly against
 production chasing a clean 6-of-6 on a shared, finite, resets-at-UTC-
 midnight quota.
+
+## Amendment (2026-09-26, second cross-vendor review): the 3/6 run's real cause, and five more findings fixed
+
+Astra's cross-vendor review of the follow-up PR above came back FIX FIRST
+again, with five more findings, and disputed this ADR's own "quota
+exhaustion" explanation for the 3/6 live run. That dispute was right: a
+turn genuinely refused for quota reasons reaches the server and comes back
+`server_rejected` with a real HTTP status (403). Turns 4-6 in that run were
+`client_blocked` with `httpStatus=none` — no request was ever confirmed to
+have reached the server at all. That shape is not what quota exhaustion
+looks like; it is exactly what finding 1 below looks like.
+
+**Real cause of the 3/6 result.** The classification bug fixed two
+amendments up (a page-wide, unbound response listener plus a
+synchronously-checked busy flag with no settle grace) is far more likely to
+misfire the faster a turn's own send-to-response cycle is relative to the
+next turn's send. Turn 1 goes through the real Turnstile ceremony, which
+imposes its own natural pacing; turns 2+ via the monitor pass skip that
+ceremony entirely and fire back-to-back as fast as the script can type and
+press Enter. The old logic's two race conditions (a leftover DOM node from
+a previous turn's notice; a busy flag read before the real send's own POST
+had gone out) both get more likely to trigger, not less, as turns speed up
+— so wiring in the monitor pass made an existing but rarer bug fire
+reliably from turn 4 onward, and it read as "the pass ran out" only because
+turn 3 happened to be the last one the old logic classified correctly by
+chance. This is not a proven post-hoc reproduction of the old code (it is
+already replaced, correctly, by finding 1's fix below and the prior
+amendment's fix), but it is the only explanation consistent with the actual
+recorded labels, and the quota theory is now retired.
+
+**1 (P1) — the response-matching itself was page-wide, and a synchronous
+busy check raced the real send.** The prior amendment's fix
+(`isSendControlBusy`) correctly stopped misreading a PRIOR turn's leftover
+notice, but `runTurn` still located a turn's own response via a page-wide
+`page.on("response")`-style search rather than binding to the specific
+request THIS turn issued, and checked the busy flag with no settle window
+at all — a busy-to-not-busy transition observed on the wrong poll tick
+could conclude "blocked" before the real POST had even gone out. Fixed in
+`lib/conversation.mjs`: `runTurn` now calls `page.waitForRequest()` bound
+at the top of the function (closure-scoped per call, so no cross-turn
+contamination is possible even if it settles late in the background), and
+polls two independent signals — a per-node dataset marker on the
+send-failure notice (`currentFailureNoticeMarker`, for a fast, unambiguous
+"a NEW notice appeared" check that doesn't depend on the notice text
+changing) and the existing busy-flag cycle, now with a `BUSY_FALL_GRACE_MS`
+(5s) settle window after busy ends before concluding blocked. The
+deadline-only path awaits the request watcher; the fast paths (marker or
+grace-window conclusion) return immediately without blocking on it — an
+earlier draft of this fix awaited it unconditionally and reintroduced a
+~40s tax on every fast blocked-turn conclusion, caught by this fix's own
+regression tests before being committed. Four new tests in
+`lib/conversation.runturn.test.mjs`, run against a real headless browser
+and a static fixture (not a hand-rolled fake `Page`), cover: a turn
+misattributed to a prior leftover notice; a slow turn's response not
+bleeding into the next (fast) turn; a synchronously-resolved block; and a
+genuinely repeated block, each bounded by realistic timeouts rather than
+the old 45s ceiling.
+
+**2 (P1) — the mail-send fix from the prior amendment kept the reservation
+on a pre-send failure, used an unstable idempotency key, and treated an
+invalid response id as a rejection instead of ambiguous.** The lock/reserve
+design was right in shape but wrong in three specific ways: (a) a
+pre-send failure (Doppler never handed back secrets, so curl never ran at
+all) kept the reservation exactly like a genuine ambiguous curl-level
+failure, blocking a real retry on the NEXT check-in for up to the full
+cooldown for no reason; (b) the `Idempotency-Key` used the current
+second at each retry attempt, so a same-item retry a second apart got a
+DIFFERENT key, defeating the whole point of idempotency; (c) a 2xx with a
+non-UUID id was being treated the same as a definite non-2xx rejection.
+Fixed with an explicit three-way outcome in `sentinel_mail_red_attempt`
+(`scripts/sentinel-v5/checkin-lib.sh`): **confirmed** (2xx + a valid UUID)
+writes the send marker and clears the pending key; **pre_send_failure**
+(from `SENTINEL_DOPPLER_RUN_STATUS`) or **rejected** (a real, non-2xx HTTP
+response) both release the pending key immediately, no retry, no cooldown;
+**ambiguous** (curl itself never completed a round trip) retries in-call up
+to `SENTINEL_MAIL_RED_MAX_ATTEMPTS` (default 3) times with the IDENTICAL
+payload and the SAME pending key, and if still ambiguous after that, KEEPS
+the pending key on disk so a LATER, separate check-in invocation reuses the
+exact same key rather than minting a new one — Resend's own dedup is the
+real backstop across that gap, not this script's memory of what it already
+tried. 13 tests in `checkin-lib.mail-red.test.mjs` cover all three outcomes
+and both the in-call and cross-invocation retry paths.
+
+**3 (P1) — the DEGRADED-is-red fix (two amendments up) read `jq`'s exit
+code in a way that could silently pass on corrupted state, and had no
+upper bound on a timestamp.** `jq -re ... 2>/dev/null || true` prints
+whatever valid JSON prefix it parsed and swallows a nonzero exit from
+trailing garbage after it (confirmed directly: a valid PASS object followed
+by garbage on the same file prints the PASS fields, then exits 5) — so a
+partially-corrupted `last-run.json` could still read as a clean PASS.
+Separately, the existing check only bounded `startedAt` from below (at or
+after this invocation), not above, so a wildly future-dated value (clock
+skew, a bad write) would pass the same way a valid one would. Fixed in
+`sentinel_emit.sh`: one atomic `jq -re` call with its exit status checked
+explicitly before trusting any of its output, plus a
+`SENTINEL_STATE_FUTURE_TOLERANCE_MS` (5 minutes, matching the existing
+pattern used elsewhere in this same file) upper bound. Two new tests in
+`sentinel-emit.test.mjs` (13 total) cover the trailing-garbage and
+far-future cases.
+
+**4 (P2) — the monitor pass's reservation script used a retrying KV
+client for a non-idempotent operation.** `consumeMonitorPass` (inherited
+from the concurrent monitor-pass PR, `docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`)
+runs a Lua `INCR` against the shared `kv` singleton, which retries
+automatically on a network-level failure by default — fine for the
+idempotent reads elsewhere in the app, wrong here: if Redis executes the
+`INCR` and only the response carrying the result back is lost, a retry of
+the identical call increments the quota counter a second time for one
+logical reservation. Fixed with a separate, lazily-constructed client
+scoped to this one script (`src/lib/monitor-pass.ts`), configured with
+`retry: { retries: 0 }` — not `retry: false`, which was tried first and
+found NOT to disable retries in the installed `@upstash/redis` version:
+its internal loop is `for (let i = 0; i <= this.retry.attempts; i++)`, and
+`retry: false` maps to `attempts: 1`, which still runs the loop twice.
+`retry: { retries: 0 }` maps to `attempts: 0`, giving exactly one attempt.
+Confirmed with a test that mocks `fetch` itself to reject (a genuine
+transport failure, the only thing that actually triggers this client's
+retry logic — mocking the application-level `reserve()` call to throw,
+tried first, never exercises the retry path at all and would pass whether
+or not the bug was present) and counts the actual number of underlying
+calls. The shared `kv` singleton everywhere else in the app keeps its
+normal retry behavior, unchanged.
+
+**5 (P2) — the back-navigation "warning" from the prior amendment was an
+effective, silent skip.** Warning instead of failing when the composer
+draft survived a real `page.goBack()` meant this case could never actually
+fail on either engine, for any reason, without anyone noticing — exactly
+the "nothing should skip anything designed" standard this file otherwise
+holds itself to. Fixed by making it a hard check on BOTH possible outcomes
+instead of accepting either one: the Navigation Timing API's `type` field
+(`performance.getEntriesByType("navigation")`) reports `"back_forward"`
+when a navigation was actually served from the browser's back-forward
+cache — a real, spec-level signal available on both engines this tier
+runs, not a Chromium-only heuristic guess. When `type` is `"back_forward"`,
+the SAME live JS context (including React's in-memory state) resumed, so
+the draft is EXPECTED to still be there, and its absence in that specific
+case is now itself a failure (something wrongly clearing state on resume).
+When `type` is anything else, the case asserts the deterministic
+no-persistence contract exactly as before. Renamed to reflect what it now
+actually tests.
+
+A live run against production, after all five of these plus the round-two
+monitor-pass wiring, is recorded once it runs after the next UTC-midnight
+quota reset — see the follow-up note below rather than re-editing the
+paragraph above.

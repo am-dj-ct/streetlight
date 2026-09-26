@@ -1315,4 +1315,14 @@ One-line summary of every decision in this document, dated for traceability.
 - Completed the monitor pass's own deferred coordinator wiring into `tier2.mjs`; removed the pacing pause it superseded.
 - Full detail, including a real production run's results, in the cross-vendor-review amendment: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
 
+**2026-09-26 — second cross-vendor review: the 3/6 run's real cause, and five more fixes:**
+
+- Retired the prior entry's quota-exhaustion explanation for the 3/6 live run: turns 4-6 were `client_blocked` with `httpStatus=none`, not `server_rejected`/403, which is not what quota exhaustion produces. The real cause is the same class of classification bug fixed below, made far more likely to fire once the monitor pass removed the natural pacing the real Turnstile ceremony had been providing for turns 2+.
+- The turn-classification fix above still located a turn's response page-wide and checked the busy flag with no settle window; fixed to bind to the specific request via `page.waitForRequest()` (closure-scoped per turn) plus a dual fast/slow blocked-signal check with a settle grace, so a fast conclusion no longer blocks on the request watcher's own timeout.
+- The red-mail locking fix above kept its reservation on a pre-send failure (no curl ever ran), used an idempotency key that changed every retry second, and treated an invalid response id as a rejection. Fixed with an explicit three-way outcome (confirmed / definite pre-send-failure-or-rejection / ambiguous) and a pending key that stays stable across both in-call and cross-invocation retries.
+- The DEGRADED-is-red verdict check's `jq` read could silently accept a corrupted state file (an ignored nonzero exit past valid-looking output) and had no upper bound on a future-dated timestamp; both fixed.
+- The monitor pass's KV reservation used the shared, auto-retrying client for a non-idempotent `INCR` — a lost response could double-count the daily quota. Fixed with a separate, retries-disabled client for that one operation only; every other KV usage in the app is unchanged.
+- The back-navigation case's "warning" on a surviving composer draft was an unconditional skip of that assertion on every run. Fixed to a hard check on both outcomes using the Navigation Timing API's `type` field to tell a real back-forward-cache resume (draft correctly expected to persist) from an ordinary navigation (draft correctly expected to clear).
+- Full detail in the same-file amendment: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
+
 *End of document.*
