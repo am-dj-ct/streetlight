@@ -16,6 +16,8 @@
     "footerMoreCrisisResources": "Khayraad kale oo xaalad adag iyo xogta app-ka",
     "footerLocalPlaceholder": "Khadadka kale ee xaaladaha adag ee King County:",
     "footerFallbackPlaceholder": "Khadadka kale ee caawinta qaranka:",
+    "footerExpandLabel": "Muuji caawimaadda xaalad adag iyo xogta app-ka",
+    "footerCollapseLabel": "Qari caawimaadda xaalad adag iyo xogta app-ka",
     "landingHeadingLineOne": "Maxaad u baahan tahay?",
     "landingHeadingLineTwo": "Mid dooro si aad u bilowdo.",
     "landingScopeNote": "Khayraadka waxaa loo soo xulay King County, WA. Qalabkani qof kasta, meel kasta ayuu u shaqeeyaa.",

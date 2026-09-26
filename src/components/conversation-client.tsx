@@ -1309,7 +1309,21 @@ export function ConversationClient({
     chooseBestVoice(voiceOptions, voiceLanguage)?.voiceURI ||
     "";
   const selectedReadAloudVoiceLabel = effectiveAzureVoice.label;
-  const isCompactComposer = isComposerFocused || isKeyboardViewportCompressed;
+  // Once a conversation is under way, the composer and crisis footer default
+  // to their compact/collapsed forms on phones regardless of focus. Earlier
+  // attempts (see git history on crisis-footer.tsx and this file from
+  // 2026-05-09) only compacted while the composer was focused or the
+  // on-screen keyboard was open, so the bottom half of the screen went back
+  // to full size the moment the keyboard closed -- which is exactly the
+  // "half the page is footer" complaint. hasChatted keys off whether the
+  // person has actually sent something -- not messages.length, since every
+  // entry seeds an assistant greeting before the person types anything, and
+  // that greeting/suggestions screen is the "landing state" that's allowed
+  // to stay full-size. -- so it stays compact for the rest of the
+  // conversation once they have.
+  const hasChatted = messages.some((message) => message.role === "user");
+  const isCompactComposer =
+    isComposerFocused || isKeyboardViewportCompressed || hasChatted;
   const micUnavailable = micSupported === false;
   const exportEntryLabel = getConversationContentEntry(entryId, currentLanguageCode).label;
   const shouldReserveAnswerScrollRoom =
@@ -2848,7 +2862,7 @@ export function ConversationClient({
                 placeholder={copy.composerPlaceholder}
                 className={`w-full resize-none overflow-y-auto rounded-[18px] border-2 border-[#35695a] bg-white px-4 text-[18px] leading-7 text-[#1f2923] shadow-[0_2px_12px_rgba(31,95,67,0.15)] placeholder:text-[#7c8a82] ${
                   isCompactComposer
-                    ? "max-h-32 min-h-12 py-3 sm:max-h-56 sm:min-h-20 sm:py-6"
+                    ? "max-h-32 min-h-12 py-2 sm:max-h-56 sm:min-h-20 sm:py-6"
                     : "max-h-56 min-h-20 py-6"
                 }`}
               />
@@ -3280,11 +3294,13 @@ export function ConversationClient({
       >
         <CrisisFooter
           area="conversation"
+          collapsible
           compact
           entryId={entryId}
           languageCode={currentLanguageCode}
           regionScope={regionScope}
           sourcePath={conversationHref}
+          startCollapsed={hasChatted}
         />
       </div>
     </main>
