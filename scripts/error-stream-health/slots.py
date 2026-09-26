@@ -37,6 +37,7 @@ def main(worker):
     os.umask(0o077)
     root = Path(os.environ.get('STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT', str(Path.home() / '.streetlight/error-stream-health')))
     root.mkdir(parents=True, exist_ok=True)
+    os.environ['STREETLIGHT_SENTINEL_FALLBACK_LOG'] = str(root / 'sentinel-v5-fallback.log')
     cursor = root / 'slots-state.json'
 
     def record(slot, status, reason, **extra):
