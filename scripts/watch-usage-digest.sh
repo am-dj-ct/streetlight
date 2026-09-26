@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# One daily check: did today's usage digest finish successfully?
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec node "$SCRIPT_DIR/watch-usage-digest/watch.mjs" "$@"
