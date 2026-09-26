@@ -977,7 +977,8 @@ first, and none had.
 
 A normal browser confirmed `window.turnstile` loads fine on the real
 site; only the monitor's own automated context never got it. A zero-spend
-probe (`scripts/ui-sentry/probe-turnstile-live.mjs`) that builds tier2's
+probe (a one-off script, removed before merge because it printed raw console
+text) that builds tier2's
 exact context — same launch args, same routes, same
 `installMonitorPass` — and just loads the conversation page for 10
 seconds, sending nothing, reproduced it immediately: a console warning,
@@ -986,7 +987,10 @@ imported multiple times?`, and `window.turnstile` staying `undefined`. Run
 against the exact commit that first wired the monitor pass in
 (`9196b7e`/`bd6dea7`), the probe reproduced the identical result — this
 was never a working design, not a regression introduced by any of the
-review rounds above; it happened not to trip on one earlier live run.
+review rounds above. One earlier live run did get turn 1 through real
+Turnstile on the same wiring; that is not yet explained (a deterministic
+descriptor guard should have blocked it too), so treat the root cause as
+confirmed for the failure and open for that one success.
 
 Root cause: `installMonitorPass` (`lib/monitor-pass.mjs`) installed
 `Object.defineProperty(window, "turnstile", {get, set})` before any
