@@ -31,25 +31,49 @@
 # PREVIOUS invocation on some code path that reaches here without the
 # orchestrator ever having run this time. Every one of those is "we don't
 # actually know," and "we don't know" must never read as a silent green.
-# Two independent checks both have to pass before a level is trusted:
-#   1. `overallLevel` is present and is exactly one of the three real values
+#
+# A SECOND review round (same day) found the first cut of THIS fix was
+# itself still fail-open in two ways, both reproduced directly:
+#   - `jq -r '...' file 2>/dev/null || true` discards jq's own exit status.
+#     jq parses a JSON document stream by default: a valid object followed
+#     by trailing garbage (a truncated/corrupted write, two documents
+#     concatenated) prints the valid document's fields to stdout and THEN
+#     exits nonzero on the garbage — reproduced with
+#     `{"overallLevel":"PASS",...}\nGARBAGE` printing "PASS" while exiting
+#     5. Swallowing that exit code treated the garbage-contaminated file as
+#     a clean read.
+#   - The `startedAt` check only enforced a LOWER bound (not older than this
+#     invocation) with no UPPER bound, so a corrupted or wildly future-dated
+#     timestamp (reproduced with a year-2099 `startedAt`) passed it too.
+#
+# Four things all have to hold before a level is trusted:
+#   1. jq parses the file as EXACTLY one JSON value — checked via jq's own
+#      exit status now, not the mere presence of stdout output.
+#   2. `overallLevel` is present and is exactly one of the three real values
 #      this schema ever writes (PASS/DEGRADED/FAIL) — anything else,
 #      including empty, is unverifiable.
-#   2. `startedAt` in the file is not older than THIS invocation's own
+#   3. `startedAt` is not older than THIS invocation's own
 #      UI_SENTRY_SENTINEL_AT — orchestrator.mjs always stamps `startedAt`
 #      before doing anything else, and this wrapper always captures
 #      UI_SENTRY_SENTINEL_AT before the doppler-wrapped orchestrator call
 #      even starts, so a genuine run of THIS invocation can only produce a
 #      `startedAt` at or after that instant. An earlier `startedAt` means
 #      the file predates this invocation — stale state, not a report on
-#      what just happened. Numeric epoch comparison (via `node -e`), not
-#      string comparison: last-run.json's ISO timestamps carry milliseconds
-#      and UI_SENTRY_SENTINEL_AT's wall-clock fallback does not, and mixed
-#      precision ISO strings do not sort correctly as plain text (the `.`
-#      before milliseconds sorts before `Z`, so a millisecond-precision
-#      timestamp can look "earlier" than a same-instant second-precision
-#      one under a naive string compare).
-# Anything that fails either check reports red with reason_code
+#      what just happened.
+#   4. `startedAt` is not more than a small skew (5 minutes — the same
+#      tolerance item B already uses below, for the same clock-skew reason)
+#      ahead of the REAL current time read at THIS check — never ahead of
+#      "now" by more than that, catching a corrupted/future-dated value
+#      that check 3's lower bound alone cannot.
+# All numeric epoch comparisons (via `node -e`), never string comparison:
+# last-run.json's ISO timestamps carry milliseconds and
+# UI_SENTRY_SENTINEL_AT's wall-clock fallback does not, and mixed precision
+# ISO strings do not sort correctly as plain text (the `.` before
+# milliseconds sorts before `Z`, so a millisecond-precision timestamp can
+# look "earlier" than a same-instant second-precision one under a naive
+# string compare).
+#
+# Anything that fails any of the four reports red with reason_code
 # "state_unverifiable" — a distinct reason from both job_failed and
 # degraded, so the mail body and any future dashboard can tell "the run
 # itself failed," "the run finished but reported badly," and "we can't even
@@ -57,6 +81,7 @@
 #
 # Producer failures are already swallowed inside sentinel_checkin (log and
 # return 0); this never affects this wrapper's own exit code.
+SENTINEL_STATE_FUTURE_TOLERANCE_MS=300000 # 5 minutes — same as item B's
 sentinel_emit_item_a() {
   local exit_code="$1"
   if [ "$exit_code" != "0" ]; then
@@ -65,10 +90,18 @@ sentinel_emit_item_a() {
   fi
 
   local state_file="${STATE_ROOT}/last-run.json"
-  local run_level="" run_started_at=""
+  local run_level="" run_started_at="" tsv jq_rc
+
   if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    run_level="$(jq -r '.overallLevel // empty' "$state_file" 2>/dev/null || true)"
-    run_started_at="$(jq -r '.startedAt // empty' "$state_file" 2>/dev/null || true)"
+    # ONE jq invocation for both fields — a single atomic read of the file,
+    # and a single exit-code check, rather than two separate calls that
+    # could in principle disagree if the file changed between them.
+    tsv="$(jq -re '[(.overallLevel // ""), (.startedAt // "")] | @tsv' "$state_file" 2>/dev/null)"
+    jq_rc=$?
+    if [ "$jq_rc" -eq 0 ] && [ -n "$tsv" ]; then
+      run_level="${tsv%%$'\t'*}"
+      run_started_at="${tsv#*$'\t'}"
+    fi
   fi
 
   case "$run_level" in
@@ -82,9 +115,19 @@ sentinel_emit_item_a() {
   elif ! node -e '
       const startedAt = Date.parse(process.argv[1]);
       const invocationAt = Date.parse(process.argv[2]);
+      const toleranceMs = Number(process.argv[3]);
       if (!Number.isFinite(startedAt) || !Number.isFinite(invocationAt)) process.exit(1);
-      process.exit(startedAt >= invocationAt ? 0 : 1);
-    ' "$run_started_at" "$UI_SENTRY_SENTINEL_AT" 2>/dev/null; then
+      const notBeforeInvocation = startedAt >= invocationAt;
+      // Upper bound against the REAL current time, not the captured
+      // invocation instant — orchestrator work happens strictly after
+      // invocation, so startedAt is expected to be a little later than
+      // UI_SENTRY_SENTINEL_AT already; what this guards against is a
+      // corrupted or wildly future-dated value (reproduced with a
+      // year-2099 startedAt), which the lower-bound check alone cannot
+      // catch since 2099 >= today satisfies it trivially.
+      const notTooFarInFuture = startedAt <= Date.now() + toleranceMs;
+      process.exit(notBeforeInvocation && notTooFarInFuture ? 0 : 1);
+    ' "$run_started_at" "$UI_SENTRY_SENTINEL_AT" "$SENTINEL_STATE_FUTURE_TOLERANCE_MS" 2>/dev/null; then
     state_is_current=0
   fi
 
@@ -118,7 +161,14 @@ sentinel_emit_item_b() {
   # with null.
   UI_SENTRY_LAST_SUCCESS_AT=""
   if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    UI_SENTRY_LAST_SUCCESS_AT="$(jq -r '.lastSuccessfulLiveChatAt // empty' "$state_file" 2>/dev/null || true)"
+    # Same jq-exit-status discipline as sentinel_emit_item_a above: a
+    # valid document followed by trailing garbage still prints usable text
+    # before jq itself exits nonzero, so the exit code — not just stdout
+    # being non-empty — decides whether this value is trusted.
+    local jq_out jq_rc
+    jq_out="$(jq -re '.lastSuccessfulLiveChatAt // empty' "$state_file" 2>/dev/null)"
+    jq_rc=$?
+    [ "$jq_rc" -eq 0 ] && UI_SENTRY_LAST_SUCCESS_AT="$jq_out"
   fi
   if [ -z "$UI_SENTRY_LAST_SUCCESS_AT" ]; then
     status="red"

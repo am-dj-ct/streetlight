@@ -172,6 +172,33 @@ test("a PASS left over from a PREVIOUS invocation (startedAt before this run sta
   assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
 });
 
+test("a valid PASS object followed by trailing garbage reports red state_unverifiable, not green (2nd cross-vendor review reproduction)", async () => {
+  const fx = await makeFixture();
+  // jq parses a JSON document stream by default: it prints the valid
+  // document's fields to stdout, THEN exits nonzero on the trailing
+  // garbage. The old `jq ... || true` pattern discarded that exit code
+  // and used "PASS" anyway — verified directly against real jq: this
+  // exact byte sequence prints PASS/startedAt on stdout while exiting 5.
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    `${JSON.stringify({ overallLevel: "PASS", startedAt: "2026-09-26T14:00:05.000Z" })}\nGARBAGE_NOT_JSON`,
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+});
+
+test("a wildly future-dated startedAt (year 2099) reports red state_unverifiable, not green (the lower-bound check alone cannot catch this)", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({ overallLevel: "PASS", startedAt: "2099-01-01T00:00:00.000Z" }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+});
+
 test("missing jq reports red state_unverifiable, never green, even with a perfectly valid report on disk", async () => {
   const fx = await makeFixture();
   await writeFile(
