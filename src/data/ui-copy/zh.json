@@ -16,6 +16,8 @@
     "footerMoreCrisisResources": "更多危机资源和应用信息",
     "footerLocalPlaceholder": "King County 的其他危机热线：",
     "footerFallbackPlaceholder": "其他全国求助热线：",
+    "footerExpandLabel": "显示危机帮助和应用信息",
+    "footerCollapseLabel": "隐藏危机帮助和应用信息",
     "landingHeadingLineOne": "你需要什么？",
     "landingHeadingLineTwo": "选一项开始。",
     "landingScopeNote": "资源是为 King County, WA 挑选的。这个工具本身适合任何地方的任何人使用。",

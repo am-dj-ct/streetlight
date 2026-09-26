@@ -16,6 +16,8 @@
     "footerMoreCrisisResources": "Más recursos de crisis e información de la app",
     "footerLocalPlaceholder": "Otras líneas de crisis de King County:",
     "footerFallbackPlaceholder": "Otras líneas nacionales de ayuda:",
+    "footerExpandLabel": "Mostrar ayuda en crisis e información de la app",
+    "footerCollapseLabel": "Ocultar ayuda en crisis e información de la app",
     "landingHeadingLineOne": "¿Qué necesitas?",
     "landingHeadingLineTwo": "Elige una opción para empezar.",
     "landingScopeNote": "Los recursos están organizados para King County, WA. La herramienta funciona para cualquier persona, en cualquier lugar.",
