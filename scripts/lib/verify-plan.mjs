@@ -154,6 +154,7 @@ export const checkCatalog = [
 export const checkIds = checkCatalog.map((check) => check.id);
 
 const uiRuntimeChecks = [
+  "test:monitor-pass",
   "lint",
   "check:content",
   "build",
