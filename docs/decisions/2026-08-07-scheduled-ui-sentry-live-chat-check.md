@@ -866,3 +866,102 @@ a behavior change to classification or the pass itself.
 The required live run — exactly one, state pointed at a scratch location,
 no email, after the UTC-midnight quota reset, showing 6/6 or the newly
 captured cause for whatever isn't — has not run yet as of this amendment.
+
+## Amendment (2026-09-26, fourth cross-vendor review): the mail retry is dropped, diagnostics are made content-safe, and a leading hypothesis for the 3/6 mystery
+
+Astra's fourth review came back FIX FIRST, confirming the bounded waits,
+the mutation observer, the one-object/invocation validation, and
+`pageshow.persisted` all pass. Two findings hit the mail path this round's
+own fix landed on, one is a non-negotiable content-safety gap in the new
+diagnostics, one names a concrete, testable mechanism for the 3/6 mystery
+this file has been chasing for three amendments, and one closes a receipt
+gap the mail redesign missed.
+
+**Mail (findings 1, 2, 5) — the single-retry design was itself unsound,
+and is now dropped entirely.** The third review's fix allowed exactly one
+immediate retry on a network-level failure. Astra reproduced the actual
+bug that creates: a FIRST attempt can time out AFTER Resend already
+accepted it, and the RETRY can then hit a DNS/Doppler failure or a 401 —
+releasing the reservation based on the retry's outcome alone erases the
+first attempt's real uncertainty, and a following invocation can send a
+genuine duplicate. Separately, the "Doppler Error" stderr-marker check
+added to distinguish a pre-send failure from an ordinary curl failure
+covered the auth-refusal case but not every shape a Doppler-layer refusal
+can take — reproduced with a fallback-cache decryption refusal, which
+carries yet another status/text shape and read as `uncertain` despite curl
+never running at all. Coordinator decision: stop building any more
+status/text-matching cases, and stop retrying at all. `checkin-lib.sh` now
+sends exactly once per invocation, full stop, and decides `pre_send_failure`
+from a plain physical fact instead of an inference about another layer's
+self-reported status: the wrapped shell command touches a marker file
+immediately before exec'ing curl (`touch "$SENTINEL_MAIL_CURL_STARTED_MARKER";
+exec curl ...`), and this function checks whether that file exists
+afterward. No marker means curl never started, for ANY reason at all —
+released, no cooldown. A marker present means curl ran, and the result is
+classified by what curl actually did: a clean 2xx with a valid id is
+`confirmed`; a clean 4xx is `rejected` (released); everything else
+(a 2xx without an id, a 5xx, or any curl-level failure — including a
+DNS/connect failure, which now counts as "curl started" under this
+mechanism, a deliberate simplification traded for not re-deriving curl's
+exit-code semantics yet again) is `uncertain` and starts the cooldown
+anyway. Every early return that happens BEFORE the send is even attempted
+— a temp file could not be created, the payload could not be built — now
+also writes a `pre_send_failure` receipt; the previous version returned
+silently on those paths, reproduced as zero receipts for a real failure.
+13 tests in `checkin-lib.mail-red.test.mjs` cover the four outcomes
+(including the DNS-failure reclassification and the early-return receipt
+case) with no retry-loop tests left to keep passing.
+
+**3 (P1, non-negotiable) — diagnostics retained arbitrary browser
+content.** The previous amendment's `client_blocked` diagnostics copied
+console/page-error TEXT (truncated to 200 characters) straight into the
+run log and the returned object. Truncation bounds length; it does not
+remove content, and a synthetic marker planted in a console error survived
+unchanged — reproduced directly. Rebuilt from scratch as
+`scripts/ui-sentry/lib/blocked-diagnostics.mjs`: every console/page-error
+message is classified into one of a small, closed set of category labels
+(`TypeError`/`ReferenceError`/`SyntaxError`/`RangeError`/`NetworkError`/
+`AbortError`/`other`) the instant it is seen, and the original text is
+discarded immediately — only the category label, never anything derived
+from the message beyond that fixed name, is ever counted or logged.
+`tier2.mjs`'s diagnostics are now exclusively booleans
+(`monitorPassSelected`, `turnstileFound`, `turnstileWrapped`,
+`monitorPassFlag`, `streamingInProgress`, `widgetEvalFailed`), counts
+(`consoleErrorCount`, `pageErrorCount`), and the fixed-key category-count
+object — nothing that could ever carry page content. Extracted into its
+own module specifically so this content-safety property could be proven
+by a real test rather than only reasoned about:
+`blocked-diagnostics.test.mjs` plants a synthetic marker inside messages
+that also carry a real category name (mirroring what an actual stack
+trace looks like) and asserts the marker never survives into a category,
+a tally snapshot/diff, or the final diagnostics object, at every stage.
+
+**4 (P2) — named as the leading hypothesis for the 3/6 mystery, to be
+confirmed by the live run.** After a `response_timeout`, the page's own
+fetch/stream consumption keeps running regardless of this sentry having
+given up polling for it — reproduced directly: a response can still
+update the page after `response_timeout` returns. `conversation-client.tsx`
+queues a submit instead of sending it whenever `isStreaming` is still true
+(confirmed by reading the component), so tier 2 advancing onto that same,
+still-streaming page risks the NEXT turn's prompt never becoming a request
+at all — which is exactly consistent with a run that only ever made 3
+POSTs for 6 attempted turns. No stop/cancel control exists anywhere in the
+product to end a stream early, so `ensurePageIdleBeforeNextTurn`
+(`lib/conversation.mjs`) now runs before advancing after any non-"pass"
+turn: it waits up to a bounded window for the page to finish streaming on
+its own, and if it hasn't, reloads the conversation page — the only way
+left to force a known-idle state before the next turn types anything. A
+`client_blocked` turn's diagnostics now record `streamingInProgress`
+directly. Four tests in `conversation.idle.test.mjs`, against a real
+headless browser and a static fixture, cover: not streaming (no reload),
+streaming that settles on its own (no reload), and streaming that does not
+settle (reloaded, proven by a fresh per-load random id changing, not just
+a claimed reload). **This is a hypothesis, not yet a proven cause** — it
+is directly supported by what the component's own code does and is
+consistent with the exact "3 POSTs, 6 attempted turns" shape, but has not
+been confirmed against a real production run yet. The live run below will
+confirm or refute it.
+
+The required live run remains exactly one, state pointed at a scratch
+location, no email, after the UTC-midnight quota reset — still not run as
+of this amendment.

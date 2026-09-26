@@ -1335,4 +1335,11 @@ One-line summary of every decision in this document, dated for traceability.
 - `tier2.mjs` now logs content-free diagnostics (monitor-pass selection, Turnstile widget wrapping state, recent console/page errors) on any `client_blocked` turn, for the next live run to actually explain instead of guess at.
 - Full detail in the same-file amendment: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
 
+**2026-09-26 — fourth cross-vendor review: mail retry dropped, diagnostics made content-safe, a leading hypothesis for the 3/6 mystery:**
+
+- The single-retry mail design above was itself unsound — a first attempt that may already have reached Resend, followed by a retry hitting a different failure, released the reservation based on the retry alone. Dropped entirely: one send per invocation, full stop. `pre_send_failure` is now decided by a plain physical fact (a marker file the wrapped shell touches immediately before exec'ing curl) instead of inferring it from another layer's self-reported status, which kept missing new failure shapes each round. Every early return before the send is attempted now also writes a receipt.
+- The `client_blocked` diagnostics above (`tier2.mjs`) copied raw console/page-error text into the run log — truncated, but truncation is not content removal, and a synthetic marker survived unchanged. Rebuilt as `scripts/ui-sentry/lib/blocked-diagnostics.mjs`: every message is classified into a closed set of category labels the instant it's seen, and only booleans, counts, and those category labels ever leave the module — never the original text. A test proves a planted marker cannot survive into any of those outputs.
+- Named the leading hypothesis for the 3/6 mystery: a `response_timeout` turn's page can keep streaming after this sentry gives up waiting on it, and the app queues rather than sends a submit while still streaming — consistent with a run that made only 3 POSTs across 6 attempted turns. `ensurePageIdleBeforeNextTurn` now waits for streaming to settle (or reloads the page) before advancing past any non-"pass" turn. Not yet confirmed against a real run.
+- Full detail in the same-file amendment: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
+
 *End of document.*
