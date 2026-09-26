@@ -44,6 +44,41 @@ async function hasFailureNotice(page) {
   }, SEND_FAILURE_NOTICE_TEXT);
 }
 
+// Root cause this exists to fix (cross-vendor review, 2026-09-26):
+// `hasFailureNotice` alone cannot tell "this turn just got blocked" apart
+// from "a PRIOR turn left this exact node on screen." The failure text is
+// one fixed string (`copy.sendFailure`) every time a turn is client-blocked
+// — the app's own `client_blocked` branch never writes
+// `lastSendFailureMessageRef`, so `setErrorMessage` is called with the
+// IDENTICAL value on every consecutive blocked turn. React bails out of
+// re-rendering on an unchanged primitive, so the SAME `<p role="status">`
+// DOM node survives, untouched, across every consecutive blocked turn —
+// not just the first repeat. A plain text/existence check therefore either
+// fires instantly on turn N+1 from turn N's leftover notice (before turn
+// N+1's own attempt has resolved at all — turns overlapping unfinished
+// work), or, once diffed against "what was already there," never fires
+// again for a genuinely repeated block, since nothing about that node ever
+// changes.
+//
+// The submit button's `disabled` attribute doesn't have that problem: it
+// is driven by `isPreparingTurnstile`, a plain boolean that cycles
+// false -> true -> false on every real send attempt, blocked or not,
+// completely independent of whether the eventual failure text repeats.
+// The composer draft is guaranteed non-empty for the whole poll window
+// here (a blocked send never clears it — `setDraft("")` only runs on the
+// path that actually proceeds to fetch), and this sentry never attaches
+// files, so `disabled` cannot be conflated with either of the button's
+// other two disable reasons while this runs. Watching for that rising
+// edge, then its falling edge, with no POST ever landing, is a per-turn
+// signal that is never stale by construction.
+async function isSendControlBusy(page) {
+  return page.evaluate(() => {
+    const input = document.getElementById("conversation-input");
+    const button = input?.closest("form")?.querySelector('button[type="submit"]');
+    return Boolean(button?.disabled);
+  });
+}
+
 async function pollUntil({ timeoutMs, intervalMs, check }) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -129,13 +164,41 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
     await page.focus("#conversation-input");
     await page.keyboard.press("Enter");
 
+    // sawBusy tracks THIS turn's own rising edge of isSendControlBusy — see
+    // its header for why that, not notice text, is what tells a genuinely
+    // concluded (blocked) attempt apart from one still in flight. Only
+    // count the falling edge as "concluded" once we've actually observed
+    // it go busy first, so a poll tick landing between two turns (this
+    // turn hasn't made the control busy yet) can't be misread as "already
+    // finished."
+    //
+    // BUSY_FALL_GRACE_MS: the app clears `isPreparingTurnstile` (busy ->
+    // false) BEFORE it issues the /api/chat POST on a turn that is actually
+    // going through — the token resolves first, then the code that was
+    // waiting on it either takes the blocked early-return or continues on
+    // to fetch(). Concluding "blocked" on the very poll tick busy goes
+    // false (an earlier version of this fix did exactly that) raced ahead
+    // of that continuation and misclassified a real send as blocked. This
+    // grace window lets a POST that is already in flight actually land
+    // before giving up; `chatResponses.length > 0` is checked first on
+    // every tick regardless, so a POST that arrives at any point during (or
+    // after) the grace window still wins immediately.
+    const BUSY_FALL_GRACE_MS = 5000;
+    let sawBusy = false;
+    let busyEndedAt = null;
     const raced = await pollUntil({
       timeoutMs: 45_000,
-      intervalMs: 200,
+      intervalMs: 100,
       check: async () => {
         if (chatResponses.length > 0) return "post";
-        if (await hasFailureNotice(page)) return "notice";
-        return null;
+        if (await isSendControlBusy(page)) {
+          sawBusy = true;
+          busyEndedAt = null;
+          return null;
+        }
+        if (!sawBusy) return null;
+        if (busyEndedAt === null) busyEndedAt = Date.now();
+        return Date.now() - busyEndedAt >= BUSY_FALL_GRACE_MS ? "notice" : null;
       },
     });
 
