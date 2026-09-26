@@ -110,6 +110,88 @@ async function currentFailureNoticeMarker(page) {
   }, SEND_FAILURE_NOTICE_TEXT);
 }
 
+// Third cross-vendor review, 2026-09-26: a REPEATED block (same fixed
+// notice text, so currentFailureNoticeMarker never changes) that ALSO
+// resolves synchronously (busy flips true->false within one JS tick, so no
+// 100ms poll ever observes isSendControlBusy() as true) hits neither fast
+// path at all and falls all the way through to the 45s poll ceiling —
+// reproduced directly. Polling from OUTSIDE the page can only ever sample
+// isolated instants; it cannot see a transition that starts and ends
+// between two samples. A MutationObserver runs INSIDE the page and is
+// guaranteed to see every attribute change synchronously as it happens,
+// independent of when this code next happens to poll it — so it can catch
+// a rising-then-falling cycle even when polling from here structurally
+// cannot. Bound to the submit button, not re-created per turn: the same
+// composer form persists across turns in this app (the notice-marker
+// mechanism above relies on the same fact for the `<p role="status">`
+// node), so one observer installed on first use keeps counting correctly
+// for the rest of the page's lifetime. Self-healing if the button isn't
+// found yet (returns null, so the next call retries attach()).
+async function busyFallCount(page) {
+  return page.evaluate(() => {
+    if (!window.__uiSentryBusyFallObserver) {
+      window.__uiSentryBusyFallCount = window.__uiSentryBusyFallCount ?? 0;
+      const input = document.getElementById("conversation-input");
+      const button = input?.closest("form")?.querySelector('button[type="submit"]');
+      if (button) {
+        // A truly synchronous rising-then-falling cycle (no task/microtask
+        // boundary between the two writes) queues TWO mutation records but
+        // delivers them in ONE callback invocation, by which point
+        // button.disabled already reads back as its final (unchanged)
+        // value — reading only the current live value here would miss the
+        // cycle entirely (found the hard way: a first cut of this exact
+        // function did exactly that and the regression test for this case
+        // still failed). attributeOldValue lets each record's OWN prior
+        // state be read directly; the value a record's mutation produced
+        // is the NEXT record's oldValue, or the button's current live
+        // value for the last record in the batch — walking the batch this
+        // way catches every rising-then-falling pair regardless of how
+        // many mutations landed in the same callback.
+        const observer = new MutationObserver((records) => {
+          for (let i = 0; i < records.length; i += 1) {
+            const wasDisabled = records[i].oldValue !== null;
+            const isDisabledAfter =
+              i + 1 < records.length ? records[i + 1].oldValue !== null : button.disabled;
+            if (wasDisabled && !isDisabledAfter) {
+              window.__uiSentryBusyFallCount += 1;
+            }
+          }
+        });
+        observer.observe(button, {
+          attributes: true,
+          attributeFilter: ["disabled"],
+          attributeOldValue: true,
+        });
+        window.__uiSentryBusyFallObserver = observer;
+      }
+    }
+    return window.__uiSentryBusyFallCount ?? 0;
+  });
+}
+
+// Symbols, not strings, so a timed-out wait can never be confused with a
+// real value (a real body could coincidentally BE the string "timeout").
+const RESPONSE_WAIT_TIMED_OUT = Symbol("response_wait_timed_out");
+const BODY_WAIT_TIMED_OUT = Symbol("body_wait_timed_out");
+
+// Races `promise` against a deadline instead of awaiting it unconditionally
+// (3rd cross-vendor review, 2026-09-26 — conversation.mjs used to await
+// matchedRequest.response() with no deadline at all: a probe reproduced it
+// hanging past the turn's own configured deadline, blocking completion and
+// reporting entirely). Playwright gives no real cancellation for a pending
+// response/body wait, so "cancel... outstanding work" here means: never
+// leave it attached to this turn's outcome past its bound, and always
+// swallow whatever it eventually does in the background so it can never
+// surface as an unhandled rejection once this function has moved on.
+async function withDeadline(promise, remainingMs, sentinel) {
+  promise.catch(() => {});
+  if (remainingMs <= 0) return sentinel;
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(sentinel), remainingMs)),
+  ]);
+}
+
 async function pollUntil({ timeoutMs, intervalMs, check }) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -224,19 +306,24 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
     })
     .catch(() => null);
 
+  const beforeBusyFallCount = await busyFallCount(page);
+
   try {
     await humanType(page, text);
     await page.focus("#conversation-input");
     await page.keyboard.press("Enter");
 
-    // Races three signals every 100ms: this turn's own request landing
+    // Races four signals every 100ms: this turn's own request landing
     // (checked first, always wins — ground truth beats any inference), a
     // genuinely NEW failure notice appearing (fast path for a first-ever or
     // synchronously-resolved block — see currentFailureNoticeMarker's
-    // header), and the busy-control rising/falling edge with its grace
-    // window (the reliable path for a genuinely REPEATED identical-text
-    // block, which the marker check alone cannot see). sawBusy/busyEndedAt
-    // are scoped to this call, never carried across turns.
+    // header), the in-page busy-fall observer (catches a REPEATED block
+    // that ALSO resolves synchronously — see busyFallCount's header; this
+    // is the one case none of the other signals can see), and the
+    // busy-control rising/falling edge observed live with its grace window
+    // (the case where we DO catch the busy instant on a poll tick).
+    // sawBusy/busyEndedAt are scoped to this call, never carried across
+    // turns.
     let sawBusy = false;
     let busyEndedAt = null;
     const deadline = Date.now() + TURN_POLL_TIMEOUT_MS;
@@ -245,6 +332,10 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
 
       const marker = await currentFailureNoticeMarker(page);
       if (marker !== null && marker !== beforeNoticeMarker) break;
+
+      if ((await busyFallCount(page)) > beforeBusyFallCount) {
+        sawBusy = true;
+      }
 
       if (await isSendControlBusy(page)) {
         sawBusy = true;
@@ -283,8 +374,29 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
 
     // A real request exists — ground truth always wins over a provisional
     // blocked read from the loop above, even if both became true in the
-    // same tick.
-    const response = await matchedRequest.response();
+    // same tick. Bounded by what's left of THIS turn's own deadline (3rd
+    // cross-vendor review, 2026-09-26): matchedRequest.response() has no
+    // deadline of its own, and a probe reproduced it hanging indefinitely
+    // — past the turn's configured deadline, blocking completion and
+    // reporting outright. A finite bound here, reusing the same
+    // perTurnDeadlineMs ceiling waitForFirstToken/waitForStreamDone already
+    // answer to below, replaces "wait forever" with a distinct, reported
+    // outcome; withDeadline's own .catch(() => {}) means the abandoned
+    // promise can never surface as an unhandled rejection later.
+    const turnDeadlineAt = turnStartedAt + perTurnDeadlineMs;
+    const response = await withDeadline(
+      matchedRequest.response(),
+      turnDeadlineAt - Date.now(),
+      RESPONSE_WAIT_TIMED_OUT,
+    );
+    if (response === RESPONSE_WAIT_TIMED_OUT) {
+      return {
+        label: "response_timeout",
+        httpStatus: null,
+        ttftMs: null,
+        totalMs: Date.now() - turnStartedAt,
+      };
+    }
     if (!response) {
       // The request fired but never got a response at all (aborted by the
       // turn-budget guard past the cap, or a genuine network failure) —
@@ -309,7 +421,17 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
     });
 
     const observed = observeChatResponse(response);
-    const bodyText = observed.status === 200 ? null : await observed.bodyTextPromise;
+    // Same bound applied to reading the body: a stalled/never-finishing
+    // stream on a non-200 must not hang this turn either. A timeout here
+    // reads the same as a body that failed to parse — classifyChatResponse
+    // already has a defined, non-crashing path for that (unclassified /
+    // unclassified_503) — so it needs no new label of its own.
+    const bodyText =
+      observed.status === 200
+        ? null
+        : await withDeadline(observed.bodyTextPromise, turnDeadlineAt - Date.now(), BODY_WAIT_TIMED_OUT).then(
+            (result) => (result === BODY_WAIT_TIMED_OUT ? null : result),
+          );
     let classification = classifyChatResponse({ status: observed.status, bodyText });
 
     if (PAUSED_LABELS.has(classification.label)) {

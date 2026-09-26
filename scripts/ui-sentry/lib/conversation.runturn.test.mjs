@@ -55,7 +55,15 @@ const FIXTURE_HTML = `<!doctype html>
     const text = input.value;
     input.value = "";
     button.disabled = true;
-    await new Promise((resolve) => setTimeout(resolve, Number(window.__nextDelayMs || 50)));
+    // window.__nextDelayMs === 0 must mean a truly synchronous toggle (no
+    // gap at all between button.disabled = true and = false) — "|| 50"
+    // does not do that: 0 is falsy in JS, so it silently became 50ms,
+    // which is why an earlier version of this fixture could not actually
+    // reproduce a genuinely synchronous transition despite claiming to
+    // (3rd cross-vendor review, 2026-09-26 — this is exactly the gap that
+    // let the repeated+synchronous case go untested and unnoticed).
+    const delayMs = window.__nextDelayMs === undefined ? 50 : Number(window.__nextDelayMs);
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
     const blocked = window.__nextBlocked === true;
     button.disabled = false;
 
@@ -104,13 +112,22 @@ const FIXTURE_ORIGIN = "https://ui-sentry-fixture.test";
 // /api/chat request pops the next configured delay (default 0) before the
 // route fulfills, letting a test control exactly how slow ONE specific
 // turn's own response is without touching the page's own timing at all.
-async function makePage(browser, { responseDelaysMs = [] } = {}) {
+// `hangRequests` is a parallel FIFO queue of booleans: a `true` entry
+// leaves that specific /api/chat request's route handler pending forever
+// (never calling fulfill/continue/abort) — a real stalled-server hang,
+// used to prove runTurn's response-wait bound (3rd cross-vendor review,
+// 2026-09-26) actually terminates instead of waiting it out.
+async function makePage(browser, { responseDelaysMs = [], hangRequests = [] } = {}) {
   const page = await browser.newPage();
   const delays = [...responseDelaysMs];
+  const hangs = [...hangRequests];
   await page.route(`${FIXTURE_ORIGIN}/`, (route) =>
     route.fulfill({ status: 200, contentType: "text/html", body: FIXTURE_HTML }),
   );
   await page.route(`${FIXTURE_ORIGIN}/api/chat`, async (route) => {
+    if (hangs.length > 0 && hangs.shift()) {
+      return; // deliberately never resolved — simulates a genuine server hang
+    }
     const delay = delays.length > 0 ? delays.shift() : 0;
     if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
     await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
@@ -248,6 +265,89 @@ test("a genuinely repeated block (identical notice text) is still classified as 
     assert.ok(
       elapsedMs < 8000,
       `turn 2 took ${elapsedMs}ms — should resolve via the busy-cycle grace window (~5s), not the 45s poll ceiling`,
+    );
+
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+});
+
+// 3rd cross-vendor review, 2026-09-26: a repeated block (same fixed notice
+// text, so the marker never changes) that ALSO toggles busy synchronously
+// (no gap at all between disabled=true and disabled=false — delayMs: 0,
+// now genuinely zero after the fixture's own falsy-zero fix above) hits
+// neither the marker fast path NOR a live-observed busy edge, and used to
+// ride out the full 45s poll ceiling. The in-page MutationObserver
+// (busyFallCount in conversation.mjs) is what has to catch this: it runs
+// inside the page and is guaranteed to see the mutation regardless of
+// polling cadence from outside it.
+test("a repeated block that ALSO resolves synchronously is still classified as blocked quickly, not the 45s poll ceiling", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await makePage(browser);
+
+    await page.evaluate(() => {
+      window.__nextBlocked = true;
+      window.__nextDelayMs = 0;
+    });
+    const turn1 = await runTurn(page, { text: "turn one", baseUrl: FIXTURE_ORIGIN });
+    assert.equal(turn1.label, "client_blocked");
+
+    const startedAt = Date.now();
+    await page.evaluate(() => {
+      window.__nextBlocked = true;
+      window.__nextDelayMs = 0;
+    });
+    const turn2 = await runTurn(page, { text: "turn two", baseUrl: FIXTURE_ORIGIN });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.equal(
+      turn2.label,
+      "client_blocked",
+      "a repeated, synchronous block must still read as blocked, not fall through to a 45s timeout label",
+    );
+    assert.ok(
+      elapsedMs < 8000,
+      `turn 2 took ${elapsedMs}ms — should resolve via the in-page busy-fall observer (~5s grace), not the 45s poll ceiling`,
+    );
+
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+});
+
+// 3rd cross-vendor review, finding 1: matchedRequest.response() used to be
+// awaited with no deadline of its own — a stalled server (a request that
+// matches, so it is never client_blocked, but whose response never
+// arrives at all) hung the turn indefinitely, past its own configured
+// deadline, blocking completion and reporting outright. A short
+// perTurnDeadlineMs keeps this test itself fast while still proving the
+// bound is real and finite, not just "large."
+test("a request that matches but whose response never arrives times out on the turn's own deadline, not indefinitely", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await makePage(browser, { hangRequests: [true] });
+
+    await page.evaluate(() => {
+      window.__nextBlocked = false;
+      window.__nextDelayMs = 0;
+    });
+    const startedAt = Date.now();
+    const turn1 = await runTurn(page, {
+      text: "turn one",
+      baseUrl: FIXTURE_ORIGIN,
+      perTurnDeadlineMs: 1500,
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.equal(turn1.label, "response_timeout", "a matched request with no response must report a distinct timeout label, not hang or misreport");
+    assert.ok(
+      elapsedMs < 5000,
+      `turn took ${elapsedMs}ms — must terminate on perTurnDeadlineMs (1500ms), not wait indefinitely for a response that will never arrive`,
     );
 
     await browser.close();
