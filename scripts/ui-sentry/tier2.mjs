@@ -43,6 +43,7 @@ import { chromium } from "@playwright/test";
 import { desktopViewport } from "./playwright.config.mjs";
 import { blockUsageEvents } from "./lib/browser.mjs";
 import { gotoConversation, runTurn } from "./lib/conversation.mjs";
+import { humanPause } from "./lib/human-type.mjs";
 import { installTurnBudgetGuard } from "./lib/budget-guard.mjs";
 import { tier2Verdict, turnBucket } from "./lib/chat-status.mjs";
 import { TIER2_ENTRY_ID, TIER2_TURNS } from "./fixtures/tier2-prompts.mjs";
@@ -119,6 +120,14 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
         );
         turns.push({ n: i + 1, label: "budget_exhausted", httpStatus: null, ttftMs: null, totalMs: 0 });
         continue;
+      }
+
+      // Read-and-think pause before every turn after the first (see
+      // humanPause's header in lib/human-type.mjs for the root cause this
+      // fixes: back-to-back scripted sends read as bot-speed to Cloudflare,
+      // independent of the automation-controlled flag).
+      if (i > 0) {
+        await humanPause(page);
       }
 
       const result = await runTurn(page, { text: TIER2_TURNS[i], baseUrl });
