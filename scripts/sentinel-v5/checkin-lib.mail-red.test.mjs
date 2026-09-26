@@ -126,7 +126,18 @@ case "$mode" in
 esac
 `;
 
-async function makeFixture() {
+// Always fails, standing in for "mktemp is unavailable/broken" — a fake
+// binary shadowing the real one via PATH is a portable, deterministic way
+// to reproduce this (finding 5) rather than fighting the real mktemp's
+// own OS-specific temp-directory selection (macOS's bare `mktemp` ignores
+// $TMPDIR entirely unless a template/prefix is given, so pointing TMPDIR
+// at a missing directory does not actually reproduce the failure there).
+const MKTEMP_FAIL_STUB = `#!/usr/bin/env bash
+echo "mktemp: stub failure" >&2
+exit 1
+`;
+
+async function makeFixture({ mktempFails = false } = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "sentinel-mail-red-"));
   const binDir = path.join(dir, "bin");
   const fallbackDir = path.join(dir, "doppler-fallback");
@@ -139,6 +150,11 @@ async function makeFixture() {
   await writeFile(curlPath, CURL_STUB);
   await chmod(dopplerPath, 0o755);
   await chmod(curlPath, 0o755);
+  if (mktempFails) {
+    const mktempPath = path.join(binDir, "mktemp");
+    await writeFile(mktempPath, MKTEMP_FAIL_STUB);
+    await chmod(mktempPath, 0o755);
+  }
   return {
     dir,
     binDir,
@@ -279,7 +295,13 @@ test("a definite 4xx rejection releases the reservation — the next check-in re
   assert.equal((await readReceipts(fx.mailRedDir)).length, 2);
 });
 
-test("a curl-level (network) failure gets exactly one immediate in-process retry with the IDENTICAL idempotency key, then is treated as possibly sent", async () => {
+// 4th cross-vendor review, 2026-09-26: the 3rd review's single-retry design
+// was itself unsound — a first attempt that may already have reached
+// Resend, followed by a retry that hits a DNS/Doppler failure or a 401,
+// released the reservation based on the RETRY's outcome alone, erasing
+// the first attempt's real uncertainty. Coordinator decision: no retry of
+// any kind, one send per invocation, full stop.
+test("a curl-level (network) failure with the marker present (curl started) is uncertain — no retry, cooldown starts anyway", async () => {
   const fx = await makeFixture();
   const result = await runCheckin({
     ...fx, item: "sl-test-d", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error",
@@ -287,15 +309,8 @@ test("a curl-level (network) failure gets exactly one immediate in-process retry
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
 
   const lines = await callLines(fx.callLog);
-  assert.equal(lines.length, 2, "exactly one retry — no cross-invocation or bounded multi-attempt loop any more");
-  const keys = lines.map((line) => line.match(/idempotency=(\S+)/)?.[1]);
-  assert.equal(new Set(keys).size, 1, `both attempts must share the identical key; saw ${keys.join(", ")}`);
+  assert.equal(lines.length, 1, "exactly one attempt — no retry of any kind any more");
 
-  // Coordinator decision (3rd cross-vendor review): a curl-level failure
-  // that cannot be proven to be pre-send is treated as POSSIBLY sent, not
-  // ambiguous-and-retryable — the cooldown starts even without a confirmed
-  // id, favoring a rare missed duplicate-detection window over ever
-  // actually sending a real duplicate.
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
   assert.equal(receipts[0].httpStatus, null);
@@ -303,7 +318,7 @@ test("a curl-level (network) failure gets exactly one immediate in-process retry
   assert.equal(receipts[0].outcome, "uncertain");
 
   await runCheckin({ ...fx, item: "sl-test-d", checkStatus: "red", reasonCode: "job_failed", curlMode: "success" });
-  assert.equal(await callCount(fx.callLog), 2, "the cooldown from the uncertain outcome must suppress the next check-in");
+  assert.equal(await callCount(fx.callLog), 1, "the cooldown from the uncertain outcome must suppress the next check-in");
 });
 
 test("a definite pre-send failure (Doppler never handed back secrets, curl never ran) releases the reservation immediately — no retry, no cooldown", async () => {
@@ -329,23 +344,50 @@ test("a definite pre-send failure (Doppler never handed back secrets, curl never
   assert.equal(await callCount(fx.callLog), 1, "the very next check-in must be free to try again, not suppressed");
 });
 
-test("a curl-level connect/DNS failure (rc 6/7) is a definite pre-send failure too — no retry, no cooldown", async () => {
+// The curl-started marker is touched by the wrapped shell BEFORE it execs
+// curl, so it exists even when curl itself then fails with a DNS/connect
+// error (rc 6/7) — that failure happened AFTER curl started, from this
+// mechanism's point of view, so it is "uncertain" (cooldown starts), not
+// "pre_send_failure". This is a deliberate simplification (coordinator,
+// 4th cross-vendor review): deciding pre-send-vs-not from a plain,
+// verifiable physical fact (did curl start at all) rather than trying to
+// keep enumerating curl's own exit-code semantics, which is exactly the
+// kind of fragile heuristic that kept producing new bugs each round.
+test("a curl-level connect/DNS failure (rc 6/7) still counts as curl having started — outcome=uncertain, cooldown starts", async () => {
   const fx = await makeFixture();
   const result = await runCheckin({
     ...fx, item: "sl-test-g4", checkStatus: "red", reasonCode: "job_failed", curlMode: "connect_failure",
   });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await callCount(fx.callLog), 1, "curl ran exactly once — a DNS/connect failure is definite, not retried");
+  assert.equal(await callCount(fx.callLog), 1, "curl ran exactly once — no retry of any kind");
 
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
-  assert.equal(receipts[0].outcome, "pre_send_failure");
+  assert.equal(receipts[0].outcome, "uncertain");
 
   const result2 = await runCheckin({
     ...fx, item: "sl-test-g4", checkStatus: "red", reasonCode: "job_failed", curlMode: "success",
   });
   assert.match(result2.stdout, /^RC=0$/m, result2.stderr);
-  assert.equal(await callCount(fx.callLog), 2, "released immediately, so the very next check-in tries again");
+  assert.equal(await callCount(fx.callLog), 1, "the cooldown from the uncertain outcome must suppress the next check-in");
+});
+
+// 4th cross-vendor review, finding 5: an early return before the send was
+// ever attempted (a temp file could not even be created) used to return
+// without recording anything — reproduced with zero receipts. Every early
+// return now writes a pre_send_failure receipt, the same as a Doppler
+// refusal does.
+test("a temp-file creation failure before any send still writes a pre_send_failure receipt", async () => {
+  const fx = await makeFixture({ mktempFails: true });
+  const result = await runCheckin({ ...fx, item: "sl-test-k", checkStatus: "red", reasonCode: "job_failed" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await callCount(fx.callLog), 0, "curl must never be reached if a temp file could not even be created");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1, "an early return before the send must still write a receipt");
+  assert.equal(receipts[0].outcome, "pre_send_failure");
+  assert.equal(receipts[0].httpStatus, null);
+  assert.equal(receipts[0].resendId, null);
 });
 
 test("a 2xx with a non-UUID id is treated as possibly sent — outcome=uncertain, cooldown starts anyway", async () => {

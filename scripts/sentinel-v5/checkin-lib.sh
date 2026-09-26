@@ -165,55 +165,46 @@ PY
 # it just acquired (see sentinel_mail_red's header for why a lock, not just
 # the marker file, is needed at all).
 #
-# Simplified outcome model (3rd cross-vendor review, 2026-09-26 — the
-# previous cross-invocation pending-key/bounded-retry design was itself
-# where the new bugs kept coming from: a retry rebuilt the payload with a
-# new timestamp under the SAME key, which gets a Resend conflict instead of
-# a dedup, not a safety net; an unverifiable 2xx was being treated as a
-# definite rejection even though delivery may already have happened; and
-# the Doppler status read right after the send lived inside a
-# `raw="$(...)"` command-substitution subshell, so the global variable
-# assignment inside `sentinel_doppler_run` never actually reached this
-# scope — every read of it here saw a stale, usually-empty value,
-# regardless of what Doppler actually did). Coordinator decision, same day:
-# stop building cross-invocation idempotent retry machinery; simplify to
-# send at most once per invocation, plus a single immediate in-process
-# retry of a genuine network error using the identical payload and key
-# (built once, before the loop) — no pending key ever written to disk, no
-# multi-attempt loop, no cross-invocation state at all. Every attempt ends
-# in exactly one of —
-#   - PRE_SEND_FAILURE: nothing could have reached Resend. Either Doppler
-#     itself never handed back secrets (curl never ran — a rate-limit
-#     refusal with no fallback available, or any other Doppler-layer
-#     failure, identified by its own "Doppler Error" stderr marker, not
-#     just SENTINEL_DOPPLER_RUN_STATUS's coarser "live_failed" bucket alone
-#     — that bucket also covers the WRAPPED command's own nonzero exit,
-#     since sentinel_doppler_run execs it directly, and treating live_failed
-#     alone as proof curl never ran was tried and found wrong: an in-process
-#     probe with curl itself exiting nonzero reported the exact same
-#     live_failed status as a genuine Doppler auth failure), or curl itself
-#     never reached Resend at all (exit 6 = couldn't resolve host, 7 =
-#     failed to connect — a DNS failure or no connection made, not a
-#     timeout after sending). Released immediately: no cooldown, distinct
-#     receipt reason, no retry — retrying a Doppler-layer problem here is
-#     pointless (sentinel_doppler_run already has its own backoff at a
-#     higher level), and retrying a DNS/connect failure gains nothing a
-#     single immediate retry of a genuine network error doesn't already
-#     cover.
-#   - REJECTED: curl completed and Resend gave a clean 4xx. Definite
-#     refusal of this exact payload. Released: no cooldown.
-#   - CONFIRMED: a clean 2xx AND a UUID-validated id. Cooldown starts.
-#   - UNCERTAIN: everything else that isn't one of the three above — a 2xx
-#     with no valid id, a 5xx, or any curl-level failure that isn't
-#     provably a pre-send failure (a timeout or dropped connection AFTER
-#     the request may have gone out, which curl's exit code alone cannot
-#     distinguish from one before). Treated as POSSIBLY SENT: the cooldown
-#     starts anyway. A rare missed duplicate-detection window is
-#     acceptable; an actual duplicate email is not. A network-level
-#     failure (curl rc != 0, not a definite pre-send failure) gets exactly
-#     one immediate in-process retry with the SAME payload and key before
-#     landing here; a real HTTP response (2xx-without-id or 5xx) does not
-#     retry at all, since Resend already has the payload.
+# Outcome model (4th cross-vendor review, 2026-09-26 — the 3rd review's
+# single-retry design was ITSELF unsound: a retry after a first attempt
+# that may already have reached Resend could still get a DNS/Doppler
+# failure or a 401 on the SECOND try, and the code released the reservation
+# based on that second attempt's outcome alone, erasing the first attempt's
+# real uncertainty — reproduced directly. Coordinator decision: drop the
+# retry entirely, one send per invocation, full stop. Distinguishing
+# "nothing could have reached Resend" from "curl ran, something may have"
+# also stopped relying on SENTINEL_DOPPLER_RUN_STATUS or stderr text
+# matching (the 3rd review's "Doppler Error" marker check) — that status
+# is derived from sentinel_doppler_run's OWN interpretation of the wrapped
+# command's exit code/stderr, and a review before this one already showed
+# one way that interpretation is unsound (live_failed also covers the
+# wrapped command's own failure); the "Doppler Error" text check papered
+# over THAT specific case but a fallback-cache decryption refusal turned
+# out to carry yet another status/text shape entirely, reproduced sending
+# two attempts and reporting uncertain despite curl never running at all.
+# Rather than keep adding cases to a text/status-matching game, this now
+# uses a plain, verifiable PHYSICAL fact: the wrapped shell command touches
+# a marker file immediately before exec'ing curl, so the marker's presence
+# or absence on disk afterward, checked in THIS shell, is direct evidence
+# of whether curl actually started — not an inference from another layer's
+# self-reported status.) Every attempt ends in exactly one of —
+#   - PRE_SEND_FAILURE: the curl-started marker does not exist — nothing
+#     could have reached Resend, for ANY reason (Doppler refused for any
+#     reason at all, including ones this file has never specifically
+#     handled before). Released: no cooldown. Also the outcome recorded on
+#     every earlier-still failure (temp-file or payload creation) that
+#     returns before ever reaching the send at all — every early return
+#     writes this same receipt now (review #5), never silently skipping it.
+#   - REJECTED: the marker exists (curl ran) and Resend gave a clean 4xx.
+#     Definite refusal of this exact payload. Released: no cooldown.
+#   - CONFIRMED: the marker exists and curl got a clean 2xx with a
+#     UUID-validated id. Cooldown starts.
+#   - UNCERTAIN: the marker exists (curl ran) but the result is neither of
+#     the above — a 2xx with no valid id, a 5xx, or any other curl-level
+#     outcome (a timeout or dropped connection AFTER the request may have
+#     gone out). Treated as POSSIBLY SENT: the cooldown starts anyway. A
+#     rare missed duplicate-detection window is acceptable; an actual
+#     duplicate email is not. No retry of any kind.
 sentinel_mail_red_attempt() {
   local item="$1" reason="$2" at="$3" subject_prefix="${4:-}"
 
@@ -230,10 +221,23 @@ sentinel_mail_red_attempt() {
   # the same wall-clock second still get different keys.
   local idempotency_key="${item}-${now}-$$"
 
+  # Existence, not content, is the signal — created empty and immediately
+  # removed so the ONLY way it exists again afterward is the wrapped
+  # command itself having recreated it right before exec'ing curl.
+  local curl_started_marker
+  curl_started_marker="$(mktemp 2>/dev/null || true)"
+  if [ -z "$curl_started_marker" ]; then
+    sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable (curl-started marker)"
+    sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    return 0
+  fi
+  rm -f "$curl_started_marker" 2>/dev/null || true
+
   local payload
   payload="$(mktemp 2>/dev/null || true)"
   if [ -z "$payload" ]; then
-    sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable"
+    sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable (payload)"
+    sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
     return 0
   fi
   if ! python3 - "$payload" "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$subject_prefix" <<'PY' 2>/dev/null
@@ -254,45 +258,42 @@ PY
   then
     rm -f "$payload" 2>/dev/null || true
     sentinel_log_fallback_failure "mail-red:$item" "payload build failed"
+    sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
     return 0
   fi
 
-  local outcome="" http_status="" resend_id="" last_diag=""
-  local attempt=1
+  # stdout/stderr go to real files, and sentinel_doppler_run is called
+  # directly rather than inside `raw="$(...)"` — a command substitution
+  # always forks a subshell in bash, and a subshell's variable changes
+  # never propagate back to the caller. Not that this function still reads
+  # SENTINEL_DOPPLER_RUN_STATUS at all (see the header above for why it
+  # stopped) — kept as a direct call, not a subshell, on general principle.
+  local raw_file errfile rc raw body resend_id_raw err http_status
+  raw_file="$(mktemp 2>/dev/null || true)"
+  errfile="$(mktemp 2>/dev/null || true)"
+  SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" SENTINEL_MAIL_CURL_STARTED_MARKER="$curl_started_marker" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+      'touch "$SENTINEL_MAIL_CURL_STARTED_MARKER"; exec curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' \
+      >"${raw_file:-/dev/null}" 2>"${errfile:-/dev/null}"
+  rc=$?
 
-  while :; do
-    # stdout/stderr go to real files, and sentinel_doppler_run is called
-    # directly rather than inside `raw="$(...)"` — a command substitution
-    # always forks a subshell in bash, and a subshell's variable changes
-    # (including SENTINEL_DOPPLER_RUN_STATUS, set as a side effect inside
-    # sentinel_doppler_run) never propagate back to the caller. Redirecting
-    # to files instead keeps this whole call in the CURRENT shell, so the
-    # status read right after actually reflects what just happened
-    # (review #6 — the previous version's "capture immediately" comment
-    # was capturing a value that had never actually changed here).
-    local raw_file errfile rc doppler_status raw body resend_id_raw err
-    raw_file="$(mktemp 2>/dev/null || true)"
-    errfile="$(mktemp 2>/dev/null || true)"
-    SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' \
-        >"${raw_file:-/dev/null}" 2>"${errfile:-/dev/null}"
-    rc=$?
-    doppler_status="$SENTINEL_DOPPLER_RUN_STATUS"
+  raw=""
+  [ -n "$raw_file" ] && raw="$(cat "$raw_file" 2>/dev/null || true)"
+  [ -n "$raw_file" ] && rm -f "$raw_file" 2>/dev/null || true
+  err=""
+  [ -n "$errfile" ] && err="$(cat "$errfile" 2>/dev/null || true)"
+  [ -n "$errfile" ] && rm -f "$errfile" 2>/dev/null || true
 
-    raw=""
-    [ -n "$raw_file" ] && raw="$(cat "$raw_file" 2>/dev/null || true)"
-    [ -n "$raw_file" ] && rm -f "$raw_file" 2>/dev/null || true
-    err=""
-    [ -n "$errfile" ] && err="$(cat "$errfile" 2>/dev/null || true)"
-    [ -n "$errfile" ] && rm -f "$errfile" 2>/dev/null || true
+  local curl_started=0
+  [ -f "$curl_started_marker" ] && curl_started=1
+  rm -f "$curl_started_marker" 2>/dev/null || true
 
-    http_status="${raw##*$'\n'}"
-    body="${raw%$'\n'*}"
-    case "$http_status" in *[!0-9]*|"") http_status="" ;; esac
+  http_status="${raw##*$'\n'}"
+  body="${raw%$'\n'*}"
+  case "$http_status" in *[!0-9]*|"") http_status="" ;; esac
 
-    resend_id_raw=""
-    if [ -n "$body" ]; then
-      resend_id_raw="$(printf '%s' "$body" | python3 -c '
+  resend_id_raw=""
+  if [ -n "$body" ]; then
+    resend_id_raw="$(printf '%s' "$body" | python3 -c '
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -301,102 +302,40 @@ try:
 except Exception:
     print("")
 ' 2>/dev/null || true)"
+  fi
+
+  # UUID-validate before trusting it for anything: reuse #45's exact rule
+  # (send-resend-email.mjs) instead of accepting whatever happens to be in
+  # the response body's "id" field.
+  local resend_id=""
+  if [ -n "$resend_id_raw" ]; then
+    local resend_id_lower
+    resend_id_lower="$(printf '%s' "$resend_id_raw" | tr 'A-Z' 'a-z')"
+    if [[ "$resend_id_lower" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+      resend_id="$resend_id_lower"
     fi
+  fi
 
-    # UUID-validate before trusting it for anything: reuse #45's exact
-    # rule (send-resend-email.mjs) instead of accepting whatever happens to
-    # be in the response body's "id" field.
-    resend_id=""
-    if [ -n "$resend_id_raw" ]; then
-      local resend_id_lower
-      resend_id_lower="$(printf '%s' "$resend_id_raw" | tr 'A-Z' 'a-z')"
-      if [[ "$resend_id_lower" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
-        resend_id="$resend_id_lower"
-      fi
-    fi
-
-    # rate_limited_no_fallback is a SOUND signal on its own: it is only
-    # ever set when sentinel_doppler_run itself matched a doppler-specific
-    # rate-limit message and had no fallback to retry from, so curl could
-    # not have run. live_failed is NOT sound the same way — it is set for
-    # ANY nonzero exit that isn't rate-limit-shaped, which includes the
-    # WRAPPED command's OWN failure: sentinel_doppler_run execs curl
-    # directly, so curl's own nonzero exit becomes sentinel_doppler_run's
-    # exit code too, indistinguishable from a real Doppler-layer refusal
-    # by exit code alone (found the hard way: an in-process probe with
-    # curl exiting 28 reported doppler_status=live_failed, identical to a
-    # genuine Doppler auth failure, and treating that live_failed value
-    # alone as proof curl never ran was wrong — it silently ate the single
-    # retry this exact case is supposed to get). Doppler's OWN CLI prefixes
-    # its own errors with "Doppler Error" (confirmed against its real
-    # output; the exact text quoted in this file's rate-limit header
-    # comment), which curl's stderr never would — checking for that marker
-    # specifically, not just the coarser live_failed bucket, is what
-    # actually tells the two layers apart.
-    case "$doppler_status" in
-      rate_limited_no_fallback)
-        outcome="pre_send_failure"
-        last_diag="doppler_status=$doppler_status rc=$rc ${err:+stderr=$err}"
-        break
-        ;;
-      live_failed)
-        if printf '%s' "$err" | grep -qi '^Doppler Error'; then
-          outcome="pre_send_failure"
-          last_diag="doppler_status=$doppler_status rc=$rc ${err:+stderr=$err}"
-          break
-        fi
-        # Not a Doppler-layer marker — fall through to the curl-rc checks
-        # below, which is what actually decides this one.
-        ;;
-    esac
-
-    if [ "$rc" -ne 0 ]; then
-      case "$rc" in
-        6 | 7)
-          # Couldn't resolve host (6) / failed to connect (7): curl never
-          # reached Resend at all — as definite as a Doppler refusal, not
-          # an ambiguous "may have reached" case, so no retry either.
-          outcome="pre_send_failure"
-          last_diag="curl_rc=$rc (dns_or_connect_failure) ${err:+stderr=$err}"
-          break
-          ;;
-      esac
-      # Any other curl-level failure (timeout, connection reset, etc.) —
-      # cannot tell whether the request reached Resend before it failed.
-      outcome="uncertain"
-      last_diag="curl_rc=$rc ${err:+stderr=$err}"
-      if [ "$attempt" -eq 1 ]; then
-        attempt=$((attempt + 1))
-        continue
-      fi
-      break
-    fi
-
-    if [ -n "$http_status" ] && [ "$http_status" -ge 400 ] && [ "$http_status" -lt 500 ]; then
-      outcome="rejected"
-      last_diag="http_status=$http_status"
-      break
-    fi
-
-    if [ -n "$http_status" ] && [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ] && [ -n "$resend_id" ]; then
-      outcome="confirmed"
-      break
-    fi
-
-    # A 2xx with no valid id, a 5xx, or any other real HTTP response that
-    # is not a clean 4xx: Resend may already have queued this. Treated as
-    # sent — never retried.
+  local outcome last_diag
+  if [ "$curl_started" -eq 0 ]; then
+    outcome="pre_send_failure"
+    last_diag="curl never started rc=$rc ${err:+stderr=$err}"
+  elif [ -n "$http_status" ] && [ "$http_status" -ge 400 ] && [ "$http_status" -lt 500 ]; then
+    outcome="rejected"
+    last_diag="http_status=$http_status"
+  elif [ "$rc" -eq 0 ] && [ -n "$http_status" ] && [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ] && [ -n "$resend_id" ]; then
+    outcome="confirmed"
+  else
     outcome="uncertain"
-    last_diag="http_status=${http_status:-none} resend_id_valid=$([ -n "$resend_id" ] && echo yes || echo no)"
-    break
-  done
+    last_diag="curl_rc=$rc http_status=${http_status:-none} resend_id_valid=$([ -n "$resend_id" ] && echo yes || echo no) ${err:+stderr=$err}"
+  fi
 
   case "$outcome" in
     confirmed | uncertain)
       printf '%s' "$now" > "$marker" 2>/dev/null || true
       ;;
     pre_send_failure | rejected)
-      sentinel_log_fallback_failure "mail-red:$item" "$outcome: $last_diag"
+      sentinel_log_fallback_failure "mail-red:$item" "$outcome: ${last_diag:-}"
       ;;
   esac
 
