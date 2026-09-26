@@ -91,9 +91,62 @@ sentinel_capture_invocation() {
 # assigning a local named `status` fails hard if this file is ever sourced
 # under zsh (e.g. interactively) rather than through one of this repo's own
 # `#!/usr/bin/env bash` wrappers.
+# Direct email on red (2026-09-25). The Sentinel layer that used to read the
+# spool was retired 2026-09-24, so a red check-in written only to the spool
+# reaches nobody. Every red now also sends one plain email to jesse@ via
+# Resend, at most once per item per 6 hours, using the same Doppler helper
+# the jobs already use. Failures are logged to the fallback log and never
+# change the caller's exit code.
+SENTINEL_MAIL_RED_TO="${SENTINEL_MAIL_RED_TO:-jesse@balancedlivingtherapy.com}"
+SENTINEL_MAIL_RED_FROM="${SENTINEL_MAIL_RED_FROM:-Streetlight <notifications@alerts.ctpipeline.com>}"
+SENTINEL_MAIL_RED_STATE_DIR="${SENTINEL_MAIL_RED_STATE_DIR:-$HOME/.streetlight/mail-red}"
+SENTINEL_MAIL_RED_COOLDOWN_SECONDS="${SENTINEL_MAIL_RED_COOLDOWN_SECONDS:-21600}"
+SENTINEL_MAIL_RED_DISABLED="${SENTINEL_MAIL_RED_DISABLED:-}"
+sentinel_mail_red() {
+  local item="$1" reason_code="$2" at="$3"
+  [ -n "$SENTINEL_MAIL_RED_DISABLED" ] && return 0
+  mkdir -p "$SENTINEL_MAIL_RED_STATE_DIR" 2>/dev/null || true
+  local marker="$SENTINEL_MAIL_RED_STATE_DIR/$item.last-sent" now last
+  now="$(date +%s)"
+  last="$(cat "$marker" 2>/dev/null || echo 0)"
+  case "$last" in *[!0-9]*|"") last=0 ;; esac
+  if [ $((now - last)) -lt "$SENTINEL_MAIL_RED_COOLDOWN_SECONDS" ]; then
+    return 0
+  fi
+  local payload
+  payload="$(mktemp 2>/dev/null || true)"
+  [ -z "$payload" ] && { sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable"; return 0; }
+  python3 - "$payload" "$item" "$reason_code" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" <<'PY' 2>/dev/null || { rm -f "$payload"; sentinel_log_fallback_failure "mail-red:$item" "payload build failed"; return 0; }
+import json, sys
+payload, item, reason, at, to, sender = sys.argv[1:7]
+json.dump({
+    "from": sender,
+    "to": [to],
+    "subject": f"Streetlight watcher RED: {item} ({reason})",
+    "text": (
+        f"Watcher {item} reported red at {at} (reason: {reason}).\n\n"
+        "Logs: ~/.streetlight/  (error-stream-health/, ui-sentry/)\n"
+        "Repo: ~/streetlight\n\n"
+        "Sent at most once per item every 6 hours."
+    ),
+}, open(payload, "w"))
+PY
+  local err
+  if err="$(SENTINEL_MAIL_PAYLOAD="$payload" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+      'curl -s --fail --max-time 20 -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>&1 >/dev/null)"; then
+    printf '%s' "$now" > "$marker" 2>/dev/null || true
+  else
+    sentinel_log_fallback_failure "mail-red:$item" "${err:-send failed}"
+  fi
+  rm -f "$payload" 2>/dev/null || true
+  return 0
+}
 sentinel_checkin() {
   local item="$1" check_status="$2" reason_code="$3" at="$4" slot="$5"
   local err
+  if [ "$check_status" = "red" ]; then
+    sentinel_mail_red "$item" "$reason_code" "$at" || true
+  fi
   if ! err="$(node "$SENTINEL_CHECKIN_MJS" \
     --item "$item" \
     --status "$check_status" \
