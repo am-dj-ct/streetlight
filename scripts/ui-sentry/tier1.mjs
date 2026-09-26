@@ -60,6 +60,30 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
   const session = await launchPage({ browserType, contextOptions: deviceOptions });
   const { page, watch } = session;
 
+  // Records every `pageshow` event's own `persisted` flag (4th
+  // cross-vendor review, 2026-09-26) — the back-navigation case below needs
+  // to know for CERTAIN whether a given goBack() was actually served from
+  // the browser's back-forward cache, and Navigation Timing's
+  // `type === "back_forward"` (an earlier version of this fix used that)
+  // is NOT that proof: the spec defines back_forward as ANY history
+  // traversal, including one the browser did NOT restore from cache — an
+  // ordinary reload-shaped navigation reached via history back still
+  // reports back_forward. `pageshow`'s `persisted` boolean is the actual,
+  // documented signal for "this is a live JS context that was frozen and
+  // resumed," not merely "this happened via Back." Installed once, before
+  // any navigation, via addInitScript so it re-attaches on every FRESH
+  // document this page ever loads (including the very first one and any
+  // ordinary reload) — it does not need to re-run on a bfcache resume,
+  // because that never loads a new document at all: the same listener,
+  // still resident in the same frozen-then-resumed JS heap, fires again on
+  // its own.
+  await page.addInitScript(() => {
+    window.__uiSentryBfcachePersisted = null;
+    window.addEventListener("pageshow", (event) => {
+      window.__uiSentryBfcachePersisted = event.persisted;
+    });
+  });
+
   try {
     // --- Cold-load perf probe (first navigation in this fresh context) ---
     await runCase(cases, `${engineName}: home loads`, async () => {
@@ -240,17 +264,26 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // conversation-client.tsx holds `messages`/`draft` in plain useState
     // (confirmed by reading the component: no localStorage/sessionStorage
     // key for either), which matches this app's own non-negotiable — no
-    // accounts, no per-user history, no session table (AGENTS.md). The
-    // Navigation Timing API's `type` field distinguishes the two cases
-    // (`"back_forward"` means bfcache resume) and is spec-level, not a
-    // Chromium-only signal, so it works the same way on both engines this
-    // tier runs. The two intended states are both explicit and both real
-    // bugs if violated: a fresh navigation must clear the draft (no
-    // persistence layer exists, by design); a bfcache resume means the
-    // SAME live JS context — including React's in-memory state — kept
-    // running, so the draft is expected to still be there, and its absence
-    // in that case would itself indicate something wrongly clearing state
-    // on resume. ---
+    // accounts, no per-user history, no session table (AGENTS.md). Which
+    // signal actually PROVES a bfcache resume matters (4th cross-vendor
+    // review, 2026-09-26): an earlier version of this fix used Navigation
+    // Timing's `type === "back_forward"`, but the spec defines
+    // back_forward as ANY history-traversal navigation, INCLUDING one the
+    // browser did NOT restore from cache — it is not proof of bfcache at
+    // all, only proof that Back was pressed. `pageshow`'s own `persisted`
+    // boolean (recorded into window.__uiSentryBfcachePersisted by the
+    // init script installed once above, before any navigation) is the
+    // actual documented signal. The two intended states are both explicit
+    // and both real bugs if violated: a fresh navigation must clear the
+    // draft (no persistence layer exists, by design); a genuine bfcache
+    // resume means the SAME live JS context — including React's in-memory
+    // state — kept running, so the draft is expected to still be there,
+    // and its absence in that case would itself indicate something
+    // wrongly clearing state on resume. Hydration is awaited on EITHER
+    // path before reading the composer: a fresh navigation needs it for
+    // the same reason every other post-navigation read in this file does,
+    // and awaiting it on a resumed page too is a harmless no-op (nothing
+    // new needs to hydrate — the frozen JS context already has). ---
     await runCase(cases, `${engineName}: back navigation (history back) — composer draft state matches how the navigation was actually served`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
@@ -276,26 +309,32 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
 
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      // Wait for the pageshow listener to have actually recorded THIS
+      // navigation's own persisted flag before reading it — it fires very
+      // early (comparable to `load`), but reading it the instant the
+      // selector above resolves is still a race in principle.
+      await page
+        .waitForFunction(() => window.__uiSentryBfcachePersisted !== null, null, { timeout: 5_000 })
+        .catch(() => {});
+      await settleAfterConversationLoad(page);
       await assertNoApiFailures(watch);
 
-      const navigationType = await page.evaluate(
-        () => performance.getEntriesByType("navigation").at(-1)?.type ?? "unknown",
-      );
+      const persisted = await page.evaluate(() => window.__uiSentryBfcachePersisted);
       const valueAfterBack = await page.inputValue("#conversation-input");
-      if (navigationType === "back_forward") {
+      if (persisted === true) {
         if (valueAfterBack.length === 0) {
           throw new Error(
-            "navigation.type was back_forward (a real bfcache resume) but the composer draft was gone — the resumed live JS state should still hold it, so something is wrongly clearing state on resume",
+            "pageshow reported persisted=true (a real bfcache resume) but the composer draft was gone — the resumed live JS state should still hold it, so something is wrongly clearing state on resume",
           );
         }
-        return { detail: "bfcache-resumed (navigation.type=back_forward); draft correctly persisted with the resumed live state" };
+        return { detail: "bfcache-resumed (pageshow persisted=true); draft correctly persisted with the resumed live state" };
       }
       if (valueAfterBack.length !== 0) {
         throw new Error(
-          `composer draft was still present after a back navigation that was NOT a bfcache resume (navigation.type=${navigationType}) — no cross-navigation persistence layer exists, by design`,
+          `composer draft was still present after a back navigation that was NOT a bfcache resume (pageshow persisted=${persisted}) — no cross-navigation persistence layer exists, by design`,
         );
       }
-      return { detail: `navigation.type=${navigationType}; draft correctly cleared` };
+      return { detail: `pageshow persisted=${persisted}; draft correctly cleared` };
     });
 
     // --- Reload (a real network fetch, no history/bfcache ambiguity at
