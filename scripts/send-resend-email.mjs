@@ -17,7 +17,7 @@ export async function sendEmail(args, env = process.env, fetcher = fetch) {
   await mkdir(path.dirname(args.receipt), { recursive: true });
   await appendFile(args.receipt, "", { mode: 0o600 });
   try {
-    if (!args.body || !args.subject || !env.RESEND_API_KEY || !env.RESOURCE_REVIEW_EMAIL_FROM || !env.RESOURCE_REVIEW_EMAIL_TO) {
+    if (!args.body || !args.subject || !env.RESEND_API_KEY || (job !== "digest-watch" && (!env.RESOURCE_REVIEW_EMAIL_FROM || !env.RESOURCE_REVIEW_EMAIL_TO))) {
       throw new Error("Missing email configuration.");
     }
     const response = await fetcher("https://api.resend.com/emails", {
