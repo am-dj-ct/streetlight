@@ -71,11 +71,36 @@ export async function installMonitorPass(context, baseUrl) {
         wrap(window.turnstile);
         return;
       }
-      // api.js assigns window.turnstile asynchronously after its own
-      // script executes — poll for it rather than relying on any single
-      // event, bounded well past any realistic load time so a page that
-      // never gets the real widget at all doesn't leave a timer running
-      // forever.
+
+      // Astra's review, 2026-09-26: the 100ms poll alone has a real gap —
+      // the app can call turnstile.render() (capturing that widget's
+      // callback into ITS OWN closure, not ours) in the same task api.js
+      // finishes loading, before the next poll tick ever runs. Once that
+      // happens, THAT widget's callback is permanently missed: wrapping
+      // render() later never recovers a call that already happened.
+      // A capture-phase "load" listener on document fires the instant the
+      // <script src="...turnstile.../api.js"> element itself finishes
+      // loading — which is after api.js has fully executed (so
+      // window.turnstile already exists) but, by DOM event ordering,
+      // BEFORE any onload handler attached directly to that same script
+      // element (the app's own render() call almost certainly lives in
+      // one of those) ever runs: a capturing listener on an ancestor
+      // always fires before a target-phase listener on the element
+      // itself. This wraps synchronously at that exact moment, closing
+      // the race outright rather than shrinking the poll interval.
+      document.addEventListener("load", (event) => {
+        const src = event.target?.src;
+        if (typeof src === "string" && src.includes("challenges.cloudflare.com/turnstile") && window.turnstile) {
+          wrap(window.turnstile);
+        }
+      }, true);
+
+      // Kept as a fallback for anything the load listener could miss (a
+      // dynamically inserted script with no traditional load event, a
+      // proxied/renamed URL, or window.turnstile arriving some other way)
+      // — never the primary mechanism any more. Bounded well past any
+      // realistic load time so a page that never gets the real widget at
+      // all doesn't leave a timer running forever.
       let attempts = 0;
       const intervalId = setInterval(() => {
         attempts += 1;
@@ -88,6 +113,16 @@ export async function installMonitorPass(context, baseUrl) {
       }, 100);
     }, { origin });
 
+    // Playwright caveat (Astra's review, 2026-09-26, pre-existing —
+    // documented here rather than left an unchecked assumption): this
+    // origin/pathname check governs which request the header override is
+    // ADDED to, but if that specific request were itself redirected,
+    // Playwright's own docs note the overridden headers can carry onto
+    // the redirected request too, regardless of ITS destination. That
+    // would matter if /api/chat ever redirected somewhere cross-origin —
+    // it never does (src/app/api/chat/route.ts returns a Response
+    // directly on every path, no 3xx anywhere), which
+    // monitor-pass.test.mjs asserts directly rather than only assuming.
     await context.route("**/api/chat", async (route, request) => {
       try {
         if (enabled && request.method() === "POST" &&
