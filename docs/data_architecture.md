@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-09-26
-**Last meaningful change:** 2026-09-26 (content-free email acceptance receipts, local missed health-slot accounting, and one failure-only digest watcher; see `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`. Same day, separately: the UI sentry's cadence correction, DEGRADED-triggers-red fix, and its own red-mail receipts — see the entry below and `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
+**Last meaningful change:** 2026-09-26 (bounded UI-sentry Turnstile monitor pass; see `docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`. Also: content-free email acceptance receipts, local missed health-slot accounting, and one failure-only digest watcher; see `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`. Same day, separately: the UI sentry's cadence correction, DEGRADED-triggers-red fix, and its own red-mail receipts — see the entry below and `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -613,6 +613,7 @@ A custom ESLint rule (or pre-commit grep hook) forbids `console.log`, `console.e
 |---|---|---|---|
 | Per-IP rate limit counter (hashed IP) | Vercel KV | 24-hour TTL | Abuse mitigation |
 | Usage unique markers (hashed IP) | Vercel KV | Daily markers expire shortly after UTC midnight; range-level markers expire with aggregate usage retention | Aggregate unique counting |
+| Monitor Turnstile pass reservations | Existing Vercel KV, `monitor-pass:YYYY-MM-DD` integer only | UTC midnight plus 60 seconds | Global 12/day cap; no identity or credential stored |
 | Daily spend tracking | Vercel KV | Reset daily | Tier selection |
 | Daily read-aloud character count | Vercel KV | Reset daily | Azure Speech budget control |
 | Kill switch state (soft/hard pause) | Vercel KV or env var | Indefinite | Operational control |
@@ -814,6 +815,7 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 | `OPENAI_FALLBACK_MODEL` | Pins rare OpenAI fallback model; defaults to `gpt-5.5` | Vercel env var | On deliberate fallback model upgrade |
 | `OPENAI_FALLBACK_INPUT_COST_PER_MILLION_USD` | Required cost accounting for OpenAI fallback input tokens | Vercel env var | On OpenAI pricing/model change |
 | `OPENAI_FALLBACK_OUTPUT_COST_PER_MILLION_USD` | Required cost accounting for OpenAI fallback output tokens | Vercel env var | On OpenAI pricing/model change |
+| `STREETLIGHT_MONITOR_TOKEN` | Optional bounded Turnstile pass for the scheduled UI sentry only; all other controls remain | Doppler `agent-secrets/dev` and Vercel Production | Annual or suspected exposure; absent/short value disables |
 | Turnstile secret | CAPTCHA validation | Vercel env var | Annual, or on suspected compromise |
 | Hashed-IP salt | One-way hashing for rate limit | Vercel env var | **Quarterly**, or on suspected compromise |
 | Vercel KV credentials | Auto-managed by Vercel | Vercel internal | Auto |
@@ -1298,5 +1300,11 @@ One-line summary of every decision in this document, dated for traceability.
 - No cadence, page allowlist, live-turn cap, or logging-field change beyond the corrected numbers above. Full detail in `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
 
 ---
+
+**2026-09-26 — bounded UI-sentry Turnstile monitor pass:**
+
+- A separate server-only credential can skip only Turnstile for POST `/api/chat`, capped atomically at 12 reservations per UTC day in existing KV. Missing/short credentials, missing KV, errors and exhaustion fall back to normal Turnstile.
+- First live turn still exercises real Turnstile; only later turns after that succeeds use the monitor helper. No user-facing bypass, identity storage or new log fields. Health exposes a configuration boolean only; existing synthetic usage exclusion remains separate.
+- Rationale, client-wait bridge, threat model, retention, rotation and deferred coordinator wiring: `docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`.
 
 *End of document.*

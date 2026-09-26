@@ -241,3 +241,14 @@ export function hasAzureSpeechConfig(): boolean {
 export function getTtsDailyCharacterLimit(): null | number {
   return readOptionalNumberEnv("TTS_DAILY_CHARACTER_LIMIT");
 }
+
+// Optional server-only credential. Provision from >=32 random bytes; never
+// expose this value through runtime state or a NEXT_PUBLIC variable.
+export function getMonitorToken(): null | string {
+  const value = readOptionalEnv("STREETLIGHT_MONITOR_TOKEN");
+  return value && Buffer.byteLength(value, "utf8") >= 32 ? value : null;
+}
+
+export function hasMonitorPassConfig(): boolean {
+  return getMonitorToken() !== null && hasKvConfig();
+}

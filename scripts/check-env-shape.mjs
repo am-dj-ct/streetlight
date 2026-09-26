@@ -17,6 +17,7 @@ const exampleEnvVariables = [
   "TURNSTILE_ENABLED",
   "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
   "TURNSTILE_SECRET_KEY",
+  "STREETLIGHT_MONITOR_TOKEN",
   "HASHED_IP_SALT",
   "KV_REST_API_URL",
   "KV_REST_API_TOKEN",
@@ -132,6 +133,11 @@ function assertSameSet(label, expected, actual) {
 }
 
 function validateEnvValues(values, relativePath) {
+  const monitorToken = values.get("STREETLIGHT_MONITOR_TOKEN");
+  if (monitorToken && Buffer.byteLength(monitorToken, "utf8") < 32) {
+    fail(`${relativePath}: STREETLIGHT_MONITOR_TOKEN must be empty or at least 32 bytes; a short value disables the pass.`);
+  }
+
   for (const variable of booleanVariables) {
     const value = values.get(variable);
 

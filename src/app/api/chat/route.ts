@@ -39,6 +39,7 @@ import {
   type MainModelTier,
 } from "../../../lib/spend-control";
 import { getSystemPrompt } from "../../../lib/system-prompts";
+import { consumeMonitorPass } from "../../../lib/monitor-pass";
 import { validateTurnstileToken } from "../../../lib/turnstile";
 import {
   createOpenAiTextResponse,
@@ -707,7 +708,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (turnstileProtectionEnabled) {
+    if (turnstileProtectionEnabled && !(await consumeMonitorPass(request))) {
       const turnstile = await validateTurnstileToken({
         request,
         token: body.turnstileToken,
