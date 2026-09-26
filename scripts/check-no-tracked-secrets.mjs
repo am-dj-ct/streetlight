@@ -15,6 +15,10 @@ const forbiddenTrackedPathPatterns = [
 ];
 const secretPatterns = [
   {
+    label: "populated STREETLIGHT_MONITOR_TOKEN assignment",
+    pattern: /^STREETLIGHT_MONITOR_TOKEN=.+/m,
+  },
+  {
     label: "Anthropic API key",
     pattern: /sk-ant-api[0-9A-Za-z_-]+/,
   },

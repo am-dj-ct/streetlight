@@ -51,7 +51,8 @@
     "verify": "npm run lint && npm run build && npm run check:locales && npm run check:translation-worklist && npm run check:content && npm run validate:data && npm run smoke && npm run regression:prompts",
     "plan:verify": "node scripts/plan-verify.mjs",
     "verify:plan": "node scripts/run-verify-plan.mjs",
-    "check:parity": "node scripts/check-build-runtime-parity.mjs"
+    "check:parity": "node scripts/check-build-runtime-parity.mjs",
+    "test:monitor-pass": "node --import tsx --test scripts/monitor-pass.test.mjs scripts/ui-sentry/monitor-pass.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

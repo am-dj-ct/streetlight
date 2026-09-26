@@ -42,6 +42,12 @@ import { launchRequiredFiles } from "./repo-readiness.mjs";
 // adding a check that cannot pass is how a gate gets ignored.
 export const checkCatalog = [
   {
+    id: "test:monitor-pass",
+    command: ["npm", "run", "test:monitor-pass"],
+    label: "bounded monitor pass and browser-helper unit tests",
+    phase: "static",
+  },
+  {
     // {{base}} is substituted by scripts/run-verify-plan.mjs from the
     // manifest's comparison base. It used to be a literal "HEAD", which
     // compares the working tree to HEAD -- always clean on a CI checkout, so
