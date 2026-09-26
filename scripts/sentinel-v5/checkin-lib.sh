@@ -106,40 +106,108 @@ SENTINEL_MAIL_RED_DISABLED="${SENTINEL_MAIL_RED_DISABLED:-}"
 # lets a manual verification send mark itself "[TEST] " without touching the
 # real subject text any other caller gets.
 SENTINEL_MAIL_RED_SUBJECT_PREFIX="${SENTINEL_MAIL_RED_SUBJECT_PREFIX:-}"
+# The OS advisory-lock helper #45 already ships for exactly this purpose
+# (scripts/watch-usage-digest/mail-lock.py — fcntl.flock, bounded wait, no
+# stale lock survives a crash). Reused rather than re-derived (cross-vendor
+# review, 2026-09-26) — see sentinel_mail_red below for why a marker file
+# alone isn't enough.
+SENTINEL_MAIL_LOCK_PY="${SENTINEL_MAIL_LOCK_PY:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../watch-usage-digest/mail-lock.py}"
+# This file's own absolute path, for the self-re-invocation the lock wraps
+# (mail-lock.py execs a COMMAND under the lock; re-invoking this same file
+# with a private flag is the same shape watch.mjs already uses for its own
+# locked send step).
+SENTINEL_CHECKIN_LIB_SELF="${SENTINEL_CHECKIN_LIB_SELF:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")}"
 # Receipts (Jesse's order: "save the receipts"). One append-only, JSON-lines
-# file, content-free by construction: timestamp, job/item, reason code,
-# send status, HTTP status, and the Resend message id — never a message
-# body, header value, or secret. Written for every real send ATTEMPT (not
+# file, content-free by construction. Field names and shape deliberately
+# match #45's shared receipt schema (scripts/send-resend-email.mjs /
+# scripts/watch-usage-digest/watch.mjs) — timestamp, job, httpStatus (or
+# null), resendId (or null; UUID-validated, never trusted as-is from the
+# response body) — plus this path's own extra fixed `reason` field and an
+# `outcome` field (confirmed/uncertain/rejected/pre_send_failure — see
+# sentinel_mail_red_attempt) added in the 3rd cross-vendor review so the
+# distinction that decides whether the cooldown started is actually visible
+# in the record, not just inferred from httpStatus. No message body,
+# header value, or secret, ever. Written for every real send ATTEMPT (not
 # for a call skipped by the cooldown or by SENTINEL_MAIL_RED_DISABLED,
 # neither of which sent anything).
 SENTINEL_MAIL_RED_RECEIPTS_FILE="${SENTINEL_MAIL_RED_RECEIPTS_FILE:-$SENTINEL_MAIL_RED_STATE_DIR/receipts.log}"
 sentinel_record_mail_receipt() {
-  local item="$1" reason_code="$2" status="$3" http_code="$4" resend_id="$5"
+  local item="$1" reason="$2" http_status="$3" resend_id="$4" outcome="$5"
   mkdir -p "$(dirname "$SENTINEL_MAIL_RED_RECEIPTS_FILE")" 2>/dev/null || true
-  python3 - "$SENTINEL_MAIL_RED_RECEIPTS_FILE" "$item" "$reason_code" "$status" "$http_code" "$resend_id" <<'PY' 2>/dev/null || \
+  python3 - "$SENTINEL_MAIL_RED_RECEIPTS_FILE" "$item" "$reason" "$http_status" "$resend_id" "$outcome" <<'PY' 2>/dev/null || \
     sentinel_log_fallback_failure "mail-red-receipt:$item" "receipt write failed"
 import datetime
 import json
 import sys
 
-receipts_file, item, reason_code, status, http_code, resend_id = sys.argv[1:7]
+receipts_file, job, reason, http_status, resend_id, outcome = sys.argv[1:7]
 record = {
-    "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "job": item,
-    "reason_code": reason_code,
-    "status": status,
-    "http_code": int(http_code) if http_code.isdigit() else None,
-    "resend_message_id": resend_id or None,
+    "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "job": job,
+    "reason": reason,
+    "httpStatus": int(http_status) if http_status.isdigit() else None,
+    # Already UUID-validated (lowercased) by the caller before this is
+    # ever called — never re-derived from raw response text here.
+    "resendId": resend_id or None,
+    "outcome": outcome or None,
 }
 with open(receipts_file, "a") as fh:
     fh.write(json.dumps(record, sort_keys=True) + "\n")
 PY
   return 0
 }
-sentinel_mail_red() {
-  local item="$1" reason_code="$2" at="$3"
-  [ -n "$SENTINEL_MAIL_RED_DISABLED" ] && return 0
-  mkdir -p "$SENTINEL_MAIL_RED_STATE_DIR" 2>/dev/null || true
+
+# sentinel_mail_red_attempt — the actual reserve-then-send-then-record
+# cycle for ONE item. Never called directly except (a) by sentinel_mail_red
+# below, running it under mail-lock.py's OS lock, and (b) by this file's own
+# direct-invocation entry point at the bottom, which is how mail-lock.py's
+# `subprocess.call(command)` actually re-enters this cycle inside the lock
+# it just acquired (see sentinel_mail_red's header for why a lock, not just
+# the marker file, is needed at all).
+#
+# Outcome model (4th cross-vendor review, 2026-09-26 — the 3rd review's
+# single-retry design was ITSELF unsound: a retry after a first attempt
+# that may already have reached Resend could still get a DNS/Doppler
+# failure or a 401 on the SECOND try, and the code released the reservation
+# based on that second attempt's outcome alone, erasing the first attempt's
+# real uncertainty — reproduced directly. Coordinator decision: drop the
+# retry entirely, one send per invocation, full stop. Distinguishing
+# "nothing could have reached Resend" from "curl ran, something may have"
+# also stopped relying on SENTINEL_DOPPLER_RUN_STATUS or stderr text
+# matching (the 3rd review's "Doppler Error" marker check) — that status
+# is derived from sentinel_doppler_run's OWN interpretation of the wrapped
+# command's exit code/stderr, and a review before this one already showed
+# one way that interpretation is unsound (live_failed also covers the
+# wrapped command's own failure); the "Doppler Error" text check papered
+# over THAT specific case but a fallback-cache decryption refusal turned
+# out to carry yet another status/text shape entirely, reproduced sending
+# two attempts and reporting uncertain despite curl never running at all.
+# Rather than keep adding cases to a text/status-matching game, this now
+# uses a plain, verifiable PHYSICAL fact: the wrapped shell command touches
+# a marker file immediately before exec'ing curl, so the marker's presence
+# or absence on disk afterward, checked in THIS shell, is direct evidence
+# of whether curl actually started — not an inference from another layer's
+# self-reported status.) Every attempt ends in exactly one of —
+#   - PRE_SEND_FAILURE: the curl-started marker does not exist — nothing
+#     could have reached Resend, for ANY reason (Doppler refused for any
+#     reason at all, including ones this file has never specifically
+#     handled before). Released: no cooldown. Also the outcome recorded on
+#     every earlier-still failure (temp-file or payload creation) that
+#     returns before ever reaching the send at all — every early return
+#     writes this same receipt now (review #5), never silently skipping it.
+#   - REJECTED: the marker exists (curl ran) and Resend gave a clean 4xx.
+#     Definite refusal of this exact payload. Released: no cooldown.
+#   - CONFIRMED: the marker exists and curl got a clean 2xx with a
+#     UUID-validated id. Cooldown starts.
+#   - UNCERTAIN: the marker exists (curl ran) but the result is neither of
+#     the above — a 2xx with no valid id, a 5xx, or any other curl-level
+#     outcome (a timeout or dropped connection AFTER the request may have
+#     gone out). Treated as POSSIBLY SENT: the cooldown starts anyway. A
+#     rare missed duplicate-detection window is acceptable; an actual
+#     duplicate email is not. No retry of any kind.
+sentinel_mail_red_attempt() {
+  local item="$1" reason="$2" at="$3" subject_prefix="${4:-}"
+
   local marker="$SENTINEL_MAIL_RED_STATE_DIR/$item.last-sent" now last
   now="$(date +%s)"
   last="$(cat "$marker" 2>/dev/null || echo 0)"
@@ -147,10 +215,32 @@ sentinel_mail_red() {
   if [ $((now - last)) -lt "$SENTINEL_MAIL_RED_COOLDOWN_SECONDS" ]; then
     return 0
   fi
+
+  # Built once for this invocation only — never persisted to disk, never
+  # reused by a later invocation. $$ added so two invocations landing in
+  # the same wall-clock second still get different keys.
+  local idempotency_key="${item}-${now}-$$"
+
+  # Existence, not content, is the signal — created empty and immediately
+  # removed so the ONLY way it exists again afterward is the wrapped
+  # command itself having recreated it right before exec'ing curl.
+  local curl_started_marker
+  curl_started_marker="$(mktemp 2>/dev/null || true)"
+  if [ -z "$curl_started_marker" ]; then
+    sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable (curl-started marker)"
+    sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    return 0
+  fi
+  rm -f "$curl_started_marker" 2>/dev/null || true
+
   local payload
   payload="$(mktemp 2>/dev/null || true)"
-  [ -z "$payload" ] && { sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable"; return 0; }
-  python3 - "$payload" "$item" "$reason_code" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$SENTINEL_MAIL_RED_SUBJECT_PREFIX" <<'PY' 2>/dev/null || { rm -f "$payload"; sentinel_log_fallback_failure "mail-red:$item" "payload build failed"; return 0; }
+  if [ -z "$payload" ]; then
+    sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable (payload)"
+    sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    return 0
+  fi
+  if ! python3 - "$payload" "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$subject_prefix" <<'PY' 2>/dev/null
 import json, sys
 payload, item, reason, at, to, sender, subject_prefix = sys.argv[1:8]
 json.dump({
@@ -165,35 +255,45 @@ json.dump({
     ),
 }, open(payload, "w"))
 PY
-
-  # Run the send with stdout (the Resend response body) and stderr (any
-  # curl-level failure text, e.g. a timeout) captured SEPARATELY, instead of
-  # the old `2>&1 >/dev/null` that routed the response body straight to
-  # /dev/null and kept only stderr — the actual Resend message id (needed
-  # for the receipt) was being thrown away on every send, pass or fail.
-  # `-w "\n%{http_code}"` appends the HTTP status after a newline so it can
-  # be split from the JSON body without needing `--fail` (which would have
-  # discarded the error body on a non-2xx response, and the error body is
-  # exactly what we want captured too).
-  local errfile raw rc http_code body resend_id status
-  errfile="$(mktemp 2>/dev/null || true)"
-  if [ -n "$errfile" ]; then
-    raw="$(SENTINEL_MAIL_PAYLOAD="$payload" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>"$errfile")"
-    rc=$?
-  else
-    raw="$(SENTINEL_MAIL_PAYLOAD="$payload" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>/dev/null)"
-    rc=$?
+  then
+    rm -f "$payload" 2>/dev/null || true
+    sentinel_log_fallback_failure "mail-red:$item" "payload build failed"
+    sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    return 0
   fi
 
-  http_code="${raw##*$'\n'}"
-  body="${raw%$'\n'*}"
-  case "$http_code" in *[!0-9]*|"") http_code="" ;; esac
+  # stdout/stderr go to real files, and sentinel_doppler_run is called
+  # directly rather than inside `raw="$(...)"` — a command substitution
+  # always forks a subshell in bash, and a subshell's variable changes
+  # never propagate back to the caller. Not that this function still reads
+  # SENTINEL_DOPPLER_RUN_STATUS at all (see the header above for why it
+  # stopped) — kept as a direct call, not a subshell, on general principle.
+  local raw_file errfile rc raw body resend_id_raw err http_status
+  raw_file="$(mktemp 2>/dev/null || true)"
+  errfile="$(mktemp 2>/dev/null || true)"
+  SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" SENTINEL_MAIL_CURL_STARTED_MARKER="$curl_started_marker" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+      'touch "$SENTINEL_MAIL_CURL_STARTED_MARKER" || exit 97; exec curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' \
+      >"${raw_file:-/dev/null}" 2>"${errfile:-/dev/null}"
+  rc=$?
 
-  resend_id=""
+  raw=""
+  [ -n "$raw_file" ] && raw="$(cat "$raw_file" 2>/dev/null || true)"
+  [ -n "$raw_file" ] && rm -f "$raw_file" 2>/dev/null || true
+  err=""
+  [ -n "$errfile" ] && err="$(cat "$errfile" 2>/dev/null || true)"
+  [ -n "$errfile" ] && rm -f "$errfile" 2>/dev/null || true
+
+  local curl_started=0
+  [ -f "$curl_started_marker" ] && curl_started=1
+  rm -f "$curl_started_marker" 2>/dev/null || true
+
+  http_status="${raw##*$'\n'}"
+  body="${raw%$'\n'*}"
+  case "$http_status" in *[!0-9]*|"") http_status="" ;; esac
+
+  resend_id_raw=""
   if [ -n "$body" ]; then
-    resend_id="$(printf '%s' "$body" | python3 -c '
+    resend_id_raw="$(printf '%s' "$body" | python3 -c '
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -204,20 +304,75 @@ except Exception:
 ' 2>/dev/null || true)"
   fi
 
-  if [ "$rc" -eq 0 ] && [ -n "$http_code" ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-    status="sent"
-    printf '%s' "$now" > "$marker" 2>/dev/null || true
-  else
-    status="failed"
-    local err=""
-    [ -n "${errfile:-}" ] && err="$(cat "$errfile" 2>/dev/null || true)"
-    sentinel_log_fallback_failure "mail-red:$item" "curl_rc=$rc http_code=${http_code:-none} ${err:+stderr=$err}"
+  # UUID-validate before trusting it for anything: reuse #45's exact rule
+  # (send-resend-email.mjs) instead of accepting whatever happens to be in
+  # the response body's "id" field.
+  local resend_id=""
+  if [ -n "$resend_id_raw" ]; then
+    local resend_id_lower
+    resend_id_lower="$(printf '%s' "$resend_id_raw" | tr 'A-Z' 'a-z')"
+    if [[ "$resend_id_lower" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+      resend_id="$resend_id_lower"
+    fi
   fi
-  [ -n "${errfile:-}" ] && rm -f "$errfile" 2>/dev/null || true
 
-  sentinel_record_mail_receipt "$item" "$reason_code" "$status" "${http_code:-}" "$resend_id"
+  local outcome last_diag
+  if [ "$curl_started" -eq 0 ]; then
+    outcome="pre_send_failure"
+    last_diag="curl never started rc=$rc ${err:+stderr=$err}"
+  elif [ -n "$http_status" ] && [ "$http_status" -ge 400 ] && [ "$http_status" -lt 500 ]; then
+    outcome="rejected"
+    last_diag="http_status=$http_status"
+  elif [ "$rc" -eq 0 ] && [ -n "$http_status" ] && [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ] && [ -n "$resend_id" ]; then
+    outcome="confirmed"
+  else
+    outcome="uncertain"
+    last_diag="curl_rc=$rc http_status=${http_status:-none} resend_id_valid=$([ -n "$resend_id" ] && echo yes || echo no) ${err:+stderr=$err}"
+  fi
+
+  case "$outcome" in
+    confirmed | uncertain)
+      printf '%s' "$now" > "$marker" 2>/dev/null || true
+      ;;
+    pre_send_failure | rejected)
+      sentinel_log_fallback_failure "mail-red:$item" "$outcome: ${last_diag:-}"
+      ;;
+  esac
+
+  sentinel_record_mail_receipt "$item" "$reason" "${http_status:-}" "$resend_id" "$outcome"
 
   rm -f "$payload" 2>/dev/null || true
+  return 0
+}
+
+# sentinel_mail_red — public entry point. Runs sentinel_mail_red_attempt
+# under a per-item OS advisory lock (review #3): the cooldown check and the
+# reservation write above happen ONLY while holding this lock, so two
+# concurrent callers for the SAME item (a scheduled fire racing a manual
+# proof run, or two jobs that happen to share an item) can never both pass
+# the cooldown check before either one has recorded a reservation — the
+# second one blocks, then sees the first's fresh reservation and skips.
+# The marker file alone (the previous version's only guard) cannot do this:
+# two processes can both read it as stale in the same instant.
+sentinel_mail_red() {
+  local item="$1" reason="$2" at="$3"
+  [ -n "$SENTINEL_MAIL_RED_DISABLED" ] && return 0
+  mkdir -p "$SENTINEL_MAIL_RED_STATE_DIR" 2>/dev/null || true
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    # Every step in this path (the lock, the payload builder, the receipt
+    # writer, the id validator) already depends on python3 — missing it
+    # means nothing here can run at all, lock or no lock.
+    sentinel_log_fallback_failure "mail-red:$item" "python3 unavailable — cannot lock or send"
+    return 0
+  fi
+
+  local lock_dir="$SENTINEL_MAIL_RED_STATE_DIR/locks/$item"
+  mkdir -p "$lock_dir" 2>/dev/null || true
+
+  python3 "$SENTINEL_MAIL_LOCK_PY" "$lock_dir" \
+    bash "$SENTINEL_CHECKIN_LIB_SELF" --mail-red-attempt "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_SUBJECT_PREFIX" \
+    || sentinel_log_fallback_failure "mail-red:$item" "mail_lock_failed_or_timed_out"
   return 0
 }
 # sentinel_checkin no longer writes to the sentinel-v5 spool
@@ -387,3 +542,18 @@ sentinel_doppler_run() {
   [ -n "$err" ] && printf '%s\n' "$err" >&2
   return "$rc"
 }
+
+# --- Direct-invocation entry point ----------------------------------------
+# Never triggered by a normal `source checkin-lib.sh` (BASH_SOURCE[0] is
+# this file's own path there, but $0 is whatever sourced it, or "bash" for
+# a `bash -c 'source ...'` one-liner — they only match when this file is
+# executed directly). sentinel_mail_red above uses exactly this to have
+# mail-lock.py's `subprocess.call(command)` re-enter the reserve/send/record
+# cycle from INSIDE the lock it just acquired, the same self-re-invocation
+# shape scripts/watch-usage-digest/watch.mjs already uses for its own
+# locked send step.
+if [ "${BASH_SOURCE[0]}" = "$0" ] && [ "${1:-}" = "--mail-red-attempt" ]; then
+  shift
+  sentinel_mail_red_attempt "$@"
+  exit $?
+fi

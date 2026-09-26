@@ -67,6 +67,10 @@ export async function installMonitorPass(context, baseUrl) {
   return {
     // 1-based turn number. First-turn success must come from runTurn's result,
     // not from an issued token or a successful page load.
+    // Returns the `enabled` value it just set, so a caller diagnosing a
+    // client_blocked turn (4th cross-vendor review, 2026-09-26 — "the 3/6
+    // cause is still unknown... instrument it") can log exactly what this
+    // call decided for THIS turn, rather than re-deriving or guessing it.
     async selectTurn(page, turnNumber, firstTurnPassed) {
       enabled = configured && Number.isInteger(turnNumber) &&
         turnNumber > 1 && firstTurnPassed === true;
@@ -75,6 +79,7 @@ export async function installMonitorPass(context, baseUrl) {
           window.__streetlightMonitorPass = active;
         }, enabled);
       }
+      return enabled;
     },
   };
 }

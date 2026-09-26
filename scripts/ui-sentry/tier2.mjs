@@ -42,10 +42,11 @@
 import { chromium } from "@playwright/test";
 import { desktopViewport } from "./playwright.config.mjs";
 import { blockUsageEvents } from "./lib/browser.mjs";
-import { gotoConversation, runTurn } from "./lib/conversation.mjs";
-import { humanPause } from "./lib/human-type.mjs";
+import { ensurePageIdleBeforeNextTurn, gotoConversation, runTurn } from "./lib/conversation.mjs";
+import { installMonitorPass } from "./lib/monitor-pass.mjs";
 import { installTurnBudgetGuard } from "./lib/budget-guard.mjs";
 import { tier2Verdict, turnBucket } from "./lib/chat-status.mjs";
+import { buildBlockedDiagnostics, diffSnapshots, makeErrorTally } from "./lib/blocked-diagnostics.mjs";
 import { TIER2_ENTRY_ID, TIER2_TURNS } from "./fixtures/tier2-prompts.mjs";
 
 const HARD_TURN_CAP = 8; // spec: hard cap 8 chat turns per run in code.
@@ -105,10 +106,33 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
     process.env.OPS_READ_TOKEN,
     baseUrl,
   );
+  // Bounded server-side Turnstile pass for turns after the first (see
+  // docs/decisions/2026-09-26-ui-sentry-monitor-pass.md). Installed before
+  // the page exists — it wraps context.route and an init script that must
+  // be in place before any navigation. A missing/short
+  // STREETLIGHT_MONITOR_TOKEN makes this a no-op, same as today.
+  const monitorPass = await installMonitorPass(context, baseUrl);
 
   const page = await context.newPage();
   const turns = [];
   let lastSuccessfulLiveChatAt = null;
+
+  // Diagnostic-only tally for a client_blocked turn's own post-mortem (4th
+  // cross-vendor review, 2026-09-26: "the 3/6 cause is still unknown...
+  // instrument it to capture WHY a turn's POST didn't happen"). NON-
+  // NEGOTIABLE (P1, same review): never copy console/page-error TEXT into
+  // logs or state, not even truncated — truncation bounds length, it does
+  // not remove content, and a synthetic marker planted in a console error
+  // survived unchanged through the previous (truncate-only) version.
+  // makeErrorTally() (lib/blocked-diagnostics.mjs) classifies each
+  // message into a closed-enum category the instant it arrives and
+  // discards the original text immediately; only counts and category
+  // labels are ever read back out. Persists for the whole attempt; a
+  // before/after snapshot around each turn is what turns a running total
+  // into "what happened during THIS turn."
+  const errorTally = makeErrorTally();
+  page.on("console", (msg) => errorTally.recordConsole(msg.type(), msg.text()));
+  page.on("pageerror", (err) => errorTally.recordPageError(String(err?.message ?? err)));
 
   try {
     await gotoConversation(page, baseUrl, TIER2_ENTRY_ID);
@@ -122,13 +146,16 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
         continue;
       }
 
-      // Read-and-think pause before every turn after the first (see
-      // humanPause's header in lib/human-type.mjs for the root cause this
-      // fixes: back-to-back scripted sends read as bot-speed to Cloudflare,
-      // independent of the automation-controlled flag).
-      if (i > 0) {
-        await humanPause(page);
-      }
+      // The first live turn must still clear real Turnstile — selectTurn
+      // only ever enables the pass for turn 2+, and only once turn 1's OWN
+      // result (not just a token or a page load) came back "pass" (see
+      // monitor-pass.mjs's header and the 2026-09-26 ADR). A header alone
+      // cannot fix client_blocked (the browser withholds the POST
+      // entirely) — this bridges the client's token wait, it does not
+      // touch the classification logic in runTurn (lib/conversation.mjs)
+      // that ties each turn's result to its own submission.
+      const passSelected = await monitorPass.selectTurn(page, i + 1, turns[0]?.label === "pass");
+      const errorTallyBefore = errorTally.snapshot();
 
       const result = await runTurn(page, { text: TIER2_TURNS[i], baseUrl });
       turns.push({ n: i + 1, ...result });
@@ -138,6 +165,54 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
       );
       if (result.label === "pass") {
         lastSuccessfulLiveChatAt = new Date().toISOString();
+      }
+
+      // Finding 4: a non-"pass" turn (most notably response_timeout) can
+      // leave the page still streaming a reply this run gave up polling
+      // for. conversation-client.tsx queues rather than sends a submit
+      // while isStreaming is true, so advancing onto a still-streaming
+      // page risks the NEXT turn's prompt never becoming a request at
+      // all — the likely explanation for a run that only ever made 3
+      // POSTs across 6 attempted turns. Checked and, if needed, settled
+      // before the next iteration ever calls selectTurn/runTurn again.
+      let idleInfo = { streamingInProgress: false, reloaded: false };
+      if (result.label !== "pass") {
+        idleInfo = await ensurePageIdleBeforeNextTurn(page, { baseUrl, entryId: TIER2_ENTRY_ID });
+        if (idleInfo.reloaded) {
+          logger.line(
+            `tier2 attempt ${attemptNum} turn ${i + 1}: page was still streaming after a ${result.label} turn — reloaded the conversation page before advancing`,
+          );
+        }
+      }
+
+      if (result.label === "client_blocked") {
+        // Read-only, best-effort — never let a diagnostic probe itself
+        // fail the run. window.turnstile's own presence/wrapped state
+        // tells apart "the real widget script never even set
+        // window.turnstile by this point" from "it's there, wrapped, and
+        // still didn't produce a token." NON-NEGOTIABLE (4th cross-vendor
+        // review, P1): every field read here is a boolean — nothing that
+        // could ever carry page content is read into this object at all.
+        const widgetState = await page
+          .evaluate(() => ({
+            turnstileFound: typeof window.turnstile !== "undefined",
+            turnstileWrapped: Boolean(window.turnstile?.__streetlightWrapped),
+            monitorPassFlag: Boolean(window.__streetlightMonitorPass),
+          }))
+          .catch(() => ({ turnstileFound: false, turnstileWrapped: false, monitorPassFlag: false, evalFailed: true }));
+        const errorDelta = diffSnapshots(errorTallyBefore, errorTally.snapshot());
+        const diagnostics = buildBlockedDiagnostics({
+          monitorPassSelected: passSelected,
+          turnstileFound: widgetState.turnstileFound,
+          turnstileWrapped: widgetState.turnstileWrapped,
+          monitorPassFlag: widgetState.monitorPassFlag,
+          streamingInProgress: idleInfo.streamingInProgress,
+          widgetEvalFailed: widgetState.evalFailed,
+          errorDelta,
+        });
+        logger.line(
+          `tier2 attempt ${attemptNum} turn ${i + 1} client_blocked diagnostics: ${JSON.stringify(diagnostics)}`,
+        );
       }
     }
   } finally {
