@@ -965,3 +965,57 @@ confirm or refute it.
 The required live run remains exactly one, state pointed at a scratch
 location, no email, after the UTC-midnight quota reset — still not run as
 of this amendment.
+
+## Amendment (2026-09-26, fifth cross-vendor review): the real root cause — a self-inflicted Turnstile block, found and fixed same day
+
+The live run authorized above (run early, same day — the coordinator
+judged spending today's quota now costs nothing, since it resets before
+tomorrow's scheduled fire) came back fully blocked on EVERY turn,
+including turn 1, in both attempts. That ruled out the streaming/queueing
+hypothesis directly: it requires a turn that actually sent a request
+first, and none had.
+
+A normal browser confirmed `window.turnstile` loads fine on the real
+site; only the monitor's own automated context never got it. A zero-spend
+probe (`scripts/ui-sentry/probe-turnstile-live.mjs`) that builds tier2's
+exact context — same launch args, same routes, same
+`installMonitorPass` — and just loads the conversation page for 10
+seconds, sending nothing, reproduced it immediately: a console warning,
+`[Cloudflare Turnstile] Turnstile already has been loaded. Was Turnstile
+imported multiple times?`, and `window.turnstile` staying `undefined`. Run
+against the exact commit that first wired the monitor pass in
+(`9196b7e`/`bd6dea7`), the probe reproduced the identical result — this
+was never a working design, not a regression introduced by any of the
+review rounds above; it happened not to trip on one earlier live run.
+
+Root cause: `installMonitorPass` (`lib/monitor-pass.mjs`) installed
+`Object.defineProperty(window, "turnstile", {get, set})` before any
+navigation, to capture the widget's callback at render time. Cloudflare's
+real `api.js` checks whether `window.turnstile` already has a property
+descriptor as its OWN duplicate-load guard — regardless of what a getter
+returns — and skips its entire initialization when it finds one. Every
+existing test exercising this file only ever did a plain
+`window.turnstile = {...}` assignment, never Cloudflare's actual
+descriptor check, which is exactly why none of them caught this.
+
+Fixed by never touching the `window.turnstile` property descriptor at
+all: the init script now polls (`setInterval`, bounded) for the real
+object to appear on its own, then wraps its `render`/`execute`/`remove`
+methods in place — invisible to `api.js`'s check, since a plain property
+read/assignment never touches a descriptor. A new regression test
+simulates Cloudflare's exact guard and proves it never trips; two more
+prove the `/api/chat` route continues everything else, including a
+genuinely third-party request, rather than merely inferring it from the
+absence of the monitor header. Fixed on a new branch
+(`fix-monitor-pass-turnstile-block`) off `origin/main`, not on the
+already-merged `ui-sentry-fix-forward`.
+
+Proven, same day: the probe against the fixed code showed
+`typeof window.turnstile === "object"`, wrapped, with the real Cloudflare
+challenge-platform resource loading and a widget actually rendered — no
+"already loaded" warning. A second live run (state at a scratch location,
+mail disabled) immediately after came back **PASS, 6/6**, on the FIRST
+attempt (no blocked-retry needed): turn 1 at `ttftMs=10768` (the real,
+slower Turnstile ceremony) and turns 2-6 at `ttftMs` 4.3-7.0s each (the
+monitor pass's near-instant bypass) — every turn `httpStatus=200`. This is
+the first clean 6/6 this ADR has recorded.
