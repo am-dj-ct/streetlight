@@ -60,6 +60,30 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
   const session = await launchPage({ browserType, contextOptions: deviceOptions });
   const { page, watch } = session;
 
+  // Records every `pageshow` event's own `persisted` flag (4th
+  // cross-vendor review, 2026-09-26) — the back-navigation case below needs
+  // to know for CERTAIN whether a given goBack() was actually served from
+  // the browser's back-forward cache, and Navigation Timing's
+  // `type === "back_forward"` (an earlier version of this fix used that)
+  // is NOT that proof: the spec defines back_forward as ANY history
+  // traversal, including one the browser did NOT restore from cache — an
+  // ordinary reload-shaped navigation reached via history back still
+  // reports back_forward. `pageshow`'s `persisted` boolean is the actual,
+  // documented signal for "this is a live JS context that was frozen and
+  // resumed," not merely "this happened via Back." Installed once, before
+  // any navigation, via addInitScript so it re-attaches on every FRESH
+  // document this page ever loads (including the very first one and any
+  // ordinary reload) — it does not need to re-run on a bfcache resume,
+  // because that never loads a new document at all: the same listener,
+  // still resident in the same frozen-then-resumed JS heap, fires again on
+  // its own.
+  await page.addInitScript(() => {
+    window.__uiSentryBfcachePersisted = null;
+    window.addEventListener("pageshow", (event) => {
+      window.__uiSentryBfcachePersisted = event.persisted;
+    });
+  });
+
   try {
     // --- Cold-load perf probe (first navigation in this fresh context) ---
     await runCase(cases, `${engineName}: home loads`, async () => {
@@ -227,18 +251,40 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       return { detail: `referralCards=${cardCount}` };
     });
 
-    // --- Back/forward: the composer draft does NOT leak across a
-    // navigate-away-and-back (renamed from "preserves state" — it never
-    // did; the old body only checked that #conversation-input existed
-    // after goBack, which passes whether or not anything survived).
+    // --- Back navigation (real history back, not a reload): the composer
+    // draft's fate depends on HOW the browser actually served the
+    // navigation, and both outcomes are asserted as hard checks now (2nd
+    // cross-vendor review, 2026-09-26 — the previous body warned instead of
+    // failing when the draft survived, which is an unproven skip of this
+    // exact case: "nothing should skip anything designed"). `page.goBack()`
+    // can be served either as a fresh navigation or as a resume from the
+    // browser's own back-forward cache (bfcache) — a browser heuristic, not
+    // this app's code, and NOT something this test should just accept
+    // either result of without checking which one happened.
     // conversation-client.tsx holds `messages`/`draft` in plain useState
     // (confirmed by reading the component: no localStorage/sessionStorage
     // key for either), which matches this app's own non-negotiable — no
-    // accounts, no per-user history, no session table (AGENTS.md). A real
-    // user's typed-but-unsent draft is expected to be gone after a hard
-    // navigation away and back, not silently resurrected. This asserts
-    // that real behavior instead of a placeholder existence check. ---
-    await runCase(cases, `${engineName}: back navigation does not leak the composer draft (no persistence, by design)`, async () => {
+    // accounts, no per-user history, no session table (AGENTS.md). Which
+    // signal actually PROVES a bfcache resume matters (4th cross-vendor
+    // review, 2026-09-26): an earlier version of this fix used Navigation
+    // Timing's `type === "back_forward"`, but the spec defines
+    // back_forward as ANY history-traversal navigation, INCLUDING one the
+    // browser did NOT restore from cache — it is not proof of bfcache at
+    // all, only proof that Back was pressed. `pageshow`'s own `persisted`
+    // boolean (recorded into window.__uiSentryBfcachePersisted by the
+    // init script installed once above, before any navigation) is the
+    // actual documented signal. The two intended states are both explicit
+    // and both real bugs if violated: a fresh navigation must clear the
+    // draft (no persistence layer exists, by design); a genuine bfcache
+    // resume means the SAME live JS context — including React's in-memory
+    // state — kept running, so the draft is expected to still be there,
+    // and its absence in that case would itself indicate something
+    // wrongly clearing state on resume. Hydration is awaited on EITHER
+    // path before reading the composer: a fresh navigation needs it for
+    // the same reason every other post-navigation read in this file does,
+    // and awaiting it on a resumed page too is a harmless no-op (nothing
+    // new needs to hydrate — the frozen JS context already has). ---
+    await runCase(cases, `${engineName}: back navigation (history back) — composer draft state matches how the navigation was actually served`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       // Same pre-hydration keystroke-drop race gotoConversation guards
@@ -248,7 +294,6 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       await settleAfterConversationLoad(page);
       await assertNoApiFailures(watch);
 
-      const conversationUrl = page.url();
       const probeText = "sentry back-nav probe — not sent";
       await humanType(page, probeText, { delayMs: 15 });
       const typedValue = await page.inputValue("#conversation-input");
@@ -261,23 +306,74 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
         timeout: 20_000,
       });
       await page.waitForSelector("h1", { timeout: 15_000 });
-      // A real `goto` back to the same URL, not goBack() — goBack() can hit
-      // the browser's own back-forward cache, whose restore-vs-reload
-      // choice is a browser heuristic this product doesn't control and
-      // isn't consistent run to run (confirmed empirically: an isolated
-      // probe against production cleared the draft every time, but this
-      // exact case flaked on webkit-mobile once inside the full tier-1
-      // sequence, after more history entries had built up). A forced
-      // reload is what actually exercises the app's own no-persistence
-      // design deterministically, without gambling on bfcache.
-      await page.goto(conversationUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+
+      await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      // Wait for the pageshow listener to have actually recorded THIS
+      // navigation's own persisted flag before reading it — it fires very
+      // early (comparable to `load`), but reading it the instant the
+      // selector above resolves is still a race in principle.
+      await page
+        .waitForFunction(() => window.__uiSentryBfcachePersisted !== null, null, { timeout: 5_000 })
+        .catch(() => {});
+      await settleAfterConversationLoad(page);
       await assertNoApiFailures(watch);
 
+      const persisted = await page.evaluate(() => window.__uiSentryBfcachePersisted);
       const valueAfterBack = await page.inputValue("#conversation-input");
+      if (persisted === true) {
+        if (valueAfterBack.length === 0) {
+          throw new Error(
+            "pageshow reported persisted=true (a real bfcache resume) but the composer draft was gone — the resumed live JS state should still hold it, so something is wrongly clearing state on resume",
+          );
+        }
+        return { detail: "bfcache-resumed (pageshow persisted=true); draft correctly persisted with the resumed live state" };
+      }
       if (valueAfterBack.length !== 0) {
         throw new Error(
-          "composer draft leaked across a navigate-away-and-back — this app keeps no per-user history/session state by design",
+          `composer draft was still present after a back navigation that was NOT a bfcache resume (pageshow persisted=${persisted}) — no cross-navigation persistence layer exists, by design`,
+        );
+      }
+      return { detail: `pageshow persisted=${persisted}; draft correctly cleared` };
+    });
+
+    // --- Reload (a real network fetch, no history/bfcache ambiguity at
+    // all): the composer draft does NOT survive. This is a DIFFERENT
+    // question from the back-navigation case above — "does a fresh load of
+    // this page ever start with stale state" rather than "does going back
+    // to it" — and it is the deterministic form of the same underlying
+    // no-persistence design, since a reload can never be served from
+    // history the way a back navigation sometimes can. ---
+    await runCase(cases, `${engineName}: reloading the conversation page clears the composer draft (no persistence, by design)`, async () => {
+      const conversationUrl = page.url();
+      // The previous case's own last action was a fresh goBack() navigation
+      // — same pre-hydration keystroke-drop race as everywhere else typing
+      // follows a navigation in this file; without this, typing below can
+      // land short/empty before React has hydrated.
+      await settleAfterConversationLoad(page);
+
+      const probeText = "sentry reload probe — not sent";
+      await humanType(page, probeText, { delayMs: 15 });
+      const typedValue = await page.inputValue("#conversation-input");
+      if (!typedValue.includes("sentry reload probe")) {
+        throw new Error("composer did not accept typed text before reloading");
+      }
+
+      await page.goto(conversationUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      // Wait for hydration before asserting (cross-vendor review,
+      // 2026-09-26) — reading the composer before React has hydrated after
+      // a fresh load is the same keystroke-drop-shaped race
+      // settleAfterConversationLoad's own header describes, and it would
+      // make this assertion pass for the wrong reason (nothing hydrated
+      // yet to hold onto a leaked value, not confirmed absence of one).
+      await settleAfterConversationLoad(page);
+      await assertNoApiFailures(watch);
+
+      const valueAfterReload = await page.inputValue("#conversation-input");
+      if (valueAfterReload.length !== 0) {
+        throw new Error(
+          "composer draft survived a reload — this app keeps no per-user history/session state by design",
         );
       }
     });

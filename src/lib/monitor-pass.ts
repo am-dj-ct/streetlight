@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { kv } from "@vercel/kv";
+import { createClient, type VercelKV } from "@vercel/kv";
 import { getMonitorToken, hasKvConfig } from "./env";
 
 export const monitorTokenHeader = "x-streetlight-monitor-token";
@@ -15,6 +15,39 @@ redis.call('INCR', KEYS[1])
 redis.call('EXPIREAT', KEYS[1], ARGV[2])
 return 1
 `;
+
+// A separate, retry-disabled client for THIS ONE reservation script only
+// (2nd cross-vendor review, 2026-09-26). The shared `kv` singleton retries
+// automatically on network errors (an @upstash/redis default), which is
+// fine for idempotent reads elsewhere in the app but wrong here:
+// reservePassScript's INCR is not idempotent — if Redis executes it and
+// only the HTTP response carrying the result back to us is lost, a retry
+// of the exact same logical call increments the counter a second time. An
+// offline probe reproduced two reservations for one logical call this
+// way. Disabling retries for this call means a lost response is reported
+// as a failure (falling back to normal Turnstile, per the ADR's threat
+// model) instead of risking a silent double reservation. Every other `kv`
+// usage in this app keeps the shared client's normal retry behavior,
+// unchanged — this constructs its own client from the same env
+// configuration rather than touching that shared one.
+let monitorPassKv: VercelKV | null = null;
+function monitorPassClient(): VercelKV {
+  if (!monitorPassKv) {
+    monitorPassKv = createClient({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+      // `retry: false` is NOT "zero retries" in this client: its own retry
+      // loop runs `i <= attempts` and `false` maps to `attempts: 1`, which
+      // still allows one retry (two total attempts) on a network-level
+      // failure — verified directly against the installed
+      // @upstash/redis version and reproduced by a test that counts actual
+      // fetch calls. `{ retries: 0 }` is what actually yields exactly one
+      // attempt.
+      retry: { retries: 0 },
+    });
+  }
+  return monitorPassKv;
+}
 
 export async function consumeMonitorPass(request: Request): Promise<boolean> {
   if (request.method !== "POST" || new URL(request.url).pathname !== "/api/chat") {
@@ -35,7 +68,7 @@ export async function consumeMonitorPass(request: Request): Promise<boolean> {
     now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1,
   ) / 1000) + 60;
   try {
-    const reserved = await kv.eval(
+    const reserved = await monitorPassClient().eval(
       reservePassScript,
       [`monitor-pass:${now.toISOString().slice(0, 10)}`],
       [monitorPassDailyCap, expiresAt],

@@ -1,19 +1,50 @@
-// Covers sentinel_checkin/sentinel_mail_red in checkin-lib.sh.
+// Covers sentinel_checkin/sentinel_mail_red/sentinel_mail_red_attempt in
+// checkin-lib.sh.
 //
-// Two things changed here and both need coverage:
+// What changed here and needs coverage:
 //   1. The Resend response used to be discarded (`2>&1 >/dev/null` threw
 //      the body away, keeping only stderr) — sentinel_mail_red now captures
 //      the HTTP status and the Resend message id and writes a content-free
 //      receipt line for every real send attempt (Jesse's order: "save the
-//      receipts").
+//      receipts"), in the same field shape #45 already uses elsewhere
+//      (timestamp/job/httpStatus/resendId, plus this path's own `reason`).
 //   2. sentinel_checkin no longer writes anything to the sentinel-v5 spool
 //      (~/.blt-sentinel/spool) — that consumer was retired 2026-09-24 and
 //      nothing reads it. It still sends (or, under cooldown, skips) the
 //      direct red email, which is the only thing anything downstream of
 //      this function actually depends on.
+//   3. Cross-vendor review, 2026-09-26: the cooldown used to be checked
+//      without a lock and recorded only after success, so two concurrent
+//      callers could both pass the check and both send, and a timeout
+//      after Resend had already accepted the request could cause a resend
+//      on the next check-in. Fixed with a per-item OS advisory lock
+//      (#45's mail-lock.py, reused) around a reserve-before-send cycle,
+//      plus a per-item Idempotency-Key header.
+//   4. Same review: receipts used to accept any string as a Resend id, and
+//      any 2xx started the cooldown even without one. Fixed with the same
+//      UUID validation #45's send-resend-email.mjs already applies.
+//   5. THIRD review, same day: the cross-invocation pending-key/bounded-
+//      retry design from #4 was itself where the next round of bugs came
+//      from — a retry could rebuild the payload with a new timestamp under
+//      the SAME key (a Resend conflict, not a dedup), an unverifiable 2xx
+//      was treated as a definite rejection even though delivery may
+//      already have happened, and the Doppler status read after the send
+//      lived inside a `raw="$(...)"` subshell and never actually reached
+//      the caller. Coordinator decision: stop building cross-invocation
+//      idempotent retry machinery. Simplified to sending at most once per
+//      invocation, plus a single immediate in-process retry of a genuine
+//      network error with the identical payload/key, and a four-outcome
+//      model — confirmed / rejected (4xx) / pre_send_failure (release, no
+//      cooldown) / uncertain (2xx-without-id, 5xx, or an unresolved
+//      network error — treated as POSSIBLY sent, cooldown starts anyway;
+//      a rare missed duplicate is acceptable, a real duplicate is not).
+//      Receipts now also carry this outcome directly.
 //
 // A fake `doppler` and a fake `curl` on PATH stand in for the real CLIs so
 // these run offline, deterministically, and without sending real mail.
+// python3 and bash themselves are the REAL system binaries (the lock and
+// the self-re-invocation both depend on them) — nothing here is a network
+// call.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -25,11 +56,14 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const checkinLibPath = path.join(here, "checkin-lib.sh");
 
-// Always succeeds and hands the wrapped command straight through — these
-// tests are about sentinel_mail_red's own behavior, not sentinel_doppler_run
-// (already covered by checkin-lib.doppler-run.test.mjs).
+// Defaults to always succeeding and handing the wrapped command straight
+// through. DOPPLER_STUB_MODE=fail simulates a definite pre-send failure
+// (a bad token, say) — doppler itself refuses and the wrapped curl command
+// never runs at all, exactly like the real CLI's own documented behavior
+// when it cannot fetch secrets.
 const DOPPLER_STUB = `#!/usr/bin/env bash
 set -uo pipefail
+mode="\${DOPPLER_STUB_MODE:-success}"
 fallback_only=0
 fallback_file=""
 rest=()
@@ -46,23 +80,33 @@ while [ "$i" -lt "\${#args[@]}" ]; do
   esac
   i=$((i+1))
 done
+if [ "$mode" = "fail" ]; then
+  echo "Doppler Error: invalid access token" >&2
+  exit 1
+fi
 [ -n "$fallback_file" ] && printf 'stub-encrypted-secrets\\n' > "$fallback_file"
 exec "\${rest[@]}"
 `;
 
 // Stands in for the real Resend call. Mode is picked per-call via
 // CURL_STUB_MODE. Mirrors the real response shape: body, then a newline,
-// then the HTTP status — matching curl's `-w "\n%{http_code}"`.
+// then the HTTP status — matching curl's `-w "\n%{http_code}"`. Also logs
+// the Idempotency-Key it was invoked with (visible to it as an env var,
+// exactly as the real curl -H interpolation reads it) so a test can prove
+// the key was actually threaded through, without needing to parse argv.
 const CURL_STUB = `#!/usr/bin/env bash
 set -uo pipefail
 mode="\${CURL_STUB_MODE:-success}"
 calllog="\${CURL_STUB_CALL_LOG:-}"
 if [ -n "$calllog" ]; then
-  printf 'call\\n' >> "$calllog"
+  printf 'call idempotency=%s\\n' "\${SENTINEL_MAIL_IDEMPOTENCY_KEY:-none}" >> "$calllog"
 fi
 case "$mode" in
   success)
-    printf '{"id":"%s"}\\n200\\n' "\${CURL_STUB_RESEND_ID:-stub-resend-id-0001}"
+    printf '{"id":"%s"}\\n200\\n' "\${CURL_STUB_RESEND_ID:-01a0debb-1d46-70d9-82a3-42ea138b1dd2}"
+    ;;
+  success_bad_id)
+    printf '{"id":"not-a-real-uuid"}\\n200\\n'
     ;;
   http_failure)
     printf '{"statusCode":401,"message":"stub invalid key"}\\n401\\n'
@@ -70,6 +114,10 @@ case "$mode" in
   network_error)
     echo "curl: (28) stub connect timeout" >&2
     exit 28
+    ;;
+  connect_failure)
+    echo "curl: (7) stub failed to connect to host" >&2
+    exit 7
     ;;
   *)
     echo "unknown CURL_STUB_MODE: $mode" >&2
@@ -101,7 +149,9 @@ async function makeFixture() {
   };
 }
 
-function runCheckin({ binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode }) {
+function runCheckin({
+  binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode, dopplerMode,
+}) {
   const script = `
 set -uo pipefail
 source "${checkinLibPath}"
@@ -109,7 +159,7 @@ sentinel_checkin "${item}" "${checkStatus}" "${reasonCode}" "2026-09-26T14:23:01
 printf 'RC=%s\\n' "$?"
 `;
   return new Promise((resolve, reject) => {
-    const child = spawn("bash", ["-c", script], {
+    const child = spawn("/bin/bash", ["-c", script], {
       env: {
         PATH: `${binDir}:${process.env.PATH}`,
         HOME: process.env.HOME,
@@ -119,6 +169,7 @@ printf 'RC=%s\\n' "$?"
         SENTINEL_MAIL_RED_COOLDOWN_SECONDS: "21600",
         CURL_STUB_MODE: curlMode ?? "success",
         CURL_STUB_CALL_LOG: callLog,
+        DOPPLER_STUB_MODE: dopplerMode ?? "success",
       },
     });
     let stdout = "";
@@ -136,6 +187,15 @@ async function callCount(callLog) {
     return contents.split("\n").filter((line) => line.trim().length > 0).length;
   } catch {
     return 0;
+  }
+}
+
+async function callLines(callLog) {
+  try {
+    const contents = await readFile(callLog, "utf8");
+    return contents.split("\n").filter((line) => line.trim().length > 0);
+  } catch {
+    return [];
   }
 }
 
@@ -160,12 +220,15 @@ test("a red check-in sends exactly one email and records a receipt with the Rese
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
   assert.equal(receipts[0].job, "sl-test-a");
-  assert.equal(receipts[0].status, "sent");
-  assert.equal(receipts[0].http_code, 200);
-  assert.equal(receipts[0].resend_message_id, "stub-resend-id-0001");
-  // Content-free: only these fields, nothing resembling a message body.
+  assert.equal(receipts[0].reason, "job_failed");
+  assert.equal(receipts[0].httpStatus, 200);
+  assert.equal(receipts[0].resendId, "01a0debb-1d46-70d9-82a3-42ea138b1dd2");
+  assert.equal(receipts[0].outcome, "confirmed");
+  // Content-free, and the SAME field names #45 uses (timestamp/job/
+  // httpStatus/resendId), plus this path's own fixed `reason` field and
+  // the outcome field added in the 3rd cross-vendor review.
   assert.deepEqual(Object.keys(receipts[0]).sort(), [
-    "at", "http_code", "job", "reason_code", "resend_message_id", "status",
+    "httpStatus", "job", "outcome", "reason", "resendId", "timestamp",
   ]);
 });
 
@@ -195,7 +258,7 @@ test("the cooldown is per item — a second, different item still sends its own 
   assert.deepEqual(receipts.map((r) => r.job).sort(), ["sl-test-a", "sl-test-b"]);
 });
 
-test("a failed send is recorded as a failed receipt (not silently dropped) and does not start the cooldown", async () => {
+test("a definite 4xx rejection releases the reservation — the next check-in retries", async () => {
   const fx = await makeFixture();
   const first = await runCheckin({
     ...fx, item: "sl-test-c", checkStatus: "red", reasonCode: "job_failed", curlMode: "http_failure",
@@ -204,28 +267,120 @@ test("a failed send is recorded as a failed receipt (not silently dropped) and d
 
   const receiptsAfterFirst = await readReceipts(fx.mailRedDir);
   assert.equal(receiptsAfterFirst.length, 1);
-  assert.equal(receiptsAfterFirst[0].status, "failed");
-  assert.equal(receiptsAfterFirst[0].http_code, 401);
-  assert.equal(receiptsAfterFirst[0].resend_message_id, null);
+  assert.equal(receiptsAfterFirst[0].httpStatus, 401);
+  assert.equal(receiptsAfterFirst[0].resendId, null);
+  assert.equal(receiptsAfterFirst[0].outcome, "rejected");
+  assert.equal(await callCount(fx.callLog), 1, "a definite 4xx is never retried in-process");
 
-  // No cooldown started on a failed send — a second attempt must try again,
-  // exactly like sentinel_doppler_run's own "retry on real failure" contract.
+  // No cooldown started on a definite rejection — a second attempt must try
+  // again.
   await runCheckin({ ...fx, item: "sl-test-c", checkStatus: "red", reasonCode: "job_failed" });
   assert.equal(await callCount(fx.callLog), 2);
   assert.equal((await readReceipts(fx.mailRedDir)).length, 2);
 });
 
-test("a curl-level failure (no HTTP response at all) is recorded as failed, not crashed", async () => {
+test("a curl-level (network) failure gets exactly one immediate in-process retry with the IDENTICAL idempotency key, then is treated as possibly sent", async () => {
   const fx = await makeFixture();
   const result = await runCheckin({
     ...fx, item: "sl-test-d", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error",
   });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
+
+  const lines = await callLines(fx.callLog);
+  assert.equal(lines.length, 2, "exactly one retry — no cross-invocation or bounded multi-attempt loop any more");
+  const keys = lines.map((line) => line.match(/idempotency=(\S+)/)?.[1]);
+  assert.equal(new Set(keys).size, 1, `both attempts must share the identical key; saw ${keys.join(", ")}`);
+
+  // Coordinator decision (3rd cross-vendor review): a curl-level failure
+  // that cannot be proven to be pre-send is treated as POSSIBLY sent, not
+  // ambiguous-and-retryable — the cooldown starts even without a confirmed
+  // id, favoring a rare missed duplicate-detection window over ever
+  // actually sending a real duplicate.
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
-  assert.equal(receipts[0].status, "failed");
-  assert.equal(receipts[0].http_code, null);
-  assert.equal(receipts[0].resend_message_id, null);
+  assert.equal(receipts[0].httpStatus, null);
+  assert.equal(receipts[0].resendId, null);
+  assert.equal(receipts[0].outcome, "uncertain");
+
+  await runCheckin({ ...fx, item: "sl-test-d", checkStatus: "red", reasonCode: "job_failed", curlMode: "success" });
+  assert.equal(await callCount(fx.callLog), 2, "the cooldown from the uncertain outcome must suppress the next check-in");
+});
+
+test("a definite pre-send failure (Doppler never handed back secrets, curl never ran) releases the reservation immediately — no retry, no cooldown", async () => {
+  const fx = await makeFixture();
+  const result = await runCheckin({
+    ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", dopplerMode: "fail",
+  });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await callCount(fx.callLog), 0, "curl must never run at all when Doppler itself fails pre-send");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].httpStatus, null);
+  assert.equal(receipts[0].resendId, null);
+  assert.equal(receipts[0].outcome, "pre_send_failure");
+
+  // Released, not kept — the next check-in gets a fresh attempt immediately,
+  // not after 6h.
+  const result2 = await runCheckin({
+    ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", curlMode: "success",
+  });
+  assert.match(result2.stdout, /^RC=0$/m, result2.stderr);
+  assert.equal(await callCount(fx.callLog), 1, "the very next check-in must be free to try again, not suppressed");
+});
+
+test("a curl-level connect/DNS failure (rc 6/7) is a definite pre-send failure too — no retry, no cooldown", async () => {
+  const fx = await makeFixture();
+  const result = await runCheckin({
+    ...fx, item: "sl-test-g4", checkStatus: "red", reasonCode: "job_failed", curlMode: "connect_failure",
+  });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await callCount(fx.callLog), 1, "curl ran exactly once — a DNS/connect failure is definite, not retried");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].outcome, "pre_send_failure");
+
+  const result2 = await runCheckin({
+    ...fx, item: "sl-test-g4", checkStatus: "red", reasonCode: "job_failed", curlMode: "success",
+  });
+  assert.match(result2.stdout, /^RC=0$/m, result2.stderr);
+  assert.equal(await callCount(fx.callLog), 2, "released immediately, so the very next check-in tries again");
+});
+
+test("a 2xx with a non-UUID id is treated as possibly sent — outcome=uncertain, cooldown starts anyway", async () => {
+  const fx = await makeFixture();
+  await runCheckin({ ...fx, item: "sl-test-h", checkStatus: "red", reasonCode: "job_failed", curlMode: "success_bad_id" });
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].httpStatus, 200);
+  assert.equal(receipts[0].resendId, null, "an unvalidated id string must never be trusted as a real Resend id");
+  assert.equal(receipts[0].outcome, "uncertain");
+
+  // Coordinator decision: an unresolved 2xx is possibly sent, so the
+  // cooldown starts anyway — a rare missed duplicate-detection window is
+  // acceptable, an actual duplicate email is not.
+  await runCheckin({ ...fx, item: "sl-test-h", checkStatus: "red", reasonCode: "job_failed" });
+  assert.equal(await callCount(fx.callLog), 1, "an uncertain-but-possibly-sent outcome must still suppress the next attempt");
+});
+
+test("the send carries a per-item Idempotency-Key header value, unique per invocation", async () => {
+  const fx = await makeFixture();
+  await runCheckin({ ...fx, item: "sl-test-i", checkStatus: "red", reasonCode: "job_failed" });
+  const [line] = await callLines(fx.callLog);
+  assert.match(line, /idempotency=sl-test-i-\d+-\d+/);
+});
+
+test("two concurrent callers for the SAME item never both send", async () => {
+  const fx = await makeFixture();
+  const [a, b] = await Promise.all([
+    runCheckin({ ...fx, item: "sl-test-j", checkStatus: "red", reasonCode: "job_failed" }),
+    runCheckin({ ...fx, item: "sl-test-j", checkStatus: "red", reasonCode: "job_failed" }),
+  ]);
+  assert.match(a.stdout, /^RC=0$/m, a.stderr);
+  assert.match(b.stdout, /^RC=0$/m, b.stderr);
+  assert.equal(await callCount(fx.callLog), 1, "the lock must serialize both callers onto one actual send");
+  assert.equal((await readReceipts(fx.mailRedDir)).length, 1);
 });
 
 test("sentinel_checkin never touches the retired sentinel-v5 spool path", async () => {
@@ -243,7 +398,7 @@ sentinel_checkin "sl-test-e" "red" "job_failed" "2026-09-26T14:23:01Z" "2026-09-
 printf 'RC=%s\\n' "$?"
 `;
   const result = await new Promise((resolve, reject) => {
-    const child = spawn("bash", ["-c", script], {
+    const child = spawn("/bin/bash", ["-c", script], {
       env: {
         PATH: `${fx.binDir}:${process.env.PATH}`,
         HOME: process.env.HOME,
