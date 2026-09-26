@@ -2,6 +2,10 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The supervisor owns a durable five-minute ledger and a whole-run deadline.
+if [ "${1:-}" != "--worker" ]; then
+  exec python3 "$SCRIPT_DIR/slots.py" "$SCRIPT_DIR/run-error-stream-health.sh"
+fi
 STATE_ROOT="${STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT:-$HOME/.streetlight/error-stream-health}"
 ARTIFACT="${STREETLIGHT_ERROR_STREAM_HEALTH_ARTIFACT:-$HOME/.blt-hub/source-health/streetlight-error-stream-health.json}"
 STATE_FILE="${STREETLIGHT_ERROR_STREAM_HEALTH_STATE_FILE:-$STATE_ROOT/state.json}"

@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-08-20
-**Last meaningful change:** 2026-08-20 (the UI sentry's no-spend tier 1 is pinned to its package-owned Playwright browsers, and its Sentinel closure contract is explicit — see `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
+**Last reviewed:** 2026-09-26
+**Last meaningful change:** 2026-09-26 (content-free email acceptance receipts, local missed health-slot accounting, and one failure-only digest watcher; see `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -619,6 +619,9 @@ A custom ESLint rule (or pre-commit grep hook) forbids `console.log`, `console.e
 | Aggregate metadata events | Vercel runtime logs | ~3 days (Pro plan) | Quarterly review |
 | Referral resource list (JSON) | Static file in repo | Indefinite | UI content |
 | UI string translations | Static files in repo | Indefinite | i18n |
+| Operational email acceptance receipts | GitHub workflow logs/summary and separate receipt artifact; digest watcher local JSONL | Artifacts: 90 days; logs/summary: existing GitHub retention; local: until operator cleanup | Timestamp, fixed job/reason, HTTP status and Resend UUID only; no user or email content |
+| Error-stream slot ledger and cursor | Operator machine, `~/.streetlight/error-stream-health/` | Until operator cleanup | Slot timestamps, fixed status/reason, exit code and duration; detect missed/interrupted runs |
+| Digest watcher observations and cooldown markers | Operator machine, `~/.streetlight/digest-watch/` | Until operator cleanup | Timestamp, Pacific date and fixed reason; separate real/test cooldowns |
 
 ### What V1 Does Not Persist
 
@@ -863,6 +866,8 @@ The following are P0 build deliverables to ensure option (a) is operationally ro
 - Vercel deploy notifications: on (email on every production deploy).
 - Anthropic billing alerts: configure daily spend threshold that emails operator on breach.
 - GitHub security alerts: on by default.
+- Local error-stream health: five-minute aggregate checks plus a content-free missed-slot ledger. The retired Sentinel spool is not a delivery channel; red uses the existing direct Resend email path with a six-hour per-item cooldown.
+- Usage Digest: one local launchd watcher at 22:00 Pacific queries GitHub run metadata and emails only on failure, with a six-hour real-alert cooldown independent of tests. Resource Review receives send receipts but no new watcher. See `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`.
 
 ---
 
@@ -1083,7 +1088,8 @@ What is not in this architecture and why. Each entry is a "we don't do this and 
 
 - **No backups.** Nothing is stored that could be backed up. No database, no user content, no per-user state.
 - **No third-party monitoring or alerting tooling.** No Sentry, Datadog, Bugsnag, LogRocket, New Relic, Pingdom, or similar vendor. An operator-owned dashboard on the operator's own machine may poll the public `/healthz` contract and GitHub workflow metadata, then store only a fixed green/yellow/red result, fixed summary, source label, and timestamps. It must not call chat, TTS, usage, or other user-connected routes; retain response bodies; log configuration fields or workflow output; introduce a new vendor; or create user-level telemetry. Human review remains the response path. **Named exception (`docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`):** the scheduled UI sentry (`com.streetlight.ui-sentry`, `scripts/ui-sentry/`), running on the operator's own machine, Mon/Wed/Fri, may additionally load the real public pages (`/`, `/conversation/[entryId]`, `/find-human`, `/report-problem`, `/about`, `/privacy`) in a real browser and call `/api/chat` with synthetic fixture content, capped at 8 live turns per run enforced at the request boundary. It must report content-free (case names, HTTP statuses, latencies, durations, log path — never typed prompts or model replies) and introduces no new vendor (Resend, already in use). This exception is scoped to that one named job; it is not general permission for local monitoring to call chat routes.
-- **Named same-day stream-health exception (`docs/decisions/2026-08-23-same-day-error-stream-health.md`):** Streetlight may retain five-minute aggregate outcome buckets for 90 minutes in Vercel KV. The protected `/api/ops/error-stream-health` endpoint returns only the current 60-minute total, `error_stream` count and rate, fixed status, window length, and generation time. The operator-owned Hub may poll it every five minutes and retain only its normal fixed source-health artifact. Authenticated UI-sentry fixture turns are excluded from this signal and the public usage aggregates; no user-level fields, content, model labels, weak categories, paths, or response bodies are retained.
+- **Named same-day stream-health exception (`docs/decisions/2026-08-23-same-day-error-stream-health.md`):** Streetlight may retain five-minute aggregate outcome buckets for 90 minutes in Vercel KV. The protected `/api/ops/error-stream-health` endpoint returns only the current 60-minute total, `error_stream` count and rate, fixed status, window length, and generation time. The operator-owned Hub may poll it every five minutes and retain its normal fixed source-health artifact. The local wrapper also retains a content-free slot ledger and atomic cursor: timestamps, slot, fixed status/reason, exit code, and duration only. It records interrupted and uninvoked slots on resumption, leaves the current five-minute slot open when a run crosses a boundary, and bounds the worker to 180 seconds. Missed slots/timeouts use the existing direct red-email path with its six-hour per-item cooldown; the retired Sentinel spool is not alert delivery. This ledger cannot observe a stopped host until it resumes or reconstruct pre-installation history. See the extension in `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`. Authenticated UI-sentry fixture turns are excluded from this signal and the public usage aggregates; no user-level fields, content, model labels, weak categories, paths, or response bodies are retained.
+- **Named operational mail exception (`docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`):** Usage Digest and Resource Review send attempts retain only timestamp, fixed job, HTTP status and validated Resend UUID in JSONL, workflow logs/summary, and a 90-day receipt artifact. Receipts contain no user content, email body/subject/addresses, secrets, or raw provider responses. One local launchd watcher at 22:00 Pacific reads `gh run list` metadata for Usage Digest and sends failure-only email through existing Resend, with a six-hour real-alert cooldown and separate one-shot test markers. Its local observations retain only timestamp, Pacific date and fixed reason; watcher receipts add the fixed reason. Resource Review has no new active watcher. Local operational files remain until operator cleanup. Provider acceptance is not proof of inbox delivery.
 - **No third-party analytics SDK.** No Google Analytics, Plausible, Fathom, Vercel Web Analytics. Streetlight-owned blind aggregate usage counters may count client-confirmed homepage visits, homepage prompt clicks, client-confirmed conversation page views, chat submit clicks, chat requests, LLM turns, and aggregate unique reach without raw IPs, paths, user agents, cookies, content, or per-person timelines.
 - **No A/B testing or experimentation framework.** One version ships. Improvements deploy for everyone after partner review.
 - **No accounts, no login, no email, no phone collection.** No user table, no session table, no auth code. Adding any is a fundamental shift.
@@ -1275,6 +1281,13 @@ One-line summary of every decision in this document, dated for traceability.
 - The structural tier no longer prefers the independently updated system Chrome; it uses the Chromium and WebKit binaries installed from its own Playwright lockfile.
 - Real Chrome remains limited to tier 2, where the 2026-08-08 Turnstile decision requires it. No cadence, page allowlist, live-turn budget, logging field, or user-connected path changes.
 - A red `sl-ui-sentry` episode is owned as one Sentinel lifecycle and closes only after a fresh structural PASS, a green check-in, and incident resolution. Blind Class R kickstart remains prohibited because the normal launchd path can spend live-model turns.
+
+**2026-09-26 — alert receipts and the digest watcher:**
+
+- The retired Sentinel spool is not delivery; error-stream red alerts use the existing direct email path.
+- Digest and Resource Review email acceptance receipts are content-free and strictly allowlisted; the local error-stream ledger accounts for missed/interrupted five-minute slots.
+- One local 22:00 Pacific Usage Digest watcher emails only on failure with a six-hour cooldown; tests use separate markers, and Resource Review has no new watcher.
+- Scope, retention, failure bounds and limitations are recorded in `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`; the separate UI-sentry ADR remains Lane A's responsibility.
 
 ---
 

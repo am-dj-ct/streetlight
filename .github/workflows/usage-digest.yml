@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      RECEIPT_PATH: tmp/usage-digest-receipt.jsonl
       BODY_PATH: tmp/usage-digest-email.md
       STREETLIGHT_BASE_URL: https://streetlight.help
 
@@ -53,4 +54,15 @@ jobs:
           report_date="$(date -u -d 'yesterday' +%F)"
           node scripts/send-resend-email.mjs \
             --subject "Streetlight usage digest - $report_date" \
-            --body "$BODY_PATH"
+            --body "$BODY_PATH" \
+            --job usage-digest \
+            --receipt "$RECEIPT_PATH"
+
+      - name: Upload email receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usage-digest-receipt-${{ github.run_id }}
+          path: ${{ env.RECEIPT_PATH }}
+          if-no-files-found: ignore
+          retention-days: 90
