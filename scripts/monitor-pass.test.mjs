@@ -124,6 +124,46 @@ test("KV exception is swallowed without logging its credential-bearing details",
   assert.equal((await POST(request())).status, 429);
   assert.equal(siteverify.mock.callCount(), 1);
 });
+test("a lost response after Redis already executed the command does not retry and double-count (2nd cross-vendor review)", async () => {
+  // reservePassScript's INCR is not idempotent: if the script executes on
+  // Redis but only the HTTP response carrying the result back to us is
+  // lost — a genuine network-level failure, not a clean error reply — a
+  // client with automatic retries enabled resends the identical command,
+  // incrementing a second time for one logical call. Simulating that
+  // needs `fetch` itself to reject (a real transport failure, the thing
+  // @upstash/redis's retry logic actually reacts to), not a caught
+  // application-level error inside a normal 200 response — the latter
+  // (the existing "KV exception is swallowed" case above) never
+  // triggered a retry in the first place, with or without this fix, so it
+  // does not exercise the bug this test is for.
+  let evalFetchCalls = 0;
+  let redisSideEffectCount = 0;
+  mock.method(globalThis, "fetch", async (url, options) => {
+    if (String(url).startsWith("https://challenges.cloudflare.com/")) return siteverify(url, options);
+    const raw = JSON.parse(options.body);
+    const pipeline = Array.isArray(raw[0]);
+    const commands = pipeline ? raw : [raw];
+    // Only the reservation eval call fails this way — rate/spend (incr/get)
+    // must keep working normally, or an unrelated part of the request
+    // pipeline fails first and this test would stop meaning anything.
+    if (commands.some((cmd) => cmd[0].toLowerCase() === "eval")) {
+      evalFetchCalls += 1;
+      redisSideEffectCount += 1; // stands in for Redis having already run the (non-idempotent) INCR
+      throw new TypeError("simulated network failure after Redis already executed the command");
+    }
+    const results = await Promise.all(commands.map(async (cmd) => {
+      const name = cmd[0].toLowerCase();
+      if (name === "incr") return { result: await rate(cmd[1]) };
+      if (name === "get") return { result: await spend(cmd[1]) };
+      return { error: credential };
+    }));
+    return Response.json(pipeline ? results : results[0]);
+  });
+  assert.equal((await POST(request())).status, 429);
+  assert.equal(siteverify.mock.callCount(), 1, "falls back to real Turnstile when the reservation cannot be confirmed");
+  assert.equal(evalFetchCalls, 1, "must not retry the HTTP call — retries are disabled for this non-idempotent operation");
+  assert.equal(redisSideEffectCount, 1, "the underlying counter must not be incremented a second time for one logical call");
+});
 test("absent KV disables the pass; preview continues through normal Turnstile", async () => {
   delete process.env.KV_REST_API_URL;
   process.env.VERCEL_ENV = "preview";
