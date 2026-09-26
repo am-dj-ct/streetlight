@@ -177,16 +177,25 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
         // actually visible without a click.
         const footer = page.locator("#crisis-resources");
         await footer.scrollIntoViewIfNeeded();
-        const detailsCount = await footer.locator("details").count();
-        if (detailsCount > 0) {
-          throw new Error("desktop unexpectedly renders a disclosure <details> — breakpoint may have changed");
+        // The mobile <details> is always in the DOM (compact mode renders
+        // both copies and lets CSS pick one via sm:hidden/hidden sm:block)
+        // — so presence alone isn't the regression signal, VISIBILITY is:
+        // a details element that is actually visible on desktop would mean
+        // the breakpoint moved.
+        const detailsLocator = footer.locator("details").first();
+        if ((await detailsLocator.count()) > 0 && (await detailsLocator.isVisible())) {
+          throw new Error("desktop unexpectedly shows a visible disclosure <details> — breakpoint may have changed");
         }
-        const findHumanLink = footer.locator('a[href*="/find-human"]').first();
-        const isVisible = await findHumanLink.isVisible().catch(() => false);
-        if (!isVisible) {
+        // The compact wrapper renders BOTH copies of fullFooterContent (one
+        // inside the closed, hidden <details>, one in the always-visible
+        // `hidden sm:block` desktop copy) — `.first()` in DOM order would
+        // grab the hidden one and report a false failure, so match only a
+        // visible one instead.
+        const visibleFindHumanCount = await footer.locator('a[href*="/find-human"]:visible').count();
+        if (visibleFindHumanCount === 0) {
           throw new Error("desktop crisis footer does not show full content without a disclosure toggle");
         }
-        return { detail: "desktop: full footer content visible with no disclosure to toggle (by design)" };
+        return { detail: "desktop: full footer content visible; any disclosure <details> stays hidden (by design)" };
       }
       const details = page.locator("#crisis-resources details").first();
       const summary = details.locator("summary").first();
@@ -232,8 +241,14 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     await runCase(cases, `${engineName}: back navigation does not leak the composer draft (no persistence, by design)`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      // Same pre-hydration keystroke-drop race gotoConversation guards
+      // against (settleAfterConversationLoad's own comment) — a back
+      // navigation that reloads this page needs the same settle before
+      // typing, or the probe text below can land short/empty.
+      await settleAfterConversationLoad(page);
       await assertNoApiFailures(watch);
 
+      const conversationUrl = page.url();
       const probeText = "sentry back-nav probe — not sent";
       await humanType(page, probeText, { delayMs: 15 });
       const typedValue = await page.inputValue("#conversation-input");
@@ -246,7 +261,16 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
         timeout: 20_000,
       });
       await page.waitForSelector("h1", { timeout: 15_000 });
-      await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
+      // A real `goto` back to the same URL, not goBack() — goBack() can hit
+      // the browser's own back-forward cache, whose restore-vs-reload
+      // choice is a browser heuristic this product doesn't control and
+      // isn't consistent run to run (confirmed empirically: an isolated
+      // probe against production cleared the draft every time, but this
+      // exact case flaked on webkit-mobile once inside the full tier-1
+      // sequence, after more history entries had built up). A forced
+      // reload is what actually exercises the app's own no-persistence
+      // design deterministically, without gambling on bfcache.
+      await page.goto(conversationUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       await assertNoApiFailures(watch);
 
