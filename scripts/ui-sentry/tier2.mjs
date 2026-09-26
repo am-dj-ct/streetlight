@@ -116,6 +116,30 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
   const turns = [];
   let lastSuccessfulLiveChatAt = null;
 
+  // Diagnostic-only, content-free ring buffer for a client_blocked turn's
+  // own post-mortem (4th cross-vendor review, 2026-09-26: "the 3/6 cause is
+  // still unknown... instrument it to capture WHY a turn's POST didn't
+  // happen"). Console/page-error TEXT here is the browser's/app's own fixed
+  // diagnostic strings, never user or model content, and is truncated the
+  // same 200 chars tier1's own watcher already uses (lib/browser.mjs).
+  // Persists for the whole attempt (not reset per turn) so a message
+  // logged slightly before/after the exact turn boundary is not lost —
+  // each entry carries the wall-clock time it was observed, and the log
+  // line below labels which turn's window it is being printed for.
+  const recentConsole = [];
+  const pushRecent = (entry) => {
+    recentConsole.push(entry);
+    if (recentConsole.length > 20) recentConsole.shift();
+  };
+  page.on("console", (msg) => {
+    if (["error", "warning"].includes(msg.type())) {
+      pushRecent(`t=${Date.now()} console.${msg.type()}: ${msg.text().slice(0, 200)}`);
+    }
+  });
+  page.on("pageerror", (err) => {
+    pushRecent(`t=${Date.now()} pageerror: ${String(err?.message ?? err).slice(0, 200)}`);
+  });
+
   try {
     await gotoConversation(page, baseUrl, TIER2_ENTRY_ID);
 
@@ -136,7 +160,8 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
       // entirely) — this bridges the client's token wait, it does not
       // touch the classification logic in runTurn (lib/conversation.mjs)
       // that ties each turn's result to its own submission.
-      await monitorPass.selectTurn(page, i + 1, turns[0]?.label === "pass");
+      const turnStartedAt = Date.now();
+      const passSelected = await monitorPass.selectTurn(page, i + 1, turns[0]?.label === "pass");
 
       const result = await runTurn(page, { text: TIER2_TURNS[i], baseUrl });
       turns.push({ n: i + 1, ...result });
@@ -146,6 +171,30 @@ async function runAttempt({ attemptNum, baseUrl, logger, headed, budget }) {
       );
       if (result.label === "pass") {
         lastSuccessfulLiveChatAt = new Date().toISOString();
+      }
+
+      if (result.label === "client_blocked") {
+        // Read-only, best-effort — never let a diagnostic probe itself
+        // fail the run. window.turnstile's own presence/wrapped state
+        // tells apart "the real widget script never even set
+        // window.turnstile by this point" from "it's there, wrapped, and
+        // still didn't produce a token."
+        const widgetState = await page
+          .evaluate(() => ({
+            hasTurnstileGlobal: typeof window.turnstile !== "undefined",
+            wrapped: Boolean(window.turnstile?.__streetlightWrapped),
+            monitorPassFlag: window.__streetlightMonitorPass ?? null,
+          }))
+          .catch((err) => ({ evalFailed: String(err?.message ?? err).slice(0, 200) }));
+        const sinceTurnStart = recentConsole.filter((entry) => {
+          const t = Number(entry.match(/^t=(\d+)/)?.[1] ?? 0);
+          return t >= turnStartedAt;
+        });
+        logger.line(
+          `tier2 attempt ${attemptNum} turn ${i + 1} client_blocked diagnostics: ` +
+            `passSelectedForThisTurn=${passSelected} widgetState=${JSON.stringify(widgetState)} ` +
+            `consoleSinceTurnStart=${sinceTurnStart.length === 0 ? "none" : JSON.stringify(sinceTurnStart)}`,
+        );
       }
     }
   } finally {
