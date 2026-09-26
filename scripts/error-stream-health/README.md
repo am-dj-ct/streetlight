@@ -31,7 +31,9 @@ The entry script now runs through `slots.py` before loading secrets. Its OS lock
 is released automatically on process death. Every invocation writes a timestamped
 start and finish to `~/.streetlight/error-stream-health/slots.jsonl`; a separate
 atomic cursor identifies an interrupted run and each uninvoked five-minute slot
-on the next invocation. Missed health measurements are never fabricated or
+on the next invocation. Completion backfills only slots before the current
+five-minute slot and leaves that current slot out of the cursor, so a run
+straddling a boundary cannot preempt the next scheduled invocation. Missed health measurements are never fabricated or
 backfilled as successful. A stopped/asleep host is observable only on resumption.
 The whole worker, including Doppler and reporting, has a 180-second deadline;
 a timed-out process group is killed and recorded. Missed slots/timeouts use the

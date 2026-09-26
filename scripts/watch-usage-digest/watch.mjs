@@ -41,15 +41,17 @@ export async function watch(testMode = false) {
   // OS advisory lock covers cooldown reservation + mail; released even on SIGKILL.
   const result = await exec("python3", [path.join(directory, "mail-lock.py"), root,
     process.execPath, path.join(directory, "watch.mjs"), "--send", reason, pacificDay(now)],
-  { timeout: 90_000, maxBuffer: 100_000 }).catch((error) => ({ stdout: error.stdout ?? "", failed: true }));
+  { timeout: 130_000, maxBuffer: 100_000 }).catch((error) => ({ stdout: error.stdout ?? "", failed: true,
+    lockTimedOut: error.stderr?.includes("digest-watch: mail_lock_timeout after 60 seconds") }));
   process.stdout.write(result.stdout);
+  if (result.lockTimedOut) console.error("digest-watch: mail_lock_timeout after 60 seconds");
   if (result.failed) console.error("digest-watch: email_unconfirmed");
   return 1;
 }
 async function send(reason, day) {
   const root = process.env.STREETLIGHT_DIGEST_WATCH_STATE_ROOT ?? path.join(os.homedir(), ".streetlight/digest-watch");
-  // Test shares the item's cooldown and additionally has a permanent one-shot marker.
-  const marker = path.join(root, "last-attempt.json");
+  // Tests cannot reserve or consume the real alert cooldown.
+  const marker = path.join(root, reason === "test_failure" ? "last-test-attempt.json" : "last-attempt.json");
   const testMarker = path.join(root, "test-attempted");
   if (reason === "test_failure") {
     try { await writeFile(testMarker, new Date().toISOString(), { flag: "wx", mode: 0o600 }); }

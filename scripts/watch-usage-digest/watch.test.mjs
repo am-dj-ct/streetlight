@@ -57,7 +57,7 @@ test("sender records safe success, HTTP failure and transport failure in file + 
   assert.equal(summary.includes("synthetic body"), false);
   assert.equal(summary.split("EMAIL_RECEIPT").length, 4);
 });
-test("real bash entry: healthy silent; distinct gh failure; one test mail; shared cooldown", async (t) => {
+test("real bash entry: healthy silent; one test mail cannot suppress real failure; real cooldown holds", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "digest-watch-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const bin = path.join(root, "bin"); await mkdir(bin);
@@ -71,12 +71,42 @@ test("real bash entry: healthy silent; distinct gh failure; one test mail; share
   assert.match((await invoke()).stdout, /"reason":"ok"/);
   assert.equal(pacificDay(new Date()).length, 10);
   assert.match((await invoke(["--test"])).stdout, /EMAIL_RECEIPT/);
+  await assert.rejects(readFile(path.join(root, "state/last-attempt.json")), { code: "ENOENT" });
+  assert.ok(JSON.parse(await readFile(path.join(root, "state/last-test-attempt.json"), "utf8")).at);
   assert.match((await invoke(["--test"])).stdout, /test_already_attempted/);
   await writeFile(gh, '#!/bin/sh\nexit 1\n', { mode: 0o700 });
   const failed = await invoke();
   assert.match(failed.stdout, /gh_failed/);
-  assert.match(failed.stdout, /email_cooldown/);
+  assert.match(failed.stdout, /EMAIL_RECEIPT/);
+  assert.match((await invoke()).stdout, /email_cooldown/);
   const receipts = (await readFile(path.join(root, "state/receipts.jsonl"), "utf8")).trim().split("\n");
-  assert.equal(receipts.length, 1);
+  assert.equal(receipts.length, 2);
+  assert.deepEqual(receipts.map((line) => JSON.parse(line).reason), ["test_failure", "gh_failed"]);
   assert.equal(JSON.parse(receipts[0]).resendId, uuid);
+});
+
+test("mail lock times out without sending, retries until released, and propagates child exit", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "digest-lock-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = await exec("python3", ["-c", `
+import fcntl, importlib.util, pathlib, sys, threading, time
+s = importlib.util.spec_from_file_location('mail_lock', 'scripts/watch-usage-digest/mail-lock.py')
+m = importlib.util.module_from_spec(s)
+s.loader.exec_module(m)
+root = pathlib.Path(sys.argv[1])
+with (root / 'mail.lock').open('a') as held:
+    fcntl.flock(held, fcntl.LOCK_EX)
+    start = time.monotonic()
+    assert m.main(str(root), ['/bin/sh', '-c', 'echo should_not_run'], timeout=0.15) == 1
+    assert 0.15 <= time.monotonic() - start < 2
+    timer = threading.Timer(0.15, lambda: fcntl.flock(held, fcntl.LOCK_UN))
+    timer.start()
+    try:
+        assert m.main(str(root), ['/bin/sh', '-c', 'echo acquired; exit 7'], timeout=2) == 7
+    finally:
+        timer.join()
+assert m.main(str(root), ['/bin/sh', '-c', 'exit 0']) == 0
+`, root], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" }, timeout: 5000 });
+  assert.equal(result.stdout.trim(), "acquired");
+  assert.match(result.stderr, /mail_lock_timeout after 0.15 seconds/);
 });

@@ -77,10 +77,11 @@ def main(worker):
         result = bounded(['/bin/bash', worker, '--worker'], 180)
         record(slot, 'completed' if result == 0 else 'failed', 'deadline_exceeded' if result == 124 else 'worker_exit', exitCode=result, durationSeconds=round(time.monotonic() - started, 3))
         latest = int(time.time()) // 300 * 300
-        for absent in range(slot + 300, latest + 1, 300):
+        # Leave the current slot open: its invocation may still be arriving.
+        for absent in missed_slots(slot, latest):
             record(absent, 'missed', 'previous_run_still_active')
             missed = True
-        save(max(slot, latest), False)
+        save(max(slot, latest - 300), False)
         if missed or result == 124:
             # Existing mail path, with its per-item cooldown and Lane A receipts.
             library = str(Path(worker).parent.parent / 'sentinel-v5/checkin-lib.sh')

@@ -17,12 +17,17 @@ to jesse@balancedlivingtherapy.com. Addresses are fixed in the sender.
 `receipts.jsonl` stores timestamp, job, reason, HTTP status, and Resend UUID only.
 No raw provider output, keys, or email bodies are logged. HTTP acceptance is not
 proof that the recipient opened the message. The temporary fixed email body is
-removed after sending. The OS lock serializes sends; one six-hour cooldown covers
-all failure reasons for this item. Attempts reserve the cooldown before sending,
+removed after sending. The OS lock serializes sends, waiting at most 60 seconds
+before a nonzero
+`mail_lock_timeout` exit. One six-hour cooldown covers all real failure reasons
+for this item. The parent allows 130 seconds for lock acquisition plus sending.
+Attempts reserve the cooldown before sending,
 including ambiguous failures, to prevent duplicate email. A local error exits 1.
 
 `bash scripts/watch-usage-digest.sh --test` forces one `[TEST]` failure email,
-shares the cooldown, and saves a permanent `test-attempted` marker. Repeating it
+uses its own `last-test-attempt.json` cooldown marker, and saves a permanent
+`test-attempted` marker. It never reads or writes the real `last-attempt.json`
+cooldown marker, so a test cannot suppress a scheduled failure alert. Repeating it
 cannot send another test. Normal invocation is `bash scripts/watch-usage-digest.sh`.
 Tests use an isolated `STREETLIGHT_DIGEST_WATCH_STATE_ROOT`; do not change it in
 production. Node, Python 3, Doppler, and authenticated `gh` must be on PATH.
@@ -48,7 +53,7 @@ script now starts the slot supervisor after the normal autodeploy updates it.
 node --test scripts/watch-usage-digest/*.test.mjs scripts/error-stream-health/*.test.mjs
 ```
 
-Before landing, the coordinator must reconcile the architecture dates and add a
-shared dated decision under `docs/decisions/` for both lanes' content-free receipt
-and local monitoring changes. Lane B keeps edits inside its assigned files;
-this note does not replace the architecture document's required decision entry.
+Architecture and receipt boundaries are recorded in
+`docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md` and
+`docs/data_architecture.md`. The separate UI-sentry reporting decision belongs
+to Lane A.
