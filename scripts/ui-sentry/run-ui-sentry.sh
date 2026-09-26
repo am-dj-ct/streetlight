@@ -90,6 +90,8 @@ case "$-" in *e*) _sentinel_had_errexit=1 ;; esac
 set +e
 # shellcheck source=./sentinel-v5/checkin-lib.sh
 . "$SCRIPT_DIR/../sentinel-v5/checkin-lib.sh"
+# shellcheck source=./lib/sentinel-emit.sh
+. "$SCRIPT_DIR/lib/sentinel-emit.sh"
 [ "$_sentinel_had_errexit" = "1" ] && set -e
 sentinel_capture_invocation sl-ui-sentry || true
 : "${SENTINEL_AT:=$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
@@ -97,103 +99,11 @@ sentinel_capture_invocation sl-ui-sentry || true
 UI_SENTRY_SENTINEL_AT="$SENTINEL_AT"
 UI_SENTRY_SENTINEL_SLOT="$SENTINEL_SLOT"
 
-# sentinel_emit_item_a <exit_code> — "the sentry ran": green/red from the
-# job's own exit code (spec v5.9 fragment item A), PLUS Jesse's ruling
-# 2026-09-25 ("degraded is red"): a DEGRADED (or worse) run's own verdict
-# must reach him as a red email, not just an outright crash. orchestrator.mjs
-# deliberately keeps exit code 0 for "degraded-not-fail" (see its finalize()
-# comment on exit codes) — DEGRADED is a real, designed status, not a bug —
-# so a DEGRADED run used to look identical to a clean PASS to every consumer
-# of this exit code, INCLUDING the sentinel check-in that is the only wired
-# path to a red email since #43. Root cause of the missing red mail: no
-# check-in ever went red for a DEGRADED run, because item A only looked at
-# whether the process crashed and item B only looks at the 10-day rolling
-# live-chat-freshness signal — neither one reads this run's own overallLevel.
-# This reads last-run.json (already written by orchestrator.mjs's one
-# finalizer path before this function runs) to close that gap without
-# touching the exit-code contract anything else depends on. Producer
-# failures are already swallowed inside sentinel_checkin (log + return 0);
-# this never affects this wrapper's own exit code.
-sentinel_emit_item_a() {
-  local exit_code="$1"
-  if [ "$exit_code" != "0" ]; then
-    sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-    return 0
-  fi
-
-  local state_file="$STATE_ROOT/last-run.json"
-  local run_level=""
-  if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    run_level="$(jq -r '.overallLevel // empty' "$state_file" 2>/dev/null || true)"
-  fi
-
-  if [ "$run_level" = "DEGRADED" ] || [ "$run_level" = "FAIL" ]; then
-    sentinel_checkin sl-ui-sentry red degraded "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-  else
-    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-  fi
-}
-
-# sentinel_emit_item_b — "live chat has succeeded recently": status comes
-# ONLY from the age of lastSuccessfulLiveChatAt in last-run.json, NEVER from
-# this run's exit code (fragment item B; expected RED on day one and
-# continuously until Turnstile is solved — that is the point, not a bug).
-# Threshold N = 10 days. Reads whatever last-run.json currently holds,
-# including a previous run's value on a code path (e.g. node_modules
-# missing) where this invocation never got to run the orchestrator.
-SENTINEL_LIVE_CHAT_THRESHOLD_DAYS=10
-# Tolerance for the future-dated guard below, in ms. NOT related to job
-# runtime — see the comment at its use for why this exists at all.
-SENTINEL_LIVE_CHAT_FUTURE_TOLERANCE_MS=300000  # 5 minutes
-sentinel_emit_item_b() {
-  local state_file="$STATE_ROOT/last-run.json"
-  local status reason
-  # UI_SENTRY_LAST_SUCCESS_AT is deliberately NOT `local`: the PATH-missing
-  # fallback path below (which calls this function before overwriting
-  # last-run.json) reuses this exact value so the fallback write can carry a
-  # real prior success forward instead of clobbering it with null.
-  UI_SENTRY_LAST_SUCCESS_AT=""
-  if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    UI_SENTRY_LAST_SUCCESS_AT="$(jq -r '.lastSuccessfulLiveChatAt // empty' "$state_file" 2>/dev/null || true)"
-  fi
-  if [ -z "$UI_SENTRY_LAST_SUCCESS_AT" ]; then
-    status="red"; reason="degraded"
-  elif node -e '
-      const last = new Date(process.argv[1]).getTime();
-      const thresholdMs = Number(process.argv[2]) * 86400000;
-      const toleranceMs = Number(process.argv[3]);
-      if (!Number.isFinite(last)) process.exit(1);
-      // Freshness is judged against the REAL current time, not against
-      // $UI_SENTRY_SENTINEL_AT — that is the invocation-time timestamp,
-      // captured before the job body ran, and it MUST stay that way (it is
-      // also what gets reported as this check-ins `at`/`slot`, per spec
-      // v5.9 s3.2 — see sentinel_capture_invocations header). Using it as
-      // "now" here made ageMs negative for every genuinely fresh success,
-      // because last-run.jsons lastSuccessfulLiveChatAt is written minutes
-      // AFTER invocation once the orchestrator actually runs — so a
-      // successful run always computed a negative age and, combined with
-      // the future-dated guard below, always reported red. That was the
-      // bug: real freshness, not the guard, needed fixing.
-      const now = Date.now();
-      const ageMs = now - last;
-      // Still reject a genuinely future-dated timestamp as garbage (a
-      // future-dated last-run.json is corruption, not freshness), but allow
-      // a small explicit tolerance rather than requiring ageMs >= 0
-      // outright: a success recorded during this run is legitimately later
-      // than the runs own invocation instant, and last-run.json is written
-      // moments before this check runs against the real "now" above, so a
-      // little clock skew between that write and this read should not flip
-      // a real success to red. toleranceMs bounds how far into the future
-      // we will still call "fresh enough" — comfortably above any realistic
-      // clock skew, nowhere near the 10-day threshold.
-      process.exit((ageMs >= -toleranceMs && ageMs <= thresholdMs) ? 0 : 1);
-    ' "$UI_SENTRY_LAST_SUCCESS_AT" "$SENTINEL_LIVE_CHAT_THRESHOLD_DAYS" "$SENTINEL_LIVE_CHAT_FUTURE_TOLERANCE_MS" 2>/dev/null; then
-    status="green"; reason="ok"
-  else
-    status="red"; reason="degraded"
-  fi
-  sentinel_checkin sl-ui-sentry-live-chat "$status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-}
+# sentinel_emit_item_a and sentinel_emit_item_b live in lib/sentinel-emit.sh
+# (split out 2026-09-26 so their DEGRADED/state-validity logic can be
+# exercised by a test without carrying this whole wrapper's re-exec/argv/
+# lock/PATH-preflight machinery along with it). Both read $STATE_ROOT and
+# the two UI_SENTRY_SENTINEL_* variables set just above.
 
 mkdir -p "$STATE_ROOT/logs"
 
