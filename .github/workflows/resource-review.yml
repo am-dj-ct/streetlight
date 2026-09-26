@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      RECEIPT_PATH: tmp/resource-review-receipt.jsonl
       BODY_PATH: tmp/resource-review-email.md
       REPORT_PATH: tmp/resource-review.md
       REVIEW_ISSUE_TITLE: Streetlight resource review needs attention
@@ -118,4 +119,15 @@ jobs:
         run: |
           node scripts/send-resend-email.mjs \
             --subject "Streetlight resources need manual review" \
-            --body "$BODY_PATH"
+            --body "$BODY_PATH" \
+            --job resource-review \
+            --receipt "$RECEIPT_PATH"
+
+      - name: Upload email receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resource-review-receipt-${{ github.run_id }}
+          path: ${{ env.RECEIPT_PATH }}
+          if-no-files-found: ignore
+          retention-days: 90
