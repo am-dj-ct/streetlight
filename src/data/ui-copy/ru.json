@@ -16,6 +16,8 @@
     "footerMoreCrisisResources": "Еще кризисные ресурсы и информация о приложении",
     "footerLocalPlaceholder": "Другие кризисные линии King County:",
     "footerFallbackPlaceholder": "Другие национальные линии помощи:",
+    "footerExpandLabel": "Показать помощь в кризисе и информацию о приложении",
+    "footerCollapseLabel": "Скрыть помощь в кризисе и информацию о приложении",
     "landingHeadingLineOne": "Что вам нужно?",
     "landingHeadingLineTwo": "Выберите одно, чтобы начать.",
     "landingScopeNote": "Ресурсы подобраны для King County, WA. Сам инструмент работает для любого человека, где угодно.",

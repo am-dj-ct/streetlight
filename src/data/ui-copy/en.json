@@ -16,6 +16,8 @@
     "footerMoreCrisisResources": "More Crisis Resources and App Info",
     "footerLocalPlaceholder": "Other King County crisis lines:",
     "footerFallbackPlaceholder": "Other national help lines:",
+    "footerExpandLabel": "Show crisis help and app info",
+    "footerCollapseLabel": "Hide crisis help and app info",
     "landingHeadingLineOne": "What do you need?",
     "landingHeadingLineTwo": "Pick one to start.",
     "landingScopeNote": "Resources are organized for King County, WA. The tool itself works for anyone, anywhere.",
