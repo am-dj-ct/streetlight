@@ -400,3 +400,46 @@ requires a fresh structural PASS, a green `sl-ui-sentry` check-in for that
 repair run, and the Sentinel incident resolving. Cross-monitor delivery
 coalescing with `caller-track-pager` remains blocked on that other repo's
 single-writer lane and is not claimed complete here.
+
+## Amendment (2026-09-26): DEGRADED reaches jesse@ as red; client_blocked was bot-speed pacing, not Turnstile being down
+
+A read-only audit found the 2026-09-26 07:23 run DEGRADED — turn 1 of tier 2
+passed, turns 2-6 all came back `client_blocked` — on 5 of the prior 7 days,
+with no red email ever sent since #43 added the direct Resend path. Root
+cause: neither sentinel-v5 check-in this job emits reads the run's own
+verdict. `sl-ui-sentry` goes red only from the wrapper's own exit code, and
+`orchestrator.mjs` deliberately keeps exit 0 for "degraded-not-fail" (a
+designed state, not a crash — see the exit-code table in `finalize()`).
+`sl-ui-sentry-live-chat` goes red only when `lastSuccessfulLiveChatAt` is
+more than 10 days stale, which one passing turn resets regardless of how
+many others were blocked. A DEGRADED run with at least one pass was
+therefore invisible to both signals, contradicting the standing rule
+("degraded is red"). `sentinel_emit_item_a` (`run-ui-sentry.sh`) now also
+reads `last-run.json`'s `overallLevel` and reports red (`reason_code:
+degraded`) whenever it is `DEGRADED` or `FAIL`. No exit-code, cadence, page
+allowlist, or live-turn-cap change.
+
+The red-email path itself (`scripts/sentinel-v5/checkin-lib.sh`,
+`sentinel_mail_red`) used to discard the Resend response entirely
+(`2>&1 >/dev/null` sent the body to `/dev/null`), so a send could never be
+proven. It now captures the HTTP status and Resend message id and appends
+one content-free receipt (timestamp, job, reason code, status, HTTP code,
+Resend message id — never a body or secret) per real send attempt to
+`~/.streetlight/mail-red/receipts.log`. The per-item six-hour cooldown is
+unchanged and still shared with `sl-error-stream-health`. The same
+function's write to the sentinel-v5 spool (`~/.blt-sentinel/spool`) is
+removed — that consumer was retired 2026-09-24 and nothing read it.
+
+Separately, root-caused `client_blocked` on turns 2-6: today's run sent all
+6 fixture turns inside 48 seconds — turn 2 hung the full 30s token-wait
+timeout, turns 3-6 were each refused in about 3 seconds flat, a pattern
+consistent with Cloudflare's behavioral scoring flagging repeated challenge
+executions on the same widget/session in under a minute, not with Turnstile
+being down (tier 0's `/healthz` passed the entire time). No real user reads
+a reply and composes the next message that fast, turn after turn. Added a
+6-14s read-and-think pause before each turn after the first
+(`lib/human-type.mjs`'s `humanPause`) — no new launch flag, no fingerprint
+change, no new technique, only slower pacing. This stays inside the
+no-escalation rule from the 2026-08-08 amendments above: it fights nothing,
+it just stops looking like a script. A live run against production after
+the fix passed all 6 turns.
