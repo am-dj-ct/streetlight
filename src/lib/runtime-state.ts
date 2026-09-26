@@ -6,6 +6,7 @@ import {
   hasHashedIpSalt,
   hasKvConfig,
   hasLiveModelConfig,
+  hasMonitorPassConfig,
   hasOpenAiApiKey,
   hasOpenAiFallbackConfig,
   hasOpenAiFallbackCostConfig,
@@ -26,6 +27,7 @@ export type RuntimeState = {
   abuseControls: {
     hashedIpSaltConfigured: boolean;
     kvConfigured: boolean;
+    monitorPassConfigured: boolean;
     turnstileEnabled: boolean;
     turnstileSecretConfigured: boolean;
     turnstileSiteKeyConfigured: boolean;
@@ -55,6 +57,7 @@ export function getRuntimeState(): RuntimeState {
   const abuseControls = {
     hashedIpSaltConfigured: hasHashedIpSalt(),
     kvConfigured: hasKvConfig(),
+    monitorPassConfigured: hasMonitorPassConfig(),
     turnstileEnabled: isTurnstileEnabled(),
     turnstileSecretConfigured: hasTurnstileSecret(),
     turnstileSiteKeyConfigured: hasTurnstileSiteKey(),
