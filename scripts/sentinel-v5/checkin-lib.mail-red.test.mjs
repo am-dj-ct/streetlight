@@ -19,10 +19,26 @@
 //      after Resend had already accepted the request could cause a resend
 //      on the next check-in. Fixed with a per-item OS advisory lock
 //      (#45's mail-lock.py, reused) around a reserve-before-send cycle,
-//      plus a per-item-per-window Idempotency-Key header.
+//      plus a per-item Idempotency-Key header.
 //   4. Same review: receipts used to accept any string as a Resend id, and
 //      any 2xx started the cooldown even without one. Fixed with the same
 //      UUID validation #45's send-resend-email.mjs already applies.
+//   5. THIRD review, same day: the cross-invocation pending-key/bounded-
+//      retry design from #4 was itself where the next round of bugs came
+//      from — a retry could rebuild the payload with a new timestamp under
+//      the SAME key (a Resend conflict, not a dedup), an unverifiable 2xx
+//      was treated as a definite rejection even though delivery may
+//      already have happened, and the Doppler status read after the send
+//      lived inside a `raw="$(...)"` subshell and never actually reached
+//      the caller. Coordinator decision: stop building cross-invocation
+//      idempotent retry machinery. Simplified to sending at most once per
+//      invocation, plus a single immediate in-process retry of a genuine
+//      network error with the identical payload/key, and a four-outcome
+//      model — confirmed / rejected (4xx) / pre_send_failure (release, no
+//      cooldown) / uncertain (2xx-without-id, 5xx, or an unresolved
+//      network error — treated as POSSIBLY sent, cooldown starts anyway;
+//      a rare missed duplicate is acceptable, a real duplicate is not).
+//      Receipts now also carry this outcome directly.
 //
 // A fake `doppler` and a fake `curl` on PATH stand in for the real CLIs so
 // these run offline, deterministically, and without sending real mail.
@@ -99,6 +115,10 @@ case "$mode" in
     echo "curl: (28) stub connect timeout" >&2
     exit 28
     ;;
+  connect_failure)
+    echo "curl: (7) stub failed to connect to host" >&2
+    exit 7
+    ;;
   *)
     echo "unknown CURL_STUB_MODE: $mode" >&2
     exit 1
@@ -130,7 +150,7 @@ async function makeFixture() {
 }
 
 function runCheckin({
-  binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode, dopplerMode, maxAttempts,
+  binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode, dopplerMode,
 }) {
   const script = `
 set -uo pipefail
@@ -147,8 +167,6 @@ printf 'RC=%s\\n' "$?"
         SENTINEL_FALLBACK_LOG: fallbackLog,
         SENTINEL_MAIL_RED_STATE_DIR: mailRedDir,
         SENTINEL_MAIL_RED_COOLDOWN_SECONDS: "21600",
-        SENTINEL_MAIL_RED_MAX_ATTEMPTS: String(maxAttempts ?? 3),
-        SENTINEL_MAIL_RED_RETRY_DELAY_SECONDS: "0",
         CURL_STUB_MODE: curlMode ?? "success",
         CURL_STUB_CALL_LOG: callLog,
         DOPPLER_STUB_MODE: dopplerMode ?? "success",
@@ -205,10 +223,12 @@ test("a red check-in sends exactly one email and records a receipt with the Rese
   assert.equal(receipts[0].reason, "job_failed");
   assert.equal(receipts[0].httpStatus, 200);
   assert.equal(receipts[0].resendId, "01a0debb-1d46-70d9-82a3-42ea138b1dd2");
+  assert.equal(receipts[0].outcome, "confirmed");
   // Content-free, and the SAME field names #45 uses (timestamp/job/
-  // httpStatus/resendId), plus this path's own fixed `reason` field.
+  // httpStatus/resendId), plus this path's own fixed `reason` field and
+  // the outcome field added in the 3rd cross-vendor review.
   assert.deepEqual(Object.keys(receipts[0]).sort(), [
-    "httpStatus", "job", "reason", "resendId", "timestamp",
+    "httpStatus", "job", "outcome", "reason", "resendId", "timestamp",
   ]);
 });
 
@@ -238,7 +258,7 @@ test("the cooldown is per item — a second, different item still sends its own 
   assert.deepEqual(receipts.map((r) => r.job).sort(), ["sl-test-a", "sl-test-b"]);
 });
 
-test("a definite rejection (clean HTTP, non-2xx) releases the reservation — the next check-in retries", async () => {
+test("a definite 4xx rejection releases the reservation — the next check-in retries", async () => {
   const fx = await makeFixture();
   const first = await runCheckin({
     ...fx, item: "sl-test-c", checkStatus: "red", reasonCode: "job_failed", curlMode: "http_failure",
@@ -249,79 +269,47 @@ test("a definite rejection (clean HTTP, non-2xx) releases the reservation — th
   assert.equal(receiptsAfterFirst.length, 1);
   assert.equal(receiptsAfterFirst[0].httpStatus, 401);
   assert.equal(receiptsAfterFirst[0].resendId, null);
+  assert.equal(receiptsAfterFirst[0].outcome, "rejected");
+  assert.equal(await callCount(fx.callLog), 1, "a definite 4xx is never retried in-process");
 
   // No cooldown started on a definite rejection — a second attempt must try
-  // again, exactly like sentinel_doppler_run's own "retry on real failure"
-  // contract.
+  // again.
   await runCheckin({ ...fx, item: "sl-test-c", checkStatus: "red", reasonCode: "job_failed" });
   assert.equal(await callCount(fx.callLog), 2);
   assert.equal((await readReceipts(fx.mailRedDir)).length, 2);
 });
 
-test("a curl-level failure (no HTTP response at all) is recorded as failed, not crashed", async () => {
+test("a curl-level (network) failure gets exactly one immediate in-process retry with the IDENTICAL idempotency key, then is treated as possibly sent", async () => {
   const fx = await makeFixture();
   const result = await runCheckin({
     ...fx, item: "sl-test-d", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error",
   });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  const receipts = await readReceipts(fx.mailRedDir);
-  assert.equal(receipts.length, 1);
-  assert.equal(receipts[0].httpStatus, null);
-  assert.equal(receipts[0].resendId, null);
-});
 
-test("a curl-level (ambiguous) failure retries in-call, bounded, with the IDENTICAL idempotency key every attempt", async () => {
-  const fx = await makeFixture();
-  const result = await runCheckin({
-    ...fx, item: "sl-test-g", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error", maxAttempts: 3,
-  });
-  assert.match(result.stdout, /^RC=0$/m, result.stderr);
   const lines = await callLines(fx.callLog);
-  assert.equal(lines.length, 3, "should retry up to max_attempts times within this one call");
+  assert.equal(lines.length, 2, "exactly one retry — no cross-invocation or bounded multi-attempt loop any more");
   const keys = lines.map((line) => line.match(/idempotency=(\S+)/)?.[1]);
-  assert.equal(new Set(keys).size, 1, `every attempt must share the identical key; saw ${keys.join(", ")}`);
-  // Ambiguous — no confirmed accept was ever recorded, so no cooldown.
+  assert.equal(new Set(keys).size, 1, `both attempts must share the identical key; saw ${keys.join(", ")}`);
+
+  // Coordinator decision (3rd cross-vendor review): a curl-level failure
+  // that cannot be proven to be pre-send is treated as POSSIBLY sent, not
+  // ambiguous-and-retryable — the cooldown starts even without a confirmed
+  // id, favoring a rare missed duplicate-detection window over ever
+  // actually sending a real duplicate.
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
   assert.equal(receipts[0].httpStatus, null);
   assert.equal(receipts[0].resendId, null);
+  assert.equal(receipts[0].outcome, "uncertain");
+
+  await runCheckin({ ...fx, item: "sl-test-d", checkStatus: "red", reasonCode: "job_failed", curlMode: "success" });
+  assert.equal(await callCount(fx.callLog), 2, "the cooldown from the uncertain outcome must suppress the next check-in");
 });
 
-test("after exhausting in-call retries still ambiguous, a LATER separate check-in reuses the same pending key and can still confirm", async () => {
-  const fx = await makeFixture();
-  await runCheckin({
-    ...fx, item: "sl-test-g2", checkStatus: "red", reasonCode: "job_failed", curlMode: "network_error", maxAttempts: 2,
-  });
-  const firstKeys = (await callLines(fx.callLog)).map((line) => line.match(/idempotency=(\S+)/)?.[1]);
-  assert.equal(firstKeys.length, 2);
-
-  // A later, separately-triggered check-in (not suppressed by any
-  // six-hour cooldown, since nothing was ever confirmed) — this time it
-  // succeeds.
-  await runCheckin({
-    ...fx, item: "sl-test-g2", checkStatus: "red", reasonCode: "job_failed", curlMode: "success", maxAttempts: 2,
-  });
-  const allKeys = (await callLines(fx.callLog)).map((line) => line.match(/idempotency=(\S+)/)?.[1]);
-  assert.equal(allKeys.length, 3, "the second check-in should have made exactly one more attempt");
-  assert.equal(new Set(allKeys).size, 1, "the later check-in must reuse the SAME pending key, not mint a new one");
-
-  const receipts = await readReceipts(fx.mailRedDir);
-  assert.equal(receipts.length, 2);
-  assert.equal(receipts[1].httpStatus, 200);
-  assert.ok(receipts[1].resendId);
-
-  // NOW confirmed — a third call within the cooldown window must be
-  // suppressed, and any further retry would mint a fresh key (there is
-  // nothing pending left to reuse).
-  await runCheckin({ ...fx, item: "sl-test-g2", checkStatus: "red", reasonCode: "job_failed", curlMode: "success" });
-  const finalKeys = (await callLines(fx.callLog)).map((line) => line.match(/idempotency=(\S+)/)?.[1]);
-  assert.equal(finalKeys.length, 3, "confirmed acceptance must start the real six-hour cooldown");
-});
-
-test("a definite pre-send failure (Doppler never handed back secrets, curl never ran) releases the reservation immediately — no in-call retry, no cooldown", async () => {
+test("a definite pre-send failure (Doppler never handed back secrets, curl never ran) releases the reservation immediately — no retry, no cooldown", async () => {
   const fx = await makeFixture();
   const result = await runCheckin({
-    ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", dopplerMode: "fail", maxAttempts: 3,
+    ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", dopplerMode: "fail",
   });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   assert.equal(await callCount(fx.callLog), 0, "curl must never run at all when Doppler itself fails pre-send");
@@ -330,9 +318,10 @@ test("a definite pre-send failure (Doppler never handed back secrets, curl never
   assert.equal(receipts.length, 1);
   assert.equal(receipts[0].httpStatus, null);
   assert.equal(receipts[0].resendId, null);
+  assert.equal(receipts[0].outcome, "pre_send_failure");
 
-  // Released, not kept — the next check-in gets a fresh attempt (and,
-  // since nothing is pending, a fresh key) immediately, not after 6h.
+  // Released, not kept — the next check-in gets a fresh attempt immediately,
+  // not after 6h.
   const result2 = await runCheckin({
     ...fx, item: "sl-test-g3", checkStatus: "red", reasonCode: "job_failed", curlMode: "success",
   });
@@ -340,23 +329,46 @@ test("a definite pre-send failure (Doppler never handed back secrets, curl never
   assert.equal(await callCount(fx.callLog), 1, "the very next check-in must be free to try again, not suppressed");
 });
 
-test("a 2xx with a non-UUID id is not a confirmed accept — resendId is null and no cooldown starts", async () => {
+test("a curl-level connect/DNS failure (rc 6/7) is a definite pre-send failure too — no retry, no cooldown", async () => {
+  const fx = await makeFixture();
+  const result = await runCheckin({
+    ...fx, item: "sl-test-g4", checkStatus: "red", reasonCode: "job_failed", curlMode: "connect_failure",
+  });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await callCount(fx.callLog), 1, "curl ran exactly once — a DNS/connect failure is definite, not retried");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].outcome, "pre_send_failure");
+
+  const result2 = await runCheckin({
+    ...fx, item: "sl-test-g4", checkStatus: "red", reasonCode: "job_failed", curlMode: "success",
+  });
+  assert.match(result2.stdout, /^RC=0$/m, result2.stderr);
+  assert.equal(await callCount(fx.callLog), 2, "released immediately, so the very next check-in tries again");
+});
+
+test("a 2xx with a non-UUID id is treated as possibly sent — outcome=uncertain, cooldown starts anyway", async () => {
   const fx = await makeFixture();
   await runCheckin({ ...fx, item: "sl-test-h", checkStatus: "red", reasonCode: "job_failed", curlMode: "success_bad_id" });
   const receipts = await readReceipts(fx.mailRedDir);
   assert.equal(receipts.length, 1);
   assert.equal(receipts[0].httpStatus, 200);
   assert.equal(receipts[0].resendId, null, "an unvalidated id string must never be trusted as a real Resend id");
+  assert.equal(receipts[0].outcome, "uncertain");
 
+  // Coordinator decision: an unresolved 2xx is possibly sent, so the
+  // cooldown starts anyway — a rare missed duplicate-detection window is
+  // acceptable, an actual duplicate email is not.
   await runCheckin({ ...fx, item: "sl-test-h", checkStatus: "red", reasonCode: "job_failed" });
-  assert.equal(await callCount(fx.callLog), 2, "no confirmed accept means the next check-in should try again");
+  assert.equal(await callCount(fx.callLog), 1, "an uncertain-but-possibly-sent outcome must still suppress the next attempt");
 });
 
-test("the send carries a per-item Idempotency-Key header value", async () => {
+test("the send carries a per-item Idempotency-Key header value, unique per invocation", async () => {
   const fx = await makeFixture();
   await runCheckin({ ...fx, item: "sl-test-i", checkStatus: "red", reasonCode: "job_failed" });
   const [line] = await callLines(fx.callLog);
-  assert.match(line, /idempotency=sl-test-i-\d+/);
+  assert.match(line, /idempotency=sl-test-i-\d+-\d+/);
 });
 
 test("two concurrent callers for the SAME item never both send", async () => {
