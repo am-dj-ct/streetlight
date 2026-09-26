@@ -718,3 +718,151 @@ A live run against production, after all five of these plus the round-two
 monitor-pass wiring, is recorded once it runs after the next UTC-midnight
 quota reset — see the follow-up note below rather than re-editing the
 paragraph above.
+
+## Amendment (2026-09-26, third cross-vendor review): the 3/6 cause is retracted to "unknown," the mail path is simplified, and two more findings fixed
+
+Astra's re-review of the second review's fix-forward PR came back FIX FIRST
+again, with the mail-path redesign flagged as where the NEW bugs were
+coming from, one real remaining gap in the turn-classification fix, one
+more gap in the DEGRADED-verdict-check hardening, one correction to the
+back-navigation fix, and — most important — a direct correction to this
+file's own "real cause of the 3/6 result" paragraph above.
+
+**Retracting the 3/6 causal claim.** The paragraph above says the
+classification bug made an existing-but-rarer misattribution bug fire
+reliably once the monitor pass removed Turnstile's natural pacing. Astra's
+review checked the actual run log independently: it shows only THREE
+`/api/chat` POSTs were ever made, for a run that attempted six turns. A
+misattribution bug — a real response arriving late and being credited to
+the wrong turn, or a leftover DOM node being misread — can only ever
+explain a response being READ wrong; it cannot explain a request never
+being SENT at all. Turns 4-6 were withheld by the browser client itself,
+before any request left it, for a reason this file does not yet know. The
+"only explanation consistent with the actual recorded labels" line above
+overstated what the evidence supported — client_blocked with no HTTP
+status is consistent with several different withholding causes, and
+"the classification bug is why" was never actually verified against a
+real repro, only argued from absence of the quota theory. **The cause of
+the 3/6 result is retracted to genuinely unknown**, to be determined by the
+instrumented live run below, not asserted from reasoning about a bug that
+was already fixed by the time anyone could test the theory directly.
+
+**Mail-path coordinator decision: stop building cross-invocation retry
+machinery.** The second review's three mail-path findings (a stable
+cross-invocation pending key with bounded in-call retries) were themselves
+where the third round's new bugs came from: a retry could rebuild the
+payload with a NEW timestamp under the SAME key (a Resend conflict, not a
+dedup, once delivery is uncertain), an unverifiable 2xx was being treated
+as a definite rejection even though Resend may already have queued it, and
+the Doppler status read immediately after the send lived inside a
+`raw="$(...)"` command-substitution subshell — a subshell's variable
+changes never propagate back to the caller in bash, so
+`SENTINEL_DOPPLER_RUN_STATUS` was being read as stale/empty every single
+time, regardless of what Doppler actually did. Rather than patching a
+third layer onto a design that kept producing new bugs, the coordinator's
+call was to simplify: `sentinel_mail_red_attempt`
+(`scripts/sentinel-v5/checkin-lib.sh`) now sends at most once per
+invocation, with a single immediate in-process retry of a genuine network
+error using the identical payload and key (built once, before any attempt)
+— no pending key is ever written to disk, and no invocation reuses another
+invocation's key. Every attempt resolves to exactly one of four outcomes,
+each recorded in the receipt's new `outcome` field: **confirmed** (2xx +
+valid UUID — cooldown starts), **rejected** (a clean 4xx — released, no
+cooldown), **pre_send_failure** (nothing could have reached Resend at all —
+released, no cooldown, no retry), or **uncertain** (a 2xx without a valid
+id, a 5xx, or an unresolved network failure — treated as POSSIBLY sent, so
+the cooldown starts anyway). That last rule is a deliberate asymmetry:
+a rare missed duplicate-detection window is acceptable, an actual duplicate
+email is not. Distinguishing a genuine pre-send failure turned out to need
+one more fix than planned: `SENTINEL_DOPPLER_RUN_STATUS`'s `"live_failed"`
+value is NOT sound proof that curl never ran — it is set for ANY nonzero
+exit that isn't rate-limit-shaped, which also covers the wrapped curl
+command's OWN failure (an in-process probe with curl itself exiting 28
+reported the identical `live_failed` status as a genuine Doppler auth
+failure) — so `live_failed` alone is now only trusted as a pre-send failure
+when the captured stderr also carries Doppler's own `"Doppler Error"`
+marker; otherwise it falls through to the ordinary curl-rc checks.
+`rate_limited_no_fallback` stays a sound signal on its own, since it is
+only ever set from a doppler-specific rate-limit message match. 12 tests
+in `checkin-lib.mail-red.test.mjs` cover the four outcomes and the
+single-retry behavior; the cross-invocation-pending-key tests from the
+second review are removed, since that machinery no longer exists.
+
+**1 (P1), continued — response and body waits still had no deadline of
+their own.** The second review's request-binding fix correctly stopped
+cross-turn misattribution, but `matchedRequest.response()` and the
+non-200 body-text read were both still awaited with no bound of their
+own — a probe reproduced a stalled response hanging past the turn's
+configured deadline entirely, blocking completion and reporting outright.
+Both are now raced against what remains of the turn's own
+`perTurnDeadlineMs` (`withDeadline` in `lib/conversation.mjs`); a timed-out
+response reports a new, distinct `response_timeout` label instead of
+hanging, and a timed-out body read falls back to `null` (the same,
+already-handled path a body that fails to parse takes). Separately, a
+REPEATED block that also resolves synchronously (no gap between the busy
+flag rising and falling) hit neither existing fast path — the marker never
+changes for a repeat, and polling from outside the page cannot observe an
+edge that starts and ends between two polls — and rode out the full 45s
+poll ceiling; reproduced directly once the test fixture's own
+`__nextDelayMs: 0` was fixed to mean an actually-synchronous transition
+(it had been silently becoming 50ms via JavaScript's `0 || 50` falsy-zero
+behavior). Fixed with an in-page `MutationObserver` on the submit button
+(`busyFallCount`), which is guaranteed to see a rising-then-falling
+attribute cycle regardless of polling cadence, walking each callback's own
+batched mutation records (`attributeOldValue`) rather than only reading the
+button's current live state — a first cut of this exact function read only
+the live state and still failed its own regression test. Two new
+regression tests cover the response-timeout bound and the repeated-
+synchronous case; six total in `lib/conversation.runturn.test.mjs`.
+
+**4 (P1) — a file with more than one valid JSON value still reported
+green.** `sentinel_emit_item_a`'s jq exit-status fix (second review) closed
+the trailing-garbage gap but not this one: jq processes a stream of
+top-level JSON values by default, one line of output per value, so a
+fresh, otherwise-valid PASS document immediately followed by a second,
+harmless-looking `{}` is not a parse error at all — the first (valid)
+line's fields still got read out correctly, with nothing to signal that a
+second value was sitting right after it. Reproduced directly. Fixed with
+`jq -s` (slurp) and an explicit `length != 1` check, plus `type ==
+"string"` validation on every field read (closing the same class of gap
+for a single field's TYPE, not just its presence). Separately hardened
+with a real invocation identity: `orchestrator.mjs` now stamps an
+`invocationId` into the state it writes, copied from the
+`UI_SENTRY_INVOCATION_ID` env var `run-ui-sentry.sh` exports as the exact
+same value it captured as `SENTINEL_AT` before the job body ran; the
+emitter requires an EXACT match, a strictly stronger claim than any
+timestamp-window check can make ("this file was written by THIS
+invocation," not just "some run that started after some instant"). Both
+checks run alongside the existing timestamp bounds, not instead of them.
+Five new tests in `sentinel-emit.test.mjs` (16 total), including the
+literal "fresh PASS followed by `{}`" reproduction.
+
+**5 (P2), continued — `back_forward` is not proof of bfcache.** The second
+review's fix used Navigation Timing's `type === "back_forward"` to decide
+whether a resumed draft was expected. That signal is weaker than it looks:
+the spec defines `back_forward` as ANY history-traversal navigation,
+including one the browser did NOT restore from its cache — an ordinary
+reload reached via Back still reports `back_forward`. Fixed to use
+`pageshow`'s own `persisted` boolean instead — the actual documented
+signal for "this is a live JS context that was frozen and resumed," not
+merely "this happened via Back" — recorded by an init script
+(`page.addInitScript`, `tier1.mjs`) installed once, before any navigation,
+so it re-attaches on every fresh document this page loads and keeps
+running (unmodified, since no new document loads) through any later
+bfcache resume. Hydration is now explicitly awaited on both paths before
+reading the composer, not just the fresh-navigation one.
+
+**Live-run instrumentation added, not yet run.** Since the 3/6 cause is
+unknown, the next live run needs to capture more than pass/fail: on any
+`client_blocked` turn, `tier2.mjs` now logs (content-free — fixed
+diagnostic strings and booleans only, never user or model text) whether
+the monitor pass was selected for that turn (`monitorPass.selectTurn`'s own
+return value), whether `window.turnstile` exists and was successfully
+wrapped by the monitor-pass init script, the current
+`window.__streetlightMonitorPass` flag, and recent console/page errors
+captured since that turn started. This is diagnostic-only scaffolding, not
+a behavior change to classification or the pass itself.
+
+The required live run — exactly one, state pointed at a scratch location,
+no email, after the UTC-midnight quota reset, showing 6/6 or the newly
+captured cause for whatever isn't — has not run yet as of this amendment.
