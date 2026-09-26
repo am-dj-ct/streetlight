@@ -163,7 +163,30 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // CSS at sm and above, so this is a mobile-engine-only structural check) ---
     await runCase(cases, `${engineName}: disclosure toggles`, async () => {
       if (!isMobile) {
-        return { detail: "skipped: disclosure is mobile-only (sm:hidden on desktop)" };
+        // Desktop has no <details>/<summary> at all (crisis-footer.tsx:
+        // the compact mobile wrapper with the disclosure is `sm:hidden`;
+        // desktop's `hidden sm:block` copy renders fullFooterContent
+        // directly, unconditionally expanded). There is nothing to click,
+        // so this can never be a literal toggle test on desktop — but it
+        // must still run a real assertion, not report "pass" for doing
+        // nothing (no skipped-as-pass). The real desktop-equivalent
+        // behavior is that the same content a mobile user has to expand is
+        // already visible here without any interaction — assert that
+        // directly, and fail loudly if a <details> shows up unexpectedly
+        // (a sign the CSS breakpoint moved) or if the full content isn't
+        // actually visible without a click.
+        const footer = page.locator("#crisis-resources");
+        await footer.scrollIntoViewIfNeeded();
+        const detailsCount = await footer.locator("details").count();
+        if (detailsCount > 0) {
+          throw new Error("desktop unexpectedly renders a disclosure <details> — breakpoint may have changed");
+        }
+        const findHumanLink = footer.locator('a[href*="/find-human"]').first();
+        const isVisible = await findHumanLink.isVisible().catch(() => false);
+        if (!isVisible) {
+          throw new Error("desktop crisis footer does not show full content without a disclosure toggle");
+        }
+        return { detail: "desktop: full footer content visible with no disclosure to toggle (by design)" };
       }
       const details = page.locator("#crisis-resources details").first();
       const summary = details.locator("summary").first();
@@ -195,11 +218,44 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       return { detail: `referralCards=${cardCount}` };
     });
 
-    // --- Back/forward: state survives ---
-    await runCase(cases, `${engineName}: back to conversation preserves state`, async () => {
+    // --- Back/forward: the composer draft does NOT leak across a
+    // navigate-away-and-back (renamed from "preserves state" — it never
+    // did; the old body only checked that #conversation-input existed
+    // after goBack, which passes whether or not anything survived).
+    // conversation-client.tsx holds `messages`/`draft` in plain useState
+    // (confirmed by reading the component: no localStorage/sessionStorage
+    // key for either), which matches this app's own non-negotiable — no
+    // accounts, no per-user history, no session table (AGENTS.md). A real
+    // user's typed-but-unsent draft is expected to be gone after a hard
+    // navigation away and back, not silently resurrected. This asserts
+    // that real behavior instead of a placeholder existence check. ---
+    await runCase(cases, `${engineName}: back navigation does not leak the composer draft (no persistence, by design)`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       await assertNoApiFailures(watch);
+
+      const probeText = "sentry back-nav probe — not sent";
+      await humanType(page, probeText, { delayMs: 15 });
+      const typedValue = await page.inputValue("#conversation-input");
+      if (!typedValue.includes("sentry back-nav probe")) {
+        throw new Error("composer did not accept typed text before navigating away");
+      }
+
+      await page.goto(new URL("/find-human", baseUrl).toString(), {
+        waitUntil: "domcontentloaded",
+        timeout: 20_000,
+      });
+      await page.waitForSelector("h1", { timeout: 15_000 });
+      await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      await assertNoApiFailures(watch);
+
+      const valueAfterBack = await page.inputValue("#conversation-input");
+      if (valueAfterBack.length !== 0) {
+        throw new Error(
+          "composer draft leaked across a navigate-away-and-back — this app keeps no per-user history/session state by design",
+        );
+      }
     });
 
     // --- Navigation: report-problem page (structural only, never submitted —
