@@ -100,14 +100,21 @@ const FIXTURE_HTML = `<!doctype html>
 // "post" detection) never fired at all.
 const FIXTURE_ORIGIN = "https://ui-sentry-fixture.test";
 
-async function makePage(browser) {
+// `responseDelaysMs` is a Node-side FIFO queue (not page state): each real
+// /api/chat request pops the next configured delay (default 0) before the
+// route fulfills, letting a test control exactly how slow ONE specific
+// turn's own response is without touching the page's own timing at all.
+async function makePage(browser, { responseDelaysMs = [] } = {}) {
   const page = await browser.newPage();
+  const delays = [...responseDelaysMs];
   await page.route(`${FIXTURE_ORIGIN}/`, (route) =>
     route.fulfill({ status: 200, contentType: "text/html", body: FIXTURE_HTML }),
   );
-  await page.route(`${FIXTURE_ORIGIN}/api/chat`, (route) =>
-    route.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
-  );
+  await page.route(`${FIXTURE_ORIGIN}/api/chat`, async (route) => {
+    const delay = delays.length > 0 ? delays.shift() : 0;
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
   await page.goto(`${FIXTURE_ORIGIN}/`);
   return page;
 }
@@ -130,6 +137,81 @@ test("a turn that actually sends is not misclassified as blocked by a PRIOR turn
     });
     const turn2 = await runTurn(page, { text: "turn two", baseUrl: FIXTURE_ORIGIN });
     assert.equal(turn2.label, "pass", "turn 2 actually sent and must not read as blocked from turn 1's stale notice");
+
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+});
+
+// 2nd cross-vendor review (2026-09-26), finding 1: the previous fix still
+// tracked ANY page-wide `response` event matching /api/chat, with no
+// notion of which submission it answered — a response arriving late (after
+// this turn's own window) could be credited to the next turn's fresh
+// listener. Fixed by binding to this turn's own Request object
+// (page.waitForRequest, set up before Enter) and awaiting ITS OWN
+// .response(); nothing page-wide is ever consulted. This proves the fix
+// end to end: turn 1's own response is deliberately slow (arrives well
+// after a real user would expect a fast one), and turn 2 immediately
+// after it must still get ITS OWN fast response correctly — not something
+// left over from turn 1's timing.
+test("a turn whose own response is slow is still matched correctly, and does not affect the next turn's own (fast) response", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await makePage(browser, { responseDelaysMs: [1500, 0] });
+
+    await page.evaluate(() => {
+      window.__nextBlocked = false;
+      window.__nextDelayMs = 50;
+    });
+    const turn1StartedAt = Date.now();
+    const turn1 = await runTurn(page, { text: "turn one", baseUrl: FIXTURE_ORIGIN });
+    const turn1ElapsedMs = Date.now() - turn1StartedAt;
+    assert.equal(turn1.label, "pass", "turn 1's own (slow) response must still be matched to turn 1");
+    assert.ok(turn1ElapsedMs >= 1500, `turn 1 resolved in ${turn1ElapsedMs}ms — should have waited out its own 1500ms response delay`);
+
+    await page.evaluate(() => {
+      window.__nextBlocked = false;
+      window.__nextDelayMs = 50;
+    });
+    const turn2 = await runTurn(page, { text: "turn two", baseUrl: FIXTURE_ORIGIN });
+    assert.equal(turn2.label, "pass", "turn 2 must get its own fast response, unaffected by turn 1's slower one");
+
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+});
+
+// 2nd cross-vendor review, finding 1's second timing case: a Turnstile
+// callback that resolves SYNCHRONOUSLY can flip isPreparingTurnstile
+// true -> false within a single tick, faster than any 100ms poll can ever
+// observe "busy" — the busy-cycle signal alone would then never fire, and
+// this turn would silently ride out the full 45s poll ceiling as a false
+// timeout instead of a fast, correct "blocked". delayMs: 0 reproduces
+// that: the fixture's own busy toggle happens inside one JS task, with
+// nothing to observe at 100ms granularity. The notice-marker fast path
+// (currentFailureNoticeMarker) is what has to catch this instead.
+test("a synchronously-resolved block (busy toggles faster than any poll could see) is still classified as blocked quickly via the notice marker, not a 45s false timeout", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await makePage(browser);
+
+    await page.evaluate(() => {
+      window.__nextBlocked = true;
+      window.__nextDelayMs = 0;
+    });
+    const startedAt = Date.now();
+    const turn1 = await runTurn(page, { text: "turn one", baseUrl: FIXTURE_ORIGIN });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.equal(turn1.label, "client_blocked", "a synchronous block must still read as blocked");
+    assert.ok(
+      elapsedMs < 5000,
+      `turn 1 took ${elapsedMs}ms — a synchronous block should resolve via the notice-marker fast path almost immediately, not wait out any grace window or the 45s ceiling`,
+    );
 
     await browser.close();
   } catch (error) {

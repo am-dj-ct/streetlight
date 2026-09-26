@@ -79,6 +79,37 @@ async function isSendControlBusy(page) {
   });
 }
 
+// Complementary FAST signal for the same "did THIS turn conclude blocked"
+// question, for the timing case isSendControlBusy alone can miss (2nd
+// cross-vendor review, 2026-09-26): if the app's Turnstile callback fires
+// synchronously (reproduced with an in-memory probe against a failure
+// callback — the monitor pass's OWN callback injection only ever fires
+// synchronously for a GRANT, never a failure, but a real widget's
+// error-callback firing that fast is not ruled out), `isPreparingTurnstile`
+// can flip true -> false within a single tick, faster than any 100ms poll
+// can ever observe "busy". Marks whichever `p[role="status"]` node
+// currently carries the fixed send-failure text (or null if none is
+// visible), so a caller can diff it against a value captured before
+// sending — a genuinely NEW node appearing is unambiguous proof of a fresh
+// failure, no grace window needed. It does NOT help a genuinely REPEATED
+// identical-text block (the same node persists — see
+// isSendControlBusy's header for why), which is exactly why this
+// supplements the busy-cycle check below rather than replacing it.
+async function currentFailureNoticeMarker(page) {
+  return page.evaluate((expected) => {
+    const nodes = [...document.querySelectorAll('p[role="status"]')].filter((node) =>
+      (node.textContent ?? "").includes(expected),
+    );
+    if (nodes.length === 0) return null;
+    const node = nodes[0];
+    if (!node.dataset.uiSentryNoticeId) {
+      window.__uiSentryNoticeCounter = (window.__uiSentryNoticeCounter ?? 0) + 1;
+      node.dataset.uiSentryNoticeId = String(window.__uiSentryNoticeCounter);
+    }
+    return node.dataset.uiSentryNoticeId;
+  }, SEND_FAILURE_NOTICE_TEXT);
+}
+
 async function pollUntil({ timeoutMs, intervalMs, check }) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -141,68 +172,107 @@ async function waitForStreamDone(page, remainingMs) {
     .catch(() => false);
 }
 
+const TURN_POLL_TIMEOUT_MS = 45_000;
+// The app clears `isPreparingTurnstile` (busy -> false) BEFORE it issues
+// the /api/chat POST on a turn that is actually going through — the token
+// resolves first, then the code that was waiting on it either takes the
+// blocked early-return or continues on to fetch(). Concluding "blocked" on
+// the very poll tick busy goes false (an earlier version of this fix did
+// exactly that) raced ahead of that continuation and misclassified a real
+// send as blocked. This grace window lets a POST that is already in flight
+// actually land before giving up; the matched-request check (see runTurn)
+// runs first on every tick regardless, so a POST that arrives at any point
+// during (or after) the grace window still wins immediately.
+const BUSY_FALL_GRACE_MS = 5000;
+
 // Runs one turn: types the fixture text, sends via Enter, classifies the
 // outcome per R1/R2/R3, waits for reply completion per R6 on a pass.
 // The turn cap itself is enforced upstream by installTurnBudgetGuard
 // (budget-guard.mjs), which aborts any /api/chat POST past the cap at the
 // request boundary (R17) — this function only observes whatever response
 // (real or aborted) results.
+//
+// Root cause fixed here (2nd cross-vendor review, 2026-09-26): the
+// previous version listened for ANY `page.on("response")` matching
+// /api/chat, with no notion of which SUBMISSION it answered. A response
+// whose headers arrive after this turn's own 45s poll gave up — but before
+// the NEXT turn's fresh listener was attached, or overlapping with it —
+// could be credited to the wrong turn; an in-memory probe reproduced it.
+// Fixed by capturing the specific Request object for THIS turn via
+// page.waitForRequest, set up BEFORE Enter is pressed, and following ONLY
+// that request's own .response() — a page-wide event stream is never
+// consulted at all, so cross-turn misattribution is impossible by
+// construction, not just unlikely.
 export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000 }) {
   const before = await messageCounts(page);
-  const chatResponses = [];
-
-  const onResponse = (response) => {
-    if (!response.url().includes("/api/chat")) return;
-    if (response.request().method() !== "POST") return;
-    chatResponses.push(observeChatResponse(response));
-  };
-  page.on("response", onResponse);
-
+  const beforeNoticeMarker = await currentFailureNoticeMarker(page);
   const turnStartedAt = Date.now();
+
+  // Set up before Enter is pressed so it can never race the send itself.
+  // Bounded to the same window this turn's own polling uses below; the
+  // `.catch(() => null)` means a timeout here reads as "no request showed
+  // up," never as an unhandled rejection.
+  let matchedRequest = null;
+  const requestWatch = page
+    .waitForRequest(
+      (request) => request.url().includes("/api/chat") && request.method() === "POST",
+      { timeout: TURN_POLL_TIMEOUT_MS },
+    )
+    .then((request) => {
+      matchedRequest = request;
+      return request;
+    })
+    .catch(() => null);
+
   try {
     await humanType(page, text);
     await page.focus("#conversation-input");
     await page.keyboard.press("Enter");
 
-    // sawBusy tracks THIS turn's own rising edge of isSendControlBusy — see
-    // its header for why that, not notice text, is what tells a genuinely
-    // concluded (blocked) attempt apart from one still in flight. Only
-    // count the falling edge as "concluded" once we've actually observed
-    // it go busy first, so a poll tick landing between two turns (this
-    // turn hasn't made the control busy yet) can't be misread as "already
-    // finished."
-    //
-    // BUSY_FALL_GRACE_MS: the app clears `isPreparingTurnstile` (busy ->
-    // false) BEFORE it issues the /api/chat POST on a turn that is actually
-    // going through — the token resolves first, then the code that was
-    // waiting on it either takes the blocked early-return or continues on
-    // to fetch(). Concluding "blocked" on the very poll tick busy goes
-    // false (an earlier version of this fix did exactly that) raced ahead
-    // of that continuation and misclassified a real send as blocked. This
-    // grace window lets a POST that is already in flight actually land
-    // before giving up; `chatResponses.length > 0` is checked first on
-    // every tick regardless, so a POST that arrives at any point during (or
-    // after) the grace window still wins immediately.
-    const BUSY_FALL_GRACE_MS = 5000;
+    // Races three signals every 100ms: this turn's own request landing
+    // (checked first, always wins — ground truth beats any inference), a
+    // genuinely NEW failure notice appearing (fast path for a first-ever or
+    // synchronously-resolved block — see currentFailureNoticeMarker's
+    // header), and the busy-control rising/falling edge with its grace
+    // window (the reliable path for a genuinely REPEATED identical-text
+    // block, which the marker check alone cannot see). sawBusy/busyEndedAt
+    // are scoped to this call, never carried across turns.
     let sawBusy = false;
     let busyEndedAt = null;
-    const raced = await pollUntil({
-      timeoutMs: 45_000,
-      intervalMs: 100,
-      check: async () => {
-        if (chatResponses.length > 0) return "post";
-        if (await isSendControlBusy(page)) {
-          sawBusy = true;
-          busyEndedAt = null;
-          return null;
-        }
-        if (!sawBusy) return null;
-        if (busyEndedAt === null) busyEndedAt = Date.now();
-        return Date.now() - busyEndedAt >= BUSY_FALL_GRACE_MS ? "notice" : null;
-      },
-    });
+    const deadline = Date.now() + TURN_POLL_TIMEOUT_MS;
+    for (;;) {
+      if (matchedRequest) break;
 
-    if (raced === "notice" && chatResponses.length === 0) {
+      const marker = await currentFailureNoticeMarker(page);
+      if (marker !== null && marker !== beforeNoticeMarker) break;
+
+      if (await isSendControlBusy(page)) {
+        sawBusy = true;
+        busyEndedAt = null;
+      } else if (sawBusy) {
+        if (busyEndedAt === null) busyEndedAt = Date.now();
+        if (Date.now() - busyEndedAt >= BUSY_FALL_GRACE_MS) break;
+      }
+
+      if (Date.now() >= deadline) {
+        // Only wait out requestWatch's own remaining timeout HERE, where
+        // we are already at (or past) the full poll ceiling anyway — a
+        // blanket `await requestWatch` after every kind of break, including
+        // the fast marker path and the busy-grace path above, would
+        // silently re-impose the full 45s wait on paths whose entire point
+        // is resolving well before that. requestWatch's own `.catch(() =>
+        // null)` (set at creation, above) means never awaiting it further
+        // in the fast-path cases is still safe: this closure's
+        // `matchedRequest` is local to THIS call and cannot leak into the
+        // next turn's own separate closure even if this promise settles
+        // later, in the background, after this function has returned.
+        await requestWatch;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    if (!matchedRequest) {
       return {
         label: "client_blocked",
         httpStatus: null,
@@ -211,17 +281,24 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
       };
     }
 
-    if (raced === null) {
+    // A real request exists — ground truth always wins over a provisional
+    // blocked read from the loop above, even if both became true in the
+    // same tick.
+    const response = await matchedRequest.response();
+    if (!response) {
+      // The request fired but never got a response at all (aborted by the
+      // turn-budget guard past the cap, or a genuine network failure) —
+      // distinct from client_blocked, which means no request ever left the
+      // browser.
       return {
-        label: "no_post_no_notice_timeout",
+        label: "no_response",
         httpStatus: null,
         ttftMs: null,
         totalMs: Date.now() - turnStartedAt,
       };
     }
 
-    // POST fired. Confirm the user bubble landed before entering
-    // reply-waiting (R1).
+    // Confirm the user bubble landed before entering reply-waiting (R1).
     await pollUntil({
       timeoutMs: 10_000,
       intervalMs: 150,
@@ -231,9 +308,9 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
       },
     });
 
-    const response = chatResponses[0];
-    const bodyText = response.status === 200 ? null : await response.bodyTextPromise;
-    let classification = classifyChatResponse({ status: response.status, bodyText });
+    const observed = observeChatResponse(response);
+    const bodyText = observed.status === 200 ? null : await observed.bodyTextPromise;
+    let classification = classifyChatResponse({ status: observed.status, bodyText });
 
     if (PAUSED_LABELS.has(classification.label)) {
       const healthz = await fetchHealthz(baseUrl);
@@ -245,7 +322,7 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
     if (classification.label !== "pass") {
       return {
         label: classification.label,
-        httpStatus: response.status,
+        httpStatus: observed.status,
         ttftMs: null,
         totalMs: Date.now() - turnStartedAt,
       };
@@ -263,7 +340,7 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
     if (streamLabel !== "pass") {
       return {
         label: streamLabel,
-        httpStatus: response.status,
+        httpStatus: observed.status,
         ttftMs: firstTokenAt ? firstTokenAt - turnStartedAt : null,
         totalMs: Date.now() - turnStartedAt,
       };
@@ -271,11 +348,15 @@ export async function runTurn(page, { text, baseUrl, perTurnDeadlineMs = 180_000
 
     return {
       label: "pass",
-      httpStatus: response.status,
+      httpStatus: observed.status,
       ttftMs: firstTokenAt ? firstTokenAt - turnStartedAt : null,
       totalMs: Date.now() - turnStartedAt,
     };
   } finally {
-    page.off("response", onResponse);
+    // Best-effort: if the request/response promises above are somehow
+    // still unsettled (e.g. an unexpected throw before the awaits ran),
+    // never let this call leave a dangling rejection behind for the next
+    // turn to inherit.
+    requestWatch.catch(() => {});
   }
 }
