@@ -163,7 +163,39 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // CSS at sm and above, so this is a mobile-engine-only structural check) ---
     await runCase(cases, `${engineName}: disclosure toggles`, async () => {
       if (!isMobile) {
-        return { detail: "skipped: disclosure is mobile-only (sm:hidden on desktop)" };
+        // Desktop has no <details>/<summary> at all (crisis-footer.tsx:
+        // the compact mobile wrapper with the disclosure is `sm:hidden`;
+        // desktop's `hidden sm:block` copy renders fullFooterContent
+        // directly, unconditionally expanded). There is nothing to click,
+        // so this can never be a literal toggle test on desktop — but it
+        // must still run a real assertion, not report "pass" for doing
+        // nothing (no skipped-as-pass). The real desktop-equivalent
+        // behavior is that the same content a mobile user has to expand is
+        // already visible here without any interaction — assert that
+        // directly, and fail loudly if a <details> shows up unexpectedly
+        // (a sign the CSS breakpoint moved) or if the full content isn't
+        // actually visible without a click.
+        const footer = page.locator("#crisis-resources");
+        await footer.scrollIntoViewIfNeeded();
+        // The mobile <details> is always in the DOM (compact mode renders
+        // both copies and lets CSS pick one via sm:hidden/hidden sm:block)
+        // — so presence alone isn't the regression signal, VISIBILITY is:
+        // a details element that is actually visible on desktop would mean
+        // the breakpoint moved.
+        const detailsLocator = footer.locator("details").first();
+        if ((await detailsLocator.count()) > 0 && (await detailsLocator.isVisible())) {
+          throw new Error("desktop unexpectedly shows a visible disclosure <details> — breakpoint may have changed");
+        }
+        // The compact wrapper renders BOTH copies of fullFooterContent (one
+        // inside the closed, hidden <details>, one in the always-visible
+        // `hidden sm:block` desktop copy) — `.first()` in DOM order would
+        // grab the hidden one and report a false failure, so match only a
+        // visible one instead.
+        const visibleFindHumanCount = await footer.locator('a[href*="/find-human"]:visible').count();
+        if (visibleFindHumanCount === 0) {
+          throw new Error("desktop crisis footer does not show full content without a disclosure toggle");
+        }
+        return { detail: "desktop: full footer content visible; any disclosure <details> stays hidden (by design)" };
       }
       const details = page.locator("#crisis-resources details").first();
       const summary = details.locator("summary").first();
@@ -195,11 +227,59 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       return { detail: `referralCards=${cardCount}` };
     });
 
-    // --- Back/forward: state survives ---
-    await runCase(cases, `${engineName}: back to conversation preserves state`, async () => {
+    // --- Back/forward: the composer draft does NOT leak across a
+    // navigate-away-and-back (renamed from "preserves state" — it never
+    // did; the old body only checked that #conversation-input existed
+    // after goBack, which passes whether or not anything survived).
+    // conversation-client.tsx holds `messages`/`draft` in plain useState
+    // (confirmed by reading the component: no localStorage/sessionStorage
+    // key for either), which matches this app's own non-negotiable — no
+    // accounts, no per-user history, no session table (AGENTS.md). A real
+    // user's typed-but-unsent draft is expected to be gone after a hard
+    // navigation away and back, not silently resurrected. This asserts
+    // that real behavior instead of a placeholder existence check. ---
+    await runCase(cases, `${engineName}: back navigation does not leak the composer draft (no persistence, by design)`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      // Same pre-hydration keystroke-drop race gotoConversation guards
+      // against (settleAfterConversationLoad's own comment) — a back
+      // navigation that reloads this page needs the same settle before
+      // typing, or the probe text below can land short/empty.
+      await settleAfterConversationLoad(page);
       await assertNoApiFailures(watch);
+
+      const conversationUrl = page.url();
+      const probeText = "sentry back-nav probe — not sent";
+      await humanType(page, probeText, { delayMs: 15 });
+      const typedValue = await page.inputValue("#conversation-input");
+      if (!typedValue.includes("sentry back-nav probe")) {
+        throw new Error("composer did not accept typed text before navigating away");
+      }
+
+      await page.goto(new URL("/find-human", baseUrl).toString(), {
+        waitUntil: "domcontentloaded",
+        timeout: 20_000,
+      });
+      await page.waitForSelector("h1", { timeout: 15_000 });
+      // A real `goto` back to the same URL, not goBack() — goBack() can hit
+      // the browser's own back-forward cache, whose restore-vs-reload
+      // choice is a browser heuristic this product doesn't control and
+      // isn't consistent run to run (confirmed empirically: an isolated
+      // probe against production cleared the draft every time, but this
+      // exact case flaked on webkit-mobile once inside the full tier-1
+      // sequence, after more history entries had built up). A forced
+      // reload is what actually exercises the app's own no-persistence
+      // design deterministically, without gambling on bfcache.
+      await page.goto(conversationUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      await assertNoApiFailures(watch);
+
+      const valueAfterBack = await page.inputValue("#conversation-input");
+      if (valueAfterBack.length !== 0) {
+        throw new Error(
+          "composer draft leaked across a navigate-away-and-back — this app keeps no per-user history/session state by design",
+        );
+      }
     });
 
     // --- Navigation: report-problem page (structural only, never submitted —

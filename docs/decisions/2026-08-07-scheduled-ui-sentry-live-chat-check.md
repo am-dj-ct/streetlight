@@ -3,6 +3,8 @@
 **Date:** 2026-08-07
 
 > **Partly superseded (2026-08-17).** The reporting decision below — "every run sends an email regardless of outcome" — no longer holds. The sentry sends no email on any path; it writes its report to the run log and `last-run.json`, and two external monitors read those. See `docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`, which also closes the R12 dead-man gap admitted under Consequences. Everything else in this ADR stands.
+>
+> **Cadence updated (2026-08-23).** Jesse's spec, Sentinel chat: the UI checks are supposed to be daily, not Mon/Wed/Fri. Commit `8bc68a9` (#30) moved the live plist to a daily 07:23 local fire; the numbers below are updated to match. The per-run caps this ADR authorizes (≤8 live turns, single-instance lock, no `KeepAlive`, no internal retry loop) are unchanged — only the number of runs per week changed.
 
 ## Context
 
@@ -30,8 +32,8 @@ do; this ADR ratifies the resulting build.
 ## Decision
 
 Add `com.streetlight.ui-sentry` — a `launchd` job on the operator's own Mac,
-running `scripts/ui-sentry/run-ui-sentry.sh --live`, Mon/Wed/Fri 07:23 local
-(≤3 runs/week). This ADR **supersedes the 2026-07-12 ADR for this one named
+running `scripts/ui-sentry/run-ui-sentry.sh --live`, daily 07:23 local
+(7 runs/week — see the cadence note above). This ADR **supersedes the 2026-07-12 ADR for this one named
 sentry only** — the 2026-07-12 boundary still applies to every other local
 monitor; it does not become general permission for local tooling to call
 chat routes. Any other monitor must still stay inside the 2026-07-12
@@ -48,9 +50,9 @@ boundary or get its own dated ADR.
 - **`/api/chat` turn budget:** at most 8 live turns per run, enforced at the
   request boundary (a `context.route` interceptor aborts any POST past the
   cap before it reaches the network — not just counted after the fact). The
-  schedule caps this at 3 runs/week, so the sentry's own ceiling is ≤24
-  live turns/week; in practice each run sends 6 synthetic turns, so the
-  expected weekly total is 18 turns, plus whatever a manual proof/debug run
+  schedule caps this at 7 runs/week (daily), so the sentry's own ceiling is
+  ≤56 live turns/week; in practice each run sends 6 synthetic turns, so the
+  expected weekly total is 42 turns, plus whatever a manual proof/debug run
   adds. Every `/api/chat` turn is ~3 model calls (main response, classifier,
   follow-up suggestions) — this is real, non-zero spend, authorized here
   specifically because it is capped, scheduled, and disclosed, not because
@@ -71,7 +73,7 @@ boundary or get its own dated ADR.
 ### Reporting: subject lines and the persistent-blocked escalation
 
 Every run sends an email regardless of outcome — the absence of the
-Mon/Wed/Fri email is itself the dead-man signal (subject to the honest gap
+daily email is itself the dead-man signal (subject to the honest gap
 below). The subject is one of `PASS`, `DEGRADED (chat blocked)`,
 `DEGRADED (chat blocked, N consecutive)`, `FAIL (chat blocked 3 runs
 running)`, `PASS (chat recovered)`, `FAIL` / `FAIL (site down)`, or
@@ -103,7 +105,7 @@ This narrows what "the report is content-free" means in practice, not what
 it protects: the escalation state machine only ever operates on booleans
 and counts (`consecutiveBlockedRuns`, `blockedEscalationActive`) already in
 the allowlisted `last-run.json` schema below — no new field carries content.
-- **Cadence:** Mon/Wed/Fri 07:23 local, no `KeepAlive`, no internal retry
+- **Cadence:** daily 07:23 local, no `KeepAlive`, no internal retry
   loop. A manual run (`run-ui-sentry.sh --live`, the same entry point,
   same caps) is permitted for proof and debugging and shares the same
   turn budget and single-instance lock as the scheduled fire — there is no
@@ -148,11 +150,11 @@ the allowlisted `last-run.json` schema below — no new field carries content.
 
 ## Consequences
 
-- Jesse gets a content-free, 3x/week signal that the real user-facing path
+- Jesse gets a content-free, daily signal that the real user-facing path
   — page load, buttons, navigation, and (best-effort) an actual model
   turn — still works, without hand-testing and without a new vendor.
 - Real, bounded live-model spend is authorized on a schedule for the first
-  time by local tooling: ≤18 live turns/week in the normal case (≤24 as a
+  time by local tooling: ≤42 live turns/week in the normal case (≤56 as a
   hard ceiling), each turn ~3 model calls. This is disclosed here precisely
   so it is never a surprise line on a bill.
 - **Honest gap (R12):** if this Mac, `launchd`, or Doppler itself dies
@@ -282,7 +284,8 @@ still governs.
 periodically on the operator's own Mac is expected and cosmetic —
 already true of the manual proof runs used to validate this change. It
 carries no new cap, schedule, or content change; the ≤8-turn budget and
-Mon/Wed/Fri cadence in the base decision above are unaffected.
+cadence (daily — see the cadence note at the top of this ADR) in the base
+decision above are unaffected.
 
 ## Amendment (2026-08-08, same day): phone emulation was the second blocker — tier 2 now runs visible desktop Chrome, not a phone
 
@@ -397,3 +400,46 @@ requires a fresh structural PASS, a green `sl-ui-sentry` check-in for that
 repair run, and the Sentinel incident resolving. Cross-monitor delivery
 coalescing with `caller-track-pager` remains blocked on that other repo's
 single-writer lane and is not claimed complete here.
+
+## Amendment (2026-09-26): DEGRADED reaches jesse@ as red; client_blocked was bot-speed pacing, not Turnstile being down
+
+A read-only audit found the 2026-09-26 07:23 run DEGRADED — turn 1 of tier 2
+passed, turns 2-6 all came back `client_blocked` — on 5 of the prior 7 days,
+with no red email ever sent since #43 added the direct Resend path. Root
+cause: neither sentinel-v5 check-in this job emits reads the run's own
+verdict. `sl-ui-sentry` goes red only from the wrapper's own exit code, and
+`orchestrator.mjs` deliberately keeps exit 0 for "degraded-not-fail" (a
+designed state, not a crash — see the exit-code table in `finalize()`).
+`sl-ui-sentry-live-chat` goes red only when `lastSuccessfulLiveChatAt` is
+more than 10 days stale, which one passing turn resets regardless of how
+many others were blocked. A DEGRADED run with at least one pass was
+therefore invisible to both signals, contradicting the standing rule
+("degraded is red"). `sentinel_emit_item_a` (`run-ui-sentry.sh`) now also
+reads `last-run.json`'s `overallLevel` and reports red (`reason_code:
+degraded`) whenever it is `DEGRADED` or `FAIL`. No exit-code, cadence, page
+allowlist, or live-turn-cap change.
+
+The red-email path itself (`scripts/sentinel-v5/checkin-lib.sh`,
+`sentinel_mail_red`) used to discard the Resend response entirely
+(`2>&1 >/dev/null` sent the body to `/dev/null`), so a send could never be
+proven. It now captures the HTTP status and Resend message id and appends
+one content-free receipt (timestamp, job, reason code, status, HTTP code,
+Resend message id — never a body or secret) per real send attempt to
+`~/.streetlight/mail-red/receipts.log`. The per-item six-hour cooldown is
+unchanged and still shared with `sl-error-stream-health`. The same
+function's write to the sentinel-v5 spool (`~/.blt-sentinel/spool`) is
+removed — that consumer was retired 2026-09-24 and nothing read it.
+
+Separately, root-caused `client_blocked` on turns 2-6: today's run sent all
+6 fixture turns inside 48 seconds — turn 2 hung the full 30s token-wait
+timeout, turns 3-6 were each refused in about 3 seconds flat, a pattern
+consistent with Cloudflare's behavioral scoring flagging repeated challenge
+executions on the same widget/session in under a minute, not with Turnstile
+being down (tier 0's `/healthz` passed the entire time). No real user reads
+a reply and composes the next message that fast, turn after turn. Added a
+6-14s read-and-think pause before each turn after the first
+(`lib/human-type.mjs`'s `humanPause`) — no new launch flag, no fingerprint
+change, no new technique, only slower pacing. This stays inside the
+no-escalation rule from the 2026-08-08 amendments above: it fights nothing,
+it just stops looking like a script. A live run against production after
+the fix passed all 6 turns.

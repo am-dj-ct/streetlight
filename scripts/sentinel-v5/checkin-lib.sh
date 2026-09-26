@@ -102,6 +102,40 @@ SENTINEL_MAIL_RED_FROM="${SENTINEL_MAIL_RED_FROM:-Streetlight <notifications@ale
 SENTINEL_MAIL_RED_STATE_DIR="${SENTINEL_MAIL_RED_STATE_DIR:-$HOME/.streetlight/mail-red}"
 SENTINEL_MAIL_RED_COOLDOWN_SECONDS="${SENTINEL_MAIL_RED_COOLDOWN_SECONDS:-21600}"
 SENTINEL_MAIL_RED_DISABLED="${SENTINEL_MAIL_RED_DISABLED:-}"
+# Subject prefix hook, empty by default (no production behavior change) —
+# lets a manual verification send mark itself "[TEST] " without touching the
+# real subject text any other caller gets.
+SENTINEL_MAIL_RED_SUBJECT_PREFIX="${SENTINEL_MAIL_RED_SUBJECT_PREFIX:-}"
+# Receipts (Jesse's order: "save the receipts"). One append-only, JSON-lines
+# file, content-free by construction: timestamp, job/item, reason code,
+# send status, HTTP status, and the Resend message id — never a message
+# body, header value, or secret. Written for every real send ATTEMPT (not
+# for a call skipped by the cooldown or by SENTINEL_MAIL_RED_DISABLED,
+# neither of which sent anything).
+SENTINEL_MAIL_RED_RECEIPTS_FILE="${SENTINEL_MAIL_RED_RECEIPTS_FILE:-$SENTINEL_MAIL_RED_STATE_DIR/receipts.log}"
+sentinel_record_mail_receipt() {
+  local item="$1" reason_code="$2" status="$3" http_code="$4" resend_id="$5"
+  mkdir -p "$(dirname "$SENTINEL_MAIL_RED_RECEIPTS_FILE")" 2>/dev/null || true
+  python3 - "$SENTINEL_MAIL_RED_RECEIPTS_FILE" "$item" "$reason_code" "$status" "$http_code" "$resend_id" <<'PY' 2>/dev/null || \
+    sentinel_log_fallback_failure "mail-red-receipt:$item" "receipt write failed"
+import datetime
+import json
+import sys
+
+receipts_file, item, reason_code, status, http_code, resend_id = sys.argv[1:7]
+record = {
+    "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "job": item,
+    "reason_code": reason_code,
+    "status": status,
+    "http_code": int(http_code) if http_code.isdigit() else None,
+    "resend_message_id": resend_id or None,
+}
+with open(receipts_file, "a") as fh:
+    fh.write(json.dumps(record, sort_keys=True) + "\n")
+PY
+  return 0
+}
 sentinel_mail_red() {
   local item="$1" reason_code="$2" at="$3"
   [ -n "$SENTINEL_MAIL_RED_DISABLED" ] && return 0
@@ -116,13 +150,13 @@ sentinel_mail_red() {
   local payload
   payload="$(mktemp 2>/dev/null || true)"
   [ -z "$payload" ] && { sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable"; return 0; }
-  python3 - "$payload" "$item" "$reason_code" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" <<'PY' 2>/dev/null || { rm -f "$payload"; sentinel_log_fallback_failure "mail-red:$item" "payload build failed"; return 0; }
+  python3 - "$payload" "$item" "$reason_code" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$SENTINEL_MAIL_RED_SUBJECT_PREFIX" <<'PY' 2>/dev/null || { rm -f "$payload"; sentinel_log_fallback_failure "mail-red:$item" "payload build failed"; return 0; }
 import json, sys
-payload, item, reason, at, to, sender = sys.argv[1:7]
+payload, item, reason, at, to, sender, subject_prefix = sys.argv[1:8]
 json.dump({
     "from": sender,
     "to": [to],
-    "subject": f"Streetlight watcher RED: {item} ({reason})",
+    "subject": f"{subject_prefix}Streetlight watcher RED: {item} ({reason})",
     "text": (
         f"Watcher {item} reported red at {at} (reason: {reason}).\n\n"
         "Logs: ~/.streetlight/  (error-stream-health/, ui-sentry/)\n"
@@ -131,30 +165,73 @@ json.dump({
     ),
 }, open(payload, "w"))
 PY
-  local err
-  if err="$(SENTINEL_MAIL_PAYLOAD="$payload" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-      'curl -s --fail --max-time 20 -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>&1 >/dev/null)"; then
+
+  # Run the send with stdout (the Resend response body) and stderr (any
+  # curl-level failure text, e.g. a timeout) captured SEPARATELY, instead of
+  # the old `2>&1 >/dev/null` that routed the response body straight to
+  # /dev/null and kept only stderr — the actual Resend message id (needed
+  # for the receipt) was being thrown away on every send, pass or fail.
+  # `-w "\n%{http_code}"` appends the HTTP status after a newline so it can
+  # be split from the JSON body without needing `--fail` (which would have
+  # discarded the error body on a non-2xx response, and the error body is
+  # exactly what we want captured too).
+  local errfile raw rc http_code body resend_id status
+  errfile="$(mktemp 2>/dev/null || true)"
+  if [ -n "$errfile" ]; then
+    raw="$(SENTINEL_MAIL_PAYLOAD="$payload" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>"$errfile")"
+    rc=$?
+  else
+    raw="$(SENTINEL_MAIL_PAYLOAD="$payload" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
+        'curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -d "@$SENTINEL_MAIL_PAYLOAD"' 2>/dev/null)"
+    rc=$?
+  fi
+
+  http_code="${raw##*$'\n'}"
+  body="${raw%$'\n'*}"
+  case "$http_code" in *[!0-9]*|"") http_code="" ;; esac
+
+  resend_id=""
+  if [ -n "$body" ]; then
+    resend_id="$(printf '%s' "$body" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    value = data.get("id", "")
+    print(value if isinstance(value, str) else "")
+except Exception:
+    print("")
+' 2>/dev/null || true)"
+  fi
+
+  if [ "$rc" -eq 0 ] && [ -n "$http_code" ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+    status="sent"
     printf '%s' "$now" > "$marker" 2>/dev/null || true
   else
-    sentinel_log_fallback_failure "mail-red:$item" "${err:-send failed}"
+    status="failed"
+    local err=""
+    [ -n "${errfile:-}" ] && err="$(cat "$errfile" 2>/dev/null || true)"
+    sentinel_log_fallback_failure "mail-red:$item" "curl_rc=$rc http_code=${http_code:-none} ${err:+stderr=$err}"
   fi
+  [ -n "${errfile:-}" ] && rm -f "$errfile" 2>/dev/null || true
+
+  sentinel_record_mail_receipt "$item" "$reason_code" "$status" "${http_code:-}" "$resend_id"
+
   rm -f "$payload" 2>/dev/null || true
   return 0
 }
+# sentinel_checkin no longer writes to the sentinel-v5 spool
+# (~/.blt-sentinel/spool) — that consumer layer was retired 2026-09-24 and
+# nothing reads it any more (standing rule: strip Sentinel check-in code
+# when touching a job). What the red-email path actually needs from a
+# check-in is kept: on red, send (or skip under cooldown) the direct email
+# above. `slot` is accepted for call-site compatibility with existing
+# callers (run-ui-sentry.sh, run-error-stream-health.sh) but is otherwise
+# unused now that nothing validates a claimed cron slot against a registry.
 sentinel_checkin() {
   local item="$1" check_status="$2" reason_code="$3" at="$4" slot="$5"
-  local err
   if [ "$check_status" = "red" ]; then
     sentinel_mail_red "$item" "$reason_code" "$at" || true
-  fi
-  if ! err="$(node "$SENTINEL_CHECKIN_MJS" \
-    --item "$item" \
-    --status "$check_status" \
-    --reason-code "$reason_code" \
-    --at "$at" \
-    --slot "$slot" \
-    2>&1 >/dev/null)"; then
-    sentinel_log_fallback_failure "checkin:$item:$check_status" "${err:-unknown error}"
   fi
   return 0
 }
