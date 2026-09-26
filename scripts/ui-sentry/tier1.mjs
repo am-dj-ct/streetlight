@@ -227,18 +227,27 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       return { detail: `referralCards=${cardCount}` };
     });
 
-    // --- Back/forward: the composer draft does NOT leak across a
-    // navigate-away-and-back (renamed from "preserves state" — it never
-    // did; the old body only checked that #conversation-input existed
-    // after goBack, which passes whether or not anything survived).
+    // --- Back navigation (real history back, not a reload): the composer
+    // draft does NOT leak (renamed from "preserves state" — it never did;
+    // the old body only checked that #conversation-input existed after
+    // goBack, which passes whether or not anything survived).
     // conversation-client.tsx holds `messages`/`draft` in plain useState
     // (confirmed by reading the component: no localStorage/sessionStorage
     // key for either), which matches this app's own non-negotiable — no
-    // accounts, no per-user history, no session table (AGENTS.md). A real
-    // user's typed-but-unsent draft is expected to be gone after a hard
-    // navigation away and back, not silently resurrected. This asserts
-    // that real behavior instead of a placeholder existence check. ---
-    await runCase(cases, `${engineName}: back navigation does not leak the composer draft (no persistence, by design)`, async () => {
+    // accounts, no per-user history, no session table (AGENTS.md). No
+    // explicit contract says what a REAL back navigation does (as opposed
+    // to a reload — see the next case) beyond that, so this asserts the
+    // behavior actually observed rather than assuming it: `page.goBack()`
+    // can in principle be served from the browser's own back-forward
+    // cache, whose restore-vs-reload choice is a browser heuristic, not
+    // this app's code. Measured empirically against production before
+    // writing this assertion — 4 isolated fresh-context trials per engine,
+    // outside any longer test sequence — and every trial came back cleared
+    // on both chromium and webkit (cross-vendor review, 2026-09-26: an
+    // earlier version of this file used `goto()` for this leg specifically
+    // to dodge that question, which is why it's named for what it tests
+    // now — a real back navigation, not a disguised reload). ---
+    await runCase(cases, `${engineName}: back navigation (history back) clears the composer draft — no cross-navigation persistence, by design`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       // Same pre-hydration keystroke-drop race gotoConversation guards
@@ -248,7 +257,6 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       await settleAfterConversationLoad(page);
       await assertNoApiFailures(watch);
 
-      const conversationUrl = page.url();
       const probeText = "sentry back-nav probe — not sent";
       await humanType(page, probeText, { delayMs: 15 });
       const typedValue = await page.inputValue("#conversation-input");
@@ -261,23 +269,51 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
         timeout: 20_000,
       });
       await page.waitForSelector("h1", { timeout: 15_000 });
-      // A real `goto` back to the same URL, not goBack() — goBack() can hit
-      // the browser's own back-forward cache, whose restore-vs-reload
-      // choice is a browser heuristic this product doesn't control and
-      // isn't consistent run to run (confirmed empirically: an isolated
-      // probe against production cleared the draft every time, but this
-      // exact case flaked on webkit-mobile once inside the full tier-1
-      // sequence, after more history entries had built up). A forced
-      // reload is what actually exercises the app's own no-persistence
-      // design deterministically, without gambling on bfcache.
-      await page.goto(conversationUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+
+      await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       await assertNoApiFailures(watch);
 
       const valueAfterBack = await page.inputValue("#conversation-input");
       if (valueAfterBack.length !== 0) {
         throw new Error(
-          "composer draft leaked across a navigate-away-and-back — this app keeps no per-user history/session state by design",
+          "composer draft leaked across a real back navigation — this app keeps no per-user history/session state by design",
+        );
+      }
+    });
+
+    // --- Reload (a real network fetch, no history/bfcache ambiguity at
+    // all): the composer draft does NOT survive. This is a DIFFERENT
+    // question from the back-navigation case above — "does a fresh load of
+    // this page ever start with stale state" rather than "does going back
+    // to it" — and it is the deterministic form of the same underlying
+    // no-persistence design, since a reload can never be served from
+    // history the way a back navigation sometimes can. ---
+    await runCase(cases, `${engineName}: reloading the conversation page clears the composer draft (no persistence, by design)`, async () => {
+      const conversationUrl = page.url();
+
+      const probeText = "sentry reload probe — not sent";
+      await humanType(page, probeText, { delayMs: 15 });
+      const typedValue = await page.inputValue("#conversation-input");
+      if (!typedValue.includes("sentry reload probe")) {
+        throw new Error("composer did not accept typed text before reloading");
+      }
+
+      await page.goto(conversationUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector("#conversation-input", { timeout: 15_000 });
+      // Wait for hydration before asserting (cross-vendor review,
+      // 2026-09-26) — reading the composer before React has hydrated after
+      // a fresh load is the same keystroke-drop-shaped race
+      // settleAfterConversationLoad's own header describes, and it would
+      // make this assertion pass for the wrong reason (nothing hydrated
+      // yet to hold onto a leaked value, not confirmed absence of one).
+      await settleAfterConversationLoad(page);
+      await assertNoApiFailures(watch);
+
+      const valueAfterReload = await page.inputValue("#conversation-input");
+      if (valueAfterReload.length !== 0) {
+        throw new Error(
+          "composer draft survived a reload — this app keeps no per-user history/session state by design",
         );
       }
     });
