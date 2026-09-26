@@ -242,6 +242,38 @@ export function successfulStreamLabel({ firstTokenAt, streamDone, failureNoticeS
   return "pass";
 }
 
+// One-shot, no wait — is the messages section busy RIGHT NOW.
+export async function isPageStreaming(page) {
+  return page.evaluate(
+    () => document.querySelector("section[aria-live]")?.getAttribute("aria-busy") === "true",
+  );
+}
+
+// Before advancing to the next turn after any non-"pass" result, the page
+// must not still be streaming a PRIOR turn's reply (4th cross-vendor
+// review, 2026-09-26, finding 4 — likely THE cause of only 3 POSTs for 6
+// attempted turns): a response_timeout gives up polling from OUR side, but
+// the page's own fetch/stream consumption keeps running regardless, and
+// conversation-client.tsx's submit handler queues a draft instead of
+// sending it whenever `isStreaming` is still true (confirmed by reading
+// the component) — so the NEXT turn's prompt would silently never become a
+// request at all. No stop/cancel control exists in the product to end a
+// stream early, so this waits up to `maxWaitMs` for it to finish on its
+// own, and if it still hasn't, reloads the conversation page — the only
+// way left to force a known-idle state before the next turn types anything.
+export async function ensurePageIdleBeforeNextTurn(page, { baseUrl, entryId, maxWaitMs = 20_000 } = {}) {
+  const streamingBefore = await isPageStreaming(page);
+  if (!streamingBefore) {
+    return { streamingInProgress: false, reloaded: false };
+  }
+  const settled = await waitForStreamDone(page, maxWaitMs);
+  if (settled) {
+    return { streamingInProgress: true, reloaded: false };
+  }
+  await gotoConversation(page, baseUrl, entryId);
+  return { streamingInProgress: true, reloaded: true };
+}
+
 async function waitForStreamDone(page, remainingMs) {
   if (remainingMs <= 0) return false;
   return page
