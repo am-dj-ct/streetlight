@@ -35,7 +35,7 @@ export async function consumeMonitorPass(request: Request): Promise<boolean> {
     now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1,
   ) / 1000) + 60;
   try {
-    const reserved = await kv.eval<number>(
+    const reserved = await kv.eval(
       reservePassScript,
       [`monitor-pass:${now.toISOString().slice(0, 10)}`],
       [monitorPassDailyCap, expiresAt],
