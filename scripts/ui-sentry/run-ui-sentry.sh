@@ -98,15 +98,39 @@ UI_SENTRY_SENTINEL_AT="$SENTINEL_AT"
 UI_SENTRY_SENTINEL_SLOT="$SENTINEL_SLOT"
 
 # sentinel_emit_item_a <exit_code> — "the sentry ran": green/red from the
-# job's own exit code (spec v5.9 fragment item A). Producer failures are
-# already swallowed inside sentinel_checkin (log + return 0); this never
-# affects this wrapper's own exit code.
+# job's own exit code (spec v5.9 fragment item A), PLUS Jesse's ruling
+# 2026-09-25 ("degraded is red"): a DEGRADED (or worse) run's own verdict
+# must reach him as a red email, not just an outright crash. orchestrator.mjs
+# deliberately keeps exit code 0 for "degraded-not-fail" (see its finalize()
+# comment on exit codes) — DEGRADED is a real, designed status, not a bug —
+# so a DEGRADED run used to look identical to a clean PASS to every consumer
+# of this exit code, INCLUDING the sentinel check-in that is the only wired
+# path to a red email since #43. Root cause of the missing red mail: no
+# check-in ever went red for a DEGRADED run, because item A only looked at
+# whether the process crashed and item B only looks at the 10-day rolling
+# live-chat-freshness signal — neither one reads this run's own overallLevel.
+# This reads last-run.json (already written by orchestrator.mjs's one
+# finalizer path before this function runs) to close that gap without
+# touching the exit-code contract anything else depends on. Producer
+# failures are already swallowed inside sentinel_checkin (log + return 0);
+# this never affects this wrapper's own exit code.
 sentinel_emit_item_a() {
   local exit_code="$1"
-  if [ "$exit_code" = "0" ]; then
-    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-  else
+  if [ "$exit_code" != "0" ]; then
     sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
+    return 0
+  fi
+
+  local state_file="$STATE_ROOT/last-run.json"
+  local run_level=""
+  if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
+    run_level="$(jq -r '.overallLevel // empty' "$state_file" 2>/dev/null || true)"
+  fi
+
+  if [ "$run_level" = "DEGRADED" ] || [ "$run_level" = "FAIL" ]; then
+    sentinel_checkin sl-ui-sentry red degraded "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
+  else
+    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
   fi
 }
 
