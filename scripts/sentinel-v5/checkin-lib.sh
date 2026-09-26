@@ -272,7 +272,7 @@ PY
   raw_file="$(mktemp 2>/dev/null || true)"
   errfile="$(mktemp 2>/dev/null || true)"
   SENTINEL_MAIL_PAYLOAD="$payload" SENTINEL_MAIL_IDEMPOTENCY_KEY="$idempotency_key" SENTINEL_MAIL_CURL_STARTED_MARKER="$curl_started_marker" sentinel_doppler_run "agent-secrets" "dev" -- sh -c \
-      'touch "$SENTINEL_MAIL_CURL_STARTED_MARKER"; exec curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' \
+      'touch "$SENTINEL_MAIL_CURL_STARTED_MARKER" || exit 97; exec curl -s --max-time 20 -w "\n%{http_code}" -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" -H "content-type: application/json" -H "Idempotency-Key: $SENTINEL_MAIL_IDEMPOTENCY_KEY" -d "@$SENTINEL_MAIL_PAYLOAD"' \
       >"${raw_file:-/dev/null}" 2>"${errfile:-/dev/null}"
   rc=$?
 

@@ -137,7 +137,22 @@ echo "mktemp: stub failure" >&2
 exit 1
 `;
 
-async function makeFixture({ mktempFails = false } = {}) {
+// Fails only for the curl-started marker (every other touch goes to the
+// real binary), standing in for temp storage turning unwritable between
+// creating the marker path and the send. If the send still went ahead with
+// no marker, the caller would record pre_send_failure and start no
+// cooldown after a real delivery: a duplicate email on the next run.
+const TOUCH_MARKER_FAIL_STUB = `#!/usr/bin/env bash
+for a in "$@"; do
+  if [ -n "\${SENTINEL_MAIL_CURL_STARTED_MARKER:-}" ] && [ "$a" = "$SENTINEL_MAIL_CURL_STARTED_MARKER" ]; then
+    echo "touch: stub failure" >&2
+    exit 1
+  fi
+done
+exec /usr/bin/touch "$@"
+`;
+
+async function makeFixture({ mktempFails = false, markerTouchFails = false } = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "sentinel-mail-red-"));
   const binDir = path.join(dir, "bin");
   const fallbackDir = path.join(dir, "doppler-fallback");
@@ -150,6 +165,11 @@ async function makeFixture({ mktempFails = false } = {}) {
   await writeFile(curlPath, CURL_STUB);
   await chmod(dopplerPath, 0o755);
   await chmod(curlPath, 0o755);
+  if (markerTouchFails) {
+    const touchPath = path.join(binDir, "touch");
+    await writeFile(touchPath, TOUCH_MARKER_FAIL_STUB);
+    await chmod(touchPath, 0o755);
+  }
   if (mktempFails) {
     const mktempPath = path.join(binDir, "mktemp");
     await writeFile(mktempPath, MKTEMP_FAIL_STUB);
@@ -387,6 +407,18 @@ test("a temp-file creation failure before any send still writes a pre_send_failu
   assert.equal(receipts.length, 1, "an early return before the send must still write a receipt");
   assert.equal(receipts[0].outcome, "pre_send_failure");
   assert.equal(receipts[0].httpStatus, null);
+  assert.equal(receipts[0].resendId, null);
+});
+
+test("a failed curl-started marker blocks the send — no email without a marker, pre_send_failure receipt", async () => {
+  const fx = await makeFixture({ markerTouchFails: true });
+  const result = await runCheckin({ ...fx, item: "sl-test-m", checkStatus: "red", reasonCode: "job_failed" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await callCount(fx.callLog), 0, "curl must not run when the marker could not be written");
+
+  const receipts = await readReceipts(fx.mailRedDir);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].outcome, "pre_send_failure");
   assert.equal(receipts[0].resendId, null);
 });
 
