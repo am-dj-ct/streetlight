@@ -95,7 +95,11 @@ test("a fresh, valid PASS report reports green", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "PASS", startedAt: "2026-09-26T14:00:05.000Z" }),
+    JSON.stringify({
+      overallLevel: "PASS",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+    }),
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
@@ -106,7 +110,11 @@ test("a fresh DEGRADED report reports red degraded", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "DEGRADED", startedAt: "2026-09-26T14:00:05.000Z" }),
+    JSON.stringify({
+      overallLevel: "DEGRADED",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+    }),
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
@@ -117,7 +125,11 @@ test("a fresh FAIL report also reports red", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "FAIL", startedAt: "2026-09-26T14:00:05.000Z" }),
+    JSON.stringify({
+      overallLevel: "FAIL",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+    }),
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
@@ -154,19 +166,86 @@ test("an unrecognized overallLevel value reports red state_unverifiable, not gre
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "SOMETHING_NEW", startedAt: "2026-09-26T14:00:05.000Z" }),
+    JSON.stringify({
+      overallLevel: "SOMETHING_NEW",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+    }),
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
 });
 
-test("a PASS left over from a PREVIOUS invocation (startedAt before this run started) reports red state_unverifiable, never green", async () => {
+test("a PASS left over from a PREVIOUS invocation (startedAt before this run started, a different invocationId) reports red state_unverifiable, never green", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "PASS", startedAt: "2026-09-25T14:00:00.000Z" }),
+    JSON.stringify({
+      overallLevel: "PASS",
+      startedAt: "2026-09-25T14:00:00.000Z",
+      invocationId: "2026-09-25T14:00:00.000Z",
+    }),
   );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+});
+
+// 3rd cross-vendor review, 2026-09-26, finding 4: an invocation id lets the
+// emitter make a much stronger claim than any timestamp window can — not
+// "not older than roughly when this run started," but "this exact file was
+// written by THIS exact invocation." A startedAt that is otherwise fresh
+// but carries a DIFFERENT invocation's id must still read as unverifiable.
+test("a fresh-looking startedAt with a MISMATCHED invocationId reports red state_unverifiable, never green", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "PASS",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "some-other-invocations-id",
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+});
+
+// 3rd cross-vendor review, finding 4: a non-string value passing a bare
+// null-check (the old `// ""` pattern) is the same class of gap as the
+// multi-value one below, just for one field instead of the whole document
+// — e.g. a schema drift that writes overallLevel as an object or number.
+test("a non-string overallLevel (failing strict field-type validation) reports red state_unverifiable, not green", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: { drifted: "schema" },
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+});
+
+// 3rd cross-vendor review, finding 4's own repro: a fresh, otherwise-VALID
+// PASS document (a real, correctly formatted timestamp, matching
+// invocationId, everything the checks above accept on its own) immediately
+// followed by a second JSON value — reproduced directly with a trailing
+// `{}`. This is not a parse error (both values are individually valid
+// JSON), so the exit-status check from the 2nd review's fix does not catch
+// it on its own; `length != 1` under `-s` (slurp) is what does.
+test("a fresh, otherwise-valid PASS report followed by a second JSON value ({}) reports red state_unverifiable, not green", async () => {
+  const fx = await makeFixture();
+  const validDoc = JSON.stringify({
+    overallLevel: "PASS",
+    startedAt: "2026-09-26T14:00:05.000Z",
+    invocationId: "2026-09-26T14:00:00.000Z",
+  });
+  await writeFile(path.join(fx.stateRoot, "last-run.json"), `${validDoc}\n{}`);
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
@@ -192,7 +271,11 @@ test("a wildly future-dated startedAt (year 2099) reports red state_unverifiable
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "PASS", startedAt: "2099-01-01T00:00:00.000Z" }),
+    JSON.stringify({
+      overallLevel: "PASS",
+      startedAt: "2099-01-01T00:00:00.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+    }),
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
@@ -225,7 +308,11 @@ test("mixed timestamp precision (millisecond startedAt vs a second-precision inv
   // real millisecond-precision startedAt.
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
-    JSON.stringify({ overallLevel: "PASS", startedAt: "2026-09-26T14:00:00.500Z" }),
+    JSON.stringify({
+      overallLevel: "PASS",
+      startedAt: "2026-09-26T14:00:00.500Z",
+      invocationId: "2026-09-26T14:00:00Z",
+    }),
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);

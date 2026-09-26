@@ -98,6 +98,13 @@ sentinel_capture_invocation sl-ui-sentry || true
 : "${SENTINEL_SLOT:=$SENTINEL_AT}"
 UI_SENTRY_SENTINEL_AT="$SENTINEL_AT"
 UI_SENTRY_SENTINEL_SLOT="$SENTINEL_SLOT"
+# Exported (unlike the two above) so the orchestrator.mjs subprocess below
+# can read it: it stamps this exact value into last-run.json as
+# `invocationId`, which sentinel_emit_item_a (lib/sentinel-emit.sh) then
+# requires to match THIS invocation's own UI_SENTRY_SENTINEL_AT exactly
+# before trusting the file at all (3rd cross-vendor review, 2026-09-26) —
+# an exact-match check the timestamp-window check alone could not make.
+export UI_SENTRY_INVOCATION_ID="$SENTINEL_AT"
 
 # sentinel_emit_item_a and sentinel_emit_item_b live in lib/sentinel-emit.sh
 # (split out 2026-09-26 so their DEGRADED/state-validity logic can be

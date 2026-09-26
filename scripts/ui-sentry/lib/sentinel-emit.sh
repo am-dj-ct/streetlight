@@ -46,25 +46,58 @@
 #     invocation) with no UPPER bound, so a corrupted or wildly future-dated
 #     timestamp (reproduced with a year-2099 `startedAt`) passed it too.
 #
-# Four things all have to hold before a level is trusted:
+# A THIRD review round (same day) found the second cut still had a gap: a
+# file containing MULTIPLE valid JSON values — not a parse error at all, so
+# the exit-status check above did not catch it — still read green.
+# Reproduced with a fresh PASS document (a real, correctly RFC-formatted
+# timestamp) immediately followed by a second, empty `{}` value. Without
+# `-s`/slurp, jq processes each value in the stream separately and prints
+# one line per value; the FIRST (valid) line's fields still ended up
+# picked apart correctly by the shell parameter expansions below, with no
+# signal at all that a second, malformed value was sitting right after it
+# in the same file. Fixed two ways:
+#   - `jq -s` (slurp) reads the WHOLE file as one array of however many
+#     top-level JSON values it actually contains; `length != 1` rejects
+#     anything but exactly one, closing this specific gap outright rather
+#     than hoping a downstream check happens to catch whatever the extra
+#     value contains.
+#   - Every field read is type-checked (`type == "string"`) before it is
+#     trusted at all, not just null-checked — a non-string value passing a
+#     bare `// ""` fallback is the same class of gap as the multi-value one,
+#     just for a single field instead of the whole document.
+#   - orchestrator.mjs (the sole producer of a real last-run.json) now
+#     stamps an `invocationId` into the state it writes, copied straight
+#     from the UI_SENTRY_INVOCATION_ID env var run-ui-sentry.sh exports —
+#     the exact same value as this invocation's own UI_SENTRY_SENTINEL_AT.
+#     Requiring an EXACT match, not just "not older than," is a strictly
+#     stronger claim than any timestamp-window check can make: a match
+#     PROVES this file was written by THIS invocation's own orchestrator
+#     run, not merely "some run that started after some instant," which
+#     stays true no matter how tight or loose the window is.
+#
+# Five things all have to hold before a level is trusted:
 #   1. jq parses the file as EXACTLY one JSON value — checked via jq's own
-#      exit status now, not the mere presence of stdout output.
-#   2. `overallLevel` is present and is exactly one of the three real values
-#      this schema ever writes (PASS/DEGRADED/FAIL) — anything else,
-#      including empty, is unverifiable.
-#   3. `startedAt` is not older than THIS invocation's own
-#      UI_SENTRY_SENTINEL_AT — orchestrator.mjs always stamps `startedAt`
-#      before doing anything else, and this wrapper always captures
-#      UI_SENTRY_SENTINEL_AT before the doppler-wrapped orchestrator call
-#      even starts, so a genuine run of THIS invocation can only produce a
-#      `startedAt` at or after that instant. An earlier `startedAt` means
-#      the file predates this invocation — stale state, not a report on
-#      what just happened.
-#   4. `startedAt` is not more than a small skew (5 minutes — the same
-#      tolerance item B already uses below, for the same clock-skew reason)
-#      ahead of the REAL current time read at THIS check — never ahead of
-#      "now" by more than that, catching a corrupted/future-dated value
-#      that check 3's lower bound alone cannot.
+#      exit status AND an explicit slurped-length check, not the mere
+#      presence of stdout output.
+#   2. `overallLevel`, `startedAt`, and `invocationId` are all present with
+#      the JSON type "string" — anything else, including null, a number, or
+#      absent, is unverifiable.
+#   3. `overallLevel` is exactly one of the three real values this schema
+#      ever writes (PASS/DEGRADED/FAIL) — anything else is unverifiable.
+#   4. `invocationId` matches THIS invocation's own UI_SENTRY_SENTINEL_AT
+#      exactly.
+#   5. `startedAt` is bounded on both sides: not older than THIS
+#      invocation's own UI_SENTRY_SENTINEL_AT (orchestrator.mjs always
+#      stamps `startedAt` before doing anything else, and this wrapper
+#      always captures UI_SENTRY_SENTINEL_AT before the doppler-wrapped
+#      orchestrator call even starts, so a genuine run can only produce a
+#      `startedAt` at or after that instant), and not more than a small
+#      skew (5 minutes — the same tolerance item B already uses below, for
+#      the same clock-skew reason) ahead of the REAL current time read at
+#      THIS check, catching a corrupted/future-dated value the lower bound
+#      alone cannot. Kept alongside check 4, not replaced by it: two
+#      independent checks that both have to hold is strictly safer than
+#      either alone.
 # All numeric epoch comparisons (via `node -e`), never string comparison:
 # last-run.json's ISO timestamps carry milliseconds and
 # UI_SENTRY_SENTINEL_AT's wall-clock fallback does not, and mixed precision
@@ -90,17 +123,34 @@ sentinel_emit_item_a() {
   fi
 
   local state_file="${STATE_ROOT}/last-run.json"
-  local run_level="" run_started_at="" tsv jq_rc
+  local run_level="" run_started_at="" run_invocation_id="" tsv jq_rc
 
   if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    # ONE jq invocation for both fields — a single atomic read of the file,
-    # and a single exit-code check, rather than two separate calls that
-    # could in principle disagree if the file changed between them.
-    tsv="$(jq -re '[(.overallLevel // ""), (.startedAt // "")] | @tsv' "$state_file" 2>/dev/null)"
+    # ONE jq invocation for all three fields — a single atomic read of the
+    # file, and a single exit-code check, rather than separate calls that
+    # could in principle disagree if the file changed between them. `-s`
+    # (slurp) plus the explicit `length != 1` is what catches a file
+    # holding more than one JSON value (see the header above) — a plain
+    # exit-status check alone does not, since multiple valid values are not
+    # a parse error. `error(...)` makes jq exit nonzero with a message on
+    # its own stderr (discarded here) for either failure shape.
+    tsv="$(jq -re '
+        if length != 1 then error("expected exactly one JSON value")
+        else .[0]
+          | if (.overallLevel | type) != "string"
+              or (.startedAt | type) != "string"
+              or (.invocationId | type) != "string"
+            then error("field type invalid")
+            else [.overallLevel, .startedAt, .invocationId] | @tsv
+            end
+        end
+      ' -s "$state_file" 2>/dev/null)"
     jq_rc=$?
     if [ "$jq_rc" -eq 0 ] && [ -n "$tsv" ]; then
       run_level="${tsv%%$'\t'*}"
-      run_started_at="${tsv#*$'\t'}"
+      local rest="${tsv#*$'\t'}"
+      run_started_at="${rest%%$'\t'*}"
+      run_invocation_id="${rest#*$'\t'}"
     fi
   fi
 
@@ -110,7 +160,8 @@ sentinel_emit_item_a() {
   esac
 
   local state_is_current=1
-  if [ -z "$run_started_at" ]; then
+  if [ -z "$run_started_at" ] || [ -z "$run_invocation_id" ] \
+    || [ -z "$UI_SENTRY_SENTINEL_AT" ] || [ "$run_invocation_id" != "$UI_SENTRY_SENTINEL_AT" ]; then
     state_is_current=0
   elif ! node -e '
       const startedAt = Date.parse(process.argv[1]);

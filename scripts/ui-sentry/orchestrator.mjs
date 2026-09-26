@@ -31,6 +31,15 @@ const SKIP_TIER2 =
 
 const startedAt = new Date();
 const logPath = `${LOG_DIR}/${startedAt.toISOString().replace(/[:.]/g, "-")}.log`;
+// Stamped straight into state below as `invocationId` — run-ui-sentry.sh
+// exports the exact same value it captured as its own SENTINEL_AT before
+// this process ever started, so sentinel-emit.sh can require an EXACT
+// match rather than only "not older than" a captured instant (3rd
+// cross-vendor review, 2026-09-26). Null for any direct/manual invocation
+// outside that wrapper (e.g. commissioning checks) — the emitter's own
+// match check already treats an absent id as unverifiable, same as before
+// this existed.
+const invocationId = process.env.UI_SENTRY_INVOCATION_ID || null;
 const logger = new Logger(logPath);
 
 const previousState = readPreviousState();
@@ -137,6 +146,7 @@ async function finalize() {
 
   const state = {
     status: effectiveLevel,
+    invocationId,
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - startedAt.getTime(),
