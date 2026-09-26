@@ -460,3 +460,116 @@ site in `tier2.mjs` are removed; see the cross-vendor-review amendment
 below for the replacement wiring. The hypothesis above was never confirmed
 or refuted on its own terms — it was overtaken by a real fix before either
 happened.
+
+## Amendment (2026-09-26, cross-vendor review follow-up): five findings fixed, monitor pass wired in
+
+Astra's cross-vendor review of the previous amendment's PR came back FIX
+FIRST with five findings. All five are fixed in the follow-up PR; this
+records what was actually wrong and what changed, since "hypothesis, not a
+proven cause" above turned out to undersell it — one of these was a real,
+previously undiagnosed bug that could independently produce the exact
+turn-2/turns-3-6 `client_blocked` shape this ADR spent most of a day
+chasing as a Cloudflare-behavioral-scoring theory.
+
+**1 (P1) — a turn could be classified as blocked from a PRIOR turn's
+leftover notice, and turns could overlap unfinished attempts.** The app
+renders its send-failure notice from a plain `useState` holding one FIXED
+string. Two client-blocked turns in a row call `setErrorMessage` with the
+IDENTICAL value (the client-blocked branch never writes
+`lastSendFailureMessageRef`), so React bails out of re-rendering and the
+SAME `<p role="status">` DOM node survives, untouched, from turn N into
+turn N+1. `runTurn`'s old check ("does a matching notice exist anywhere on
+the page") fired on turn N+1's very first poll from turn N's leftover
+node — before turn N+1's own attempt had resolved at all. Fixed by
+watching the submit control's own disabled state instead of notice text
+(`isSendControlBusy` in `lib/conversation.mjs`): it cycles busy -> not-busy
+on every real attempt (mirroring `isPreparingTurnstile`), independent of
+whether the eventual failure text repeats, with a grace window
+(`BUSY_FALL_GRACE_MS`, 5s) after the busy state clears to let an actual
+send land before concluding "blocked" — the app clears that busy state
+BEFORE issuing the POST, so concluding "blocked" on the tick busy ends
+raced ahead of a real send during testing of the fix itself. Two
+regression tests (`lib/conversation.runturn.test.mjs`) run this against a
+real headless browser and a static fixture. This fix stands regardless of
+the monitor pass below, since turn 1 always goes through real Turnstile.
+
+**2 (P1) — the DEGRADED-is-red verdict check failed open.** The previous
+amendment's fix defaulted to green whenever `last-run.json` couldn't be
+read as `DEGRADED`/`FAIL` — also what happens when `jq` is missing, the
+file is unreadable/malformed, `overallLevel` is absent, or a stale
+`last-run.json` from a PREVIOUS invocation is still there. Fixed to
+require BOTH a recognized `overallLevel` value and a `startedAt` at or
+after this invocation's own captured instant (numeric epoch comparison,
+not string — mixed-precision ISO timestamps don't sort correctly as
+text); anything else reports red with a new `state_unverifiable` reason.
+Split into `lib/sentinel-emit.sh` so this logic is testable in isolation;
+11 new tests cover every failure mode named above.
+
+**3 (P2) — the mail cooldown raced and a timeout could cause a resend.**
+The cooldown was checked without a lock and recorded only after a
+confirmed send, so two concurrent callers for the same item could both
+pass the check and both send, and a timeout after Resend had already
+accepted a request could resend on the next check-in. Fixed by running
+the whole reserve-then-send-then-record cycle under a per-item OS
+advisory lock (reusing `scripts/watch-usage-digest/mail-lock.py` from the
+same-day alert-receipts work rather than re-deriving one), reserving
+BEFORE sending, and attaching a per-item-per-reservation `Idempotency-Key`
+header so Resend's own dedup — not this script's guess about what curl's
+exit code means — is the real backstop. A definite rejection (a clean
+non-2xx) releases the reservation; a curl-level failure (timeout, DNS,
+connection reset — genuinely ambiguous, since Resend may already have
+accepted the request) keeps it, favoring under-alerting over a possible
+duplicate.
+
+**4 (P2) — receipts trusted any response id, and any 2xx started the
+cooldown.** Fixed by reusing the same-day alert-receipts work's own rule
+exactly (`scripts/send-resend-email.mjs`): UUID-validate the id, and only
+treat a 2xx WITH a valid id as a confirmed accept. Receipt field names now
+match that same shared schema too
+(`timestamp`/`job`/`httpStatus`/`resendId`, plus this path's own fixed
+`reason` field) instead of an independently-chosen shape — the "matching
+the same-day receipt allowlist above" claim in `docs/data_architecture.md`
+is now actually true, not just asserted.
+
+**5 (P2) — a test used `goto()` for its "back navigation" leg, so broken
+Back behavior would still pass.** No explicit contract says what a real
+back navigation does here (as opposed to a reload), so this was measured
+instead of assumed: isolated trials against production, fresh context
+each time, cleared the draft 4/4 on both engines. Split into two honestly
+named cases — a real `page.goBack()` round trip, and a real reload — the
+reload waiting for hydration before asserting. The real-back-navigation
+case then flaked on webkit-mobile inside the full sequence (a real
+browser's back-forward cache resuming live JS state instead of reloading
+— a browser heuristic, not a code bug, and not something this product or
+this sentry controls); asserting a hard failure on it would make tier 1
+flaky over that heuristic, so it warns instead of failing, while the
+deterministic reload case remains the hard-gated proof of the actual
+product contract.
+
+**Monitor pass wiring.** Same day, a separate, concurrent PR
+(`docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`) added a bounded,
+quota-capped, server-gated credential that lets turns after the first skip
+Turnstile — Jesse's own call on actually solving turns 2+ rather than
+pacing around them. `tier2.mjs` now installs it (`installMonitorPass`,
+after the turn-budget guard, before the page exists) and calls
+`selectTurn` immediately before each turn with the real turn number and
+whether turn 1 itself came back `pass`; turn 1 always goes through real
+Turnstile regardless. `humanPause` (added a few hours earlier, same day)
+is removed along with its call site — superseded by an actual fix, its own
+causal contribution never confirmed or refuted on its own terms.
+`STREETLIGHT_MONITOR_TOKEN` already exists in Doppler `agent-secrets/dev`,
+the same config `run-ui-sentry.sh` already runs the whole orchestrator
+under, so no separate plumbing was needed for the scheduled/manual launchd
+path to see it.
+
+A live run against production after all of the above passed 47/47 tier
+0/1 cases (one informational warning: the webkit-mobile bfcache case from
+finding 5) and 3 of 6 tier-2 turns for real (turns 1-3: turn 1 via real
+Turnstile, turns 2-3 via the monitor pass; turns 4-6 fell back to real
+Turnstile and were blocked, consistent with the monitor pass's documented
+12-uses-per-UTC-day cap having been reached by cumulative same-day use
+across this and the concurrent monitor-pass PR's own verification — not a
+wiring defect, since turns 2-3 succeeding is direct proof the wiring
+itself works). This is recorded rather than re-run repeatedly against
+production chasing a clean 6-of-6 on a shared, finite, resets-at-UTC-
+midnight quota.
