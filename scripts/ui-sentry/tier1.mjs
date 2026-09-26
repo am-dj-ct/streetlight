@@ -228,26 +228,30 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Back navigation (real history back, not a reload): the composer
-    // draft does NOT leak (renamed from "preserves state" — it never did;
-    // the old body only checked that #conversation-input existed after
-    // goBack, which passes whether or not anything survived).
+    // draft's fate depends on HOW the browser actually served the
+    // navigation, and both outcomes are asserted as hard checks now (2nd
+    // cross-vendor review, 2026-09-26 — the previous body warned instead of
+    // failing when the draft survived, which is an unproven skip of this
+    // exact case: "nothing should skip anything designed"). `page.goBack()`
+    // can be served either as a fresh navigation or as a resume from the
+    // browser's own back-forward cache (bfcache) — a browser heuristic, not
+    // this app's code, and NOT something this test should just accept
+    // either result of without checking which one happened.
     // conversation-client.tsx holds `messages`/`draft` in plain useState
     // (confirmed by reading the component: no localStorage/sessionStorage
     // key for either), which matches this app's own non-negotiable — no
-    // accounts, no per-user history, no session table (AGENTS.md). No
-    // explicit contract says what a REAL back navigation does (as opposed
-    // to a reload — see the next case) beyond that, so this asserts the
-    // behavior actually observed rather than assuming it: `page.goBack()`
-    // can in principle be served from the browser's own back-forward
-    // cache, whose restore-vs-reload choice is a browser heuristic, not
-    // this app's code. Measured empirically against production before
-    // writing this assertion — 4 isolated fresh-context trials per engine,
-    // outside any longer test sequence — and every trial came back cleared
-    // on both chromium and webkit (cross-vendor review, 2026-09-26: an
-    // earlier version of this file used `goto()` for this leg specifically
-    // to dodge that question, which is why it's named for what it tests
-    // now — a real back navigation, not a disguised reload). ---
-    await runCase(cases, `${engineName}: back navigation (history back) clears the composer draft — no cross-navigation persistence, by design`, async () => {
+    // accounts, no per-user history, no session table (AGENTS.md). The
+    // Navigation Timing API's `type` field distinguishes the two cases
+    // (`"back_forward"` means bfcache resume) and is spec-level, not a
+    // Chromium-only signal, so it works the same way on both engines this
+    // tier runs. The two intended states are both explicit and both real
+    // bugs if violated: a fresh navigation must clear the draft (no
+    // persistence layer exists, by design); a bfcache resume means the
+    // SAME live JS context — including React's in-memory state — kept
+    // running, so the draft is expected to still be there, and its absence
+    // in that case would itself indicate something wrongly clearing state
+    // on resume. ---
+    await runCase(cases, `${engineName}: back navigation (history back) — composer draft state matches how the navigation was actually served`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       // Same pre-hydration keystroke-drop race gotoConversation guards
@@ -274,24 +278,24 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       await assertNoApiFailures(watch);
 
+      const navigationType = await page.evaluate(
+        () => performance.getEntriesByType("navigation").at(-1)?.type ?? "unknown",
+      );
       const valueAfterBack = await page.inputValue("#conversation-input");
-      if (valueAfterBack.length !== 0) {
-        // Warn, don't fail: measured this exact case flake on webkit-mobile
-        // TWICE now inside the full sequence (2026-09-26), against 4/4
-        // clean isolated trials per engine outside it — a real browser's
-        // back-forward cache can resume a page's live JS state instead of
-        // reloading it, and whether it does is the browser's own heuristic,
-        // not this app's code or this sentry's. A hard MUST-PASS assertion
-        // on a browser heuristic this product doesn't control would make
-        // tier 1 flaky over something no code change here can fix; the
-        // deterministic reload case below covers the actual product
-        // contract (no persistence layer exists) without that confound.
-        // This still surfaces the observation rather than hiding it.
-        warnings.push(
-          `${engineName}: composer draft was still present after a real back navigation (browser back-forward cache resumed live state — a browser heuristic, not a code bug; see the deterministic reload case for the product's own no-persistence guarantee)`,
-        );
-        return { detail: "draft leaked via browser bfcache resume on this run — see warnings" };
+      if (navigationType === "back_forward") {
+        if (valueAfterBack.length === 0) {
+          throw new Error(
+            "navigation.type was back_forward (a real bfcache resume) but the composer draft was gone — the resumed live JS state should still hold it, so something is wrongly clearing state on resume",
+          );
+        }
+        return { detail: "bfcache-resumed (navigation.type=back_forward); draft correctly persisted with the resumed live state" };
       }
+      if (valueAfterBack.length !== 0) {
+        throw new Error(
+          `composer draft was still present after a back navigation that was NOT a bfcache resume (navigation.type=${navigationType}) — no cross-navigation persistence layer exists, by design`,
+        );
+      }
+      return { detail: `navigation.type=${navigationType}; draft correctly cleared` };
     });
 
     // --- Reload (a real network fetch, no history/bfcache ambiguity at
