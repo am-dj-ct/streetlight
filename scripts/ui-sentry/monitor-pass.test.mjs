@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { afterEach, test } from "node:test";
 import vm from "node:vm";
 import { installMonitorPass, monitorTokenHeader } from "./lib/monitor-pass.mjs";
@@ -11,21 +12,36 @@ afterEach(() => {
   else process.env.STREETLIGHT_MONITOR_TOKEN = original;
 });
 function harness() {
-  const handlers = [], scripts = [];
+  const handlers = [], scripts = [], routePatterns = [], captureLoadHandlers = [];
   const sandbox = { location: { origin: "https://streetlight.help" } };
   sandbox.window = sandbox;
   sandbox.top = sandbox;
-  // A real page always has these; installMonitorPass's init script now
-  // polls for window.turnstile with setInterval rather than trapping the
-  // property with a defineProperty getter/setter (5th cross-vendor
-  // review, 2026-09-26 — see monitor-pass.mjs's header for why the trap
-  // itself broke real Turnstile loading), so this vm sandbox needs them
-  // wired to the REAL timers to behave like a real page would.
+  // A real page always has these; installMonitorPass's init script polls
+  // for window.turnstile with setInterval as a FALLBACK (5th cross-vendor
+  // review, 2026-09-26 — see monitor-pass.mjs's header for why the old
+  // defineProperty trap broke real Turnstile loading), so this vm sandbox
+  // needs them wired to the REAL timers to behave like a real page would.
   sandbox.setInterval = setInterval;
   sandbox.clearInterval = clearInterval;
+  // Minimal stand-in for document.addEventListener("load", fn, true) —
+  // just enough for the init script's capture-phase listener (Astra's
+  // review, same day: the poll alone can miss a render() call that
+  // happens in the same task api.js finishes loading) to register
+  // itself, and for a test to fire it deterministically at the exact
+  // point a real <script src> element's own "load" event would — which,
+  // by real DOM event ordering, is always BEFORE any listener attached
+  // directly to that element (the app's own onload-driven render() call).
+  sandbox.document = {
+    addEventListener(type, handler, capture) {
+      if (type === "load" && capture) captureLoadHandlers.push(handler);
+    },
+  };
   const realm = vm.createContext(sandbox);
   const context = {
-    route: async (_pattern, handler) => handlers.push(handler),
+    route: async (pattern, handler) => {
+      routePatterns.push(pattern);
+      handlers.push(handler);
+    },
     addInitScript: async (fn, arg) => {
       scripts.push(fn.toString());
       vm.runInContext(`(${fn.toString()})(${JSON.stringify(arg)})`, realm);
@@ -34,23 +50,73 @@ function harness() {
   const page = {
     evaluate: async (fn, arg) => vm.runInContext(`(${fn.toString()})(${JSON.stringify(arg)})`, realm),
   };
+  // Fires every registered capture-phase "load" listener, synchronously,
+  // exactly as the browser would the instant the Turnstile <script>
+  // element itself finishes loading — before returning control to
+  // whatever the app does next (its own onload handler).
+  function fireScriptLoadCapture(src = "https://challenges.cloudflare.com/turnstile/v0/api.js") {
+    for (const handler of captureLoadHandlers) handler({ target: { src } });
+  }
   async function send({ url = "https://streetlight.help/api/chat", method = "POST" } = {}) {
     let headers = {}, continued = false, aborted = false;
     const request = { url: () => url, method: () => method, headers: () => headers };
-    let index = handlers.length;
+    // Only handlers whose REGISTERED glob pattern actually matches this
+    // URL are reachable at all — Astra's review, 2026-09-26: the previous
+    // version of this harness unconditionally invoked whatever handler(s)
+    // were registered, regardless of the pattern context.route() was
+    // given, so a test here could only ever prove the HANDLER's own
+    // internal same-origin/method check, never that a genuinely
+    // third-party request (Turnstile's own api.js) is excluded at the
+    // routing layer itself, the way real Playwright route matching would
+    // be. globToRegExp below is a minimal, faithful-enough translation of
+    // Playwright's own glob syntax for this one purpose.
+    const matchingIndexes = handlers
+      .map((_, i) => i)
+      .filter((i) => globToRegExp(routePatterns[i]).test(url));
+    if (matchingIndexes.length === 0) {
+      return { headers, continued: true, aborted: false, matchedRoute: false };
+    }
+    let cursor = matchingIndexes.length;
     const route = {
       fallback: async (options) => {
         headers = options?.headers ?? headers;
-        if (index > 0) await handlers[--index](route, request);
+        if (cursor > 0) await handlers[matchingIndexes[--cursor]](route, request);
         else continued = true;
       },
       continue: async (options) => { headers = options?.headers ?? headers; continued = true; },
       abort: async () => { aborted = true; },
     };
     await route.fallback();
-    return { headers, continued, aborted };
+    return { headers, continued, aborted, matchedRoute: true };
   }
-  return { context, page, sandbox, scripts, send };
+  return { context, page, sandbox, scripts, routePatterns, send, fireScriptLoadCapture };
+}
+
+// A minimal translation of Playwright's own glob-pattern syntax
+// (https://playwright.dev/docs/api/class-browsercontext#browser-context-route)
+// into a RegExp — `**` matches anything including `/`, `*` matches
+// anything except `/`, everything else is literal. Used only to prove,
+// in this fast vm-based harness, whether a given URL would actually
+// reach a context.route() handler registered under a given pattern —
+// not a general-purpose glob library.
+function globToRegExp(glob) {
+  let pattern = "";
+  for (let i = 0; i < glob.length; i += 1) {
+    const c = glob[i];
+    if (c === "*") {
+      if (glob[i + 1] === "*") {
+        pattern += ".*";
+        i += 1;
+      } else {
+        pattern += "[^/]*";
+      }
+    } else if (".+?^${}()|[]\\".includes(c)) {
+      pattern += `\\${c}`;
+    } else {
+      pattern += c;
+    }
+  }
+  return new RegExp(`^${pattern}$`);
 }
 
 test("first turn is real; later opt-in releases client wait and preserves request cap", async () => {
@@ -59,15 +125,24 @@ test("first turn is real; later opt-in releases client wait and preserves reques
   const budget = installTurnBudgetGuard(h.context, 2, undefined, "synthetic-ops", "https://streetlight.help");
   const pass = await installMonitorPass(h.context, "https://streetlight.help");
   let realExecutions = 0, issued;
+  // Reproduces the exact race Astra's review found (2026-09-26): the app
+  // can call turnstile.render() in the SAME task api.js finishes loading
+  // — before the 100ms poll ever gets a tick. An earlier version of this
+  // test waited 150ms before rendering, which hid that race entirely
+  // (nothing here is testing the poll's own worst case, only a
+  // comfortably-late render). This instead fires the capture-phase load
+  // listener FIRST — matching real DOM event order, where a capturing
+  // ancestor listener always runs before a listener on the target
+  // element itself — then calls render() immediately after, with NO wait
+  // at all. Without the capture-phase fix in monitor-pass.mjs, this exact
+  // sequence is what silently lost the callback (render ran through the
+  // still-unwrapped function, so the callback below is never captured
+  // into this module's own map, and turn 2 falls through to a second
+  // real execution instead of the pass).
   h.sandbox.turnstile = {
     render: () => "widget", execute: () => { realExecutions += 1; }, remove: () => {},
   };
-  // The wrapping poll (setInterval, 100ms) needs one real tick to notice
-  // this assignment and wrap it — a real page always has this much time
-  // pass before a second turn happens; a plain unconditional
-  // defineProperty trap (the old, since-removed design) wrapped
-  // synchronously instead, but broke real Turnstile loading to do it.
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  h.fireScriptLoadCapture();
   h.sandbox.turnstile.render({}, { callback: (value) => { issued = value; } });
   await pass.selectTurn(h.page, 1, true);
   h.sandbox.turnstile.execute("widget");
@@ -122,19 +197,47 @@ test("credential is confined to chosen same-origin chat POSTs", async () => {
   }
 });
 // Anything genuinely third-party (a different origin entirely, like
-// Turnstile's own challenges.cloudflare.com) must be just as untouched —
-// this route pattern only ever matches a path ending in /api/chat, so a
-// script URL never matches it at all, but this asserts that directly
-// rather than only by inference.
-test("a genuinely third-party request is never touched by the monitor pass's route at all", async () => {
+// Turnstile's own challenges.cloudflare.com) must be just as untouched.
+// Astra's review, 2026-09-26: asserting only continued/aborted here
+// proves the HANDLER's own same-origin check works, but the harness used
+// to invoke that handler unconditionally regardless of what pattern
+// context.route() was actually given — so it could never prove a
+// third-party request doesn't even reach the routing layer at all, the
+// way real Playwright glob matching would exclude it. `matchedRoute`
+// (from the harness's own globToRegExp match against the pattern
+// installMonitorPass registered) makes that the direct claim instead of
+// an inference.
+test("a genuinely third-party request never matches this pass's route pattern at all, let alone its header logic", async () => {
   process.env.STREETLIGHT_MONITOR_TOKEN = token;
   const h = harness();
   const pass = await installMonitorPass(h.context, "https://streetlight.help");
   await pass.selectTurn(h.page, 2, true);
+  assert.deepEqual(h.routePatterns, ["**/api/chat"]);
   const result = await h.send({ url: "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit", method: "GET" });
+  assert.equal(result.matchedRoute, false, "a Turnstile script URL must not match the **/api/chat pattern at all");
   assert.equal(result.continued, true);
   assert.equal(result.aborted, false);
   assert.equal(result.headers[monitorTokenHeader], undefined);
+});
+// Playwright caveat, documented rather than silently relied on (Astra's
+// review, 2026-09-26): route.fallback()'s header override is scoped to
+// the request it's called for, but if THAT request is itself redirected,
+// Playwright's own docs note overridden headers can be carried onto the
+// redirected request too — which would matter a great deal if the
+// destination were cross-origin, since the monitor token would then
+// leave this app's own origin. /api/chat is this app's own route
+// handler, which never issues a redirect (confirmed by reading
+// src/app/api/chat/route.ts: every path returns a Response directly, no
+// NextResponse.redirect or 3xx status anywhere in it) — so the header
+// this override adds never has a redirect to follow in the first place.
+// This asserts that contract stays true rather than leaving it as an
+// unchecked assumption.
+test("api/chat's own route handler never redirects (the header override this pass adds has nowhere to leak to)", async () => {
+  const routeSource = await readFile(
+    new URL("../../src/app/api/chat/route.ts", import.meta.url),
+    "utf8",
+  );
+  assert.equal(/NextResponse\.redirect|status:\s*30[1278]/.test(routeSource), false);
 });
 for (const value of [undefined, "short"]) {
   test(`missing/short local credential leaves the browser unmodified (${value === undefined ? "missing" : "short"})`, async () => {
