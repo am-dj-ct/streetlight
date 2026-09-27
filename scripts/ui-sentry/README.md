@@ -1,7 +1,7 @@
 # Streetlight UI sentry
 
 A scheduled, real-browser check of production `https://streetlight.help`,
-run 3x/week (Mon/Wed/Fri 07:23 local) from this Mac. It walks the site the
+run daily (02:00 local) from this Mac. It walks the site the
 way a person would — page loads, buttons, navigation, scrolling, locale
 switch — and best-effort exercises a short live-model conversation, then
 records a content-free pass/fail report so Jesse doesn't have to test by
@@ -49,7 +49,7 @@ nothing here runs through `npx playwright test`.
   lock, doppler wrapping, browser-presence check).
 - `install.sh` — setup-time only: `npm ci`, browser install, copies the
   plist. Never loads the launchd job (see the PR's commissioning checklist).
-- `com.streetlight.ui-sentry.plist` — Mon/Wed/Fri 07:23 local, no
+- `com.streetlight.ui-sentry.plist` — daily 02:00 local, no
   `KeepAlive`, no `RunAtLoad`.
 
 Tier 2 adds `x-streetlight-synthetic: ui-sentry` only alongside an
@@ -113,7 +113,7 @@ what the run wrote, and between them they are the whole alerting surface:
 
 - **`~/caller-track-pager`'s `checkUiSentry()`** reads `last-run.json` and
   pages (Pushover) on `status: FAIL` or a record older than 74h — so a
-  missed Mon/Wed/Fri fire is caught by staleness, which is what the old
+  missed daily fire is caught by staleness, which is what the old
   "absence of the email is the dead-man signal" was reaching for.
 - **sentinel-v5 check-ins** `sl-ui-sentry` (green/`ok` or red/`job_failed`
   from this run's exit code) and `sl-ui-sentry-live-chat` (green/`ok` or
@@ -225,7 +225,7 @@ runs/week — see the ADR for the full weekly ceiling this implies.
   commissioning checklist proves a run with the screen locked); logging out
   of the GUI session kills GUI `launchd` agents entirely.
 - Missed fire: `StartCalendarInterval` does not queue or catch up a missed
-  fire (Mac asleep/off at 07:23). The job simply does not run that day; the
+  fire (Mac asleep/off at 02:00). The job simply does not run that day; the
   next scheduled day is the recovery path. This sentry cannot report on its
   own death — if the Mac, launchd, or Doppler is what failed, nothing here
   runs at all. That gap (R12) is covered from outside: the pager's 74h

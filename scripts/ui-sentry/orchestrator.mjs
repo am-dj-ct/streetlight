@@ -16,6 +16,7 @@ import { Logger } from "./lib/logger.mjs";
 import { LOG_DIR } from "./lib/paths.mjs";
 import { readPreviousState, writeStateAtomic } from "./lib/state.mjs";
 import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
+import { isHostOverloaded, readHostLoad } from "./lib/host-load.mjs";
 import { runTier0 } from "./tier0.mjs";
 import { runTier1 } from "./tier1.mjs";
 import { runTier2 } from "./tier2.mjs";
@@ -44,8 +45,27 @@ const logger = new Logger(logPath);
 
 const previousState = readPreviousState();
 
-const partial = { tier0: null, tier1: null, tier2: null, tier2Skipped: false, crashError: null };
+const partial = {
+  tier0: null,
+  tier1: null,
+  tier2: null,
+  tier2Skipped: false,
+  crashError: null,
+  hostLoadTier0Start: null,
+  hostLoadTier1Start: null,
+};
 let finalized = false;
+
+// Content-free host-load line (host-load.mjs) — numbers only, logged and
+// stamped into last-run.json at both tier0 start and tier1 start (2026-09-27:
+// the 07:23 run that fabricated 17 cascaded failures under load ~144/10
+// cores had no evidence of load anywhere in the report at all).
+function logHostLoad(label, sample) {
+  logger.line(
+    `host load at ${label}: load1=${sample.load1.toFixed(2)} load5=${sample.load5.toFixed(2)} ` +
+      `load15=${sample.load15.toFixed(2)} cpus=${sample.cpuCount}`,
+  );
+}
 
 async function runTier1BothEngines() {
   logger.line("tier1 starting: chromium-desktop");
@@ -129,6 +149,20 @@ async function finalize() {
 
   const effectiveLevel = blockedNarrative === "escalated_once" ? "FAIL" : level;
 
+  // Host-overload detection (2026-09-27, host-load.mjs): a real Mac-load
+  // problem (not a site problem) can make tier1's own browser commands time
+  // out and, before the cascade fix (browser.recreate-page.test.mjs), poison
+  // every later case too. This NEVER changes effectiveLevel/exitCode above —
+  // a tier1 failure is exactly as red whether the host was overloaded or
+  // not. It only lets the check-in layer (run-ui-sentry.sh /
+  // lib/sentinel-emit.sh) tell Jesse WHY in the red email: "the site
+  // answered its health check but the Mac was too loaded to finish the
+  // check" reads very differently from "the job failed," even though both
+  // are the same red status.
+  const hostOverloaded =
+    partial.tier1?.status === "fail" &&
+    isHostOverloaded([partial.hostLoadTier0Start, partial.hostLoadTier1Start]);
+
   const lastSuccessfulLiveChatAt =
     partial.tier2?.lastSuccessfulLiveChatAt ?? previousState?.lastSuccessfulLiveChatAt ?? null;
 
@@ -173,13 +207,18 @@ async function finalize() {
     blockedNarrative,
     crashError: partial.crashError,
     overallLevel: effectiveLevel,
+    hostLoad: {
+      tier0Start: partial.hostLoadTier0Start,
+      tier1Start: partial.hostLoadTier1Start,
+    },
+    hostOverloaded,
   };
 
   if (partial.crashError) {
     logger.line(`orchestrator crash: ${partial.crashError}`);
   }
   logger.line(
-    `overall status: ${effectiveLevel} (exitCode=${exitCode}, blockedNarrative=${blockedNarrative}, consecutiveBlockedRuns=${consecutiveBlockedRuns}, tier2Skipped=${Boolean(partial.tier2Skipped)})`,
+    `overall status: ${effectiveLevel} (exitCode=${exitCode}, blockedNarrative=${blockedNarrative}, consecutiveBlockedRuns=${consecutiveBlockedRuns}, tier2Skipped=${Boolean(partial.tier2Skipped)}, hostOverloaded=${hostOverloaded})`,
   );
 
   const subject = buildSubject({
@@ -233,12 +272,18 @@ process.on("SIGINT", handleSignal("SIGINT"));
 async function main() {
   logger.line(`ui-sentry run starting against ${BASE_URL}`);
 
+  partial.hostLoadTier0Start = readHostLoad();
+  logHostLoad("tier0 start", partial.hostLoadTier0Start);
+
   partial.tier0 = await runTier0({ baseUrl: BASE_URL, logger });
   if (partial.tier0.status === "fail") {
     logger.line(`tier0 failed (${partial.tier0.reason}); skipping tier1/tier2`);
     await finalize();
     return;
   }
+
+  partial.hostLoadTier1Start = readHostLoad();
+  logHostLoad("tier1 start", partial.hostLoadTier1Start);
 
   partial.tier1 = await runTier1BothEngines();
   if (partial.tier1.status === "fail") {

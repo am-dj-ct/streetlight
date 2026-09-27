@@ -84,7 +84,12 @@ sentinel_capture_invocation() {
   return 0
 }
 
-# sentinel_checkin <item> <green|red|yellow> <reason_code> <at> <slot>
+# sentinel_checkin <item> <green|red|yellow> <reason_code> <at> <slot> [detail]
+#
+# `detail`, added 2026-09-27 for ui-sentry's host_overloaded reason, is an
+# optional plain-English sentence appended to the red email body, ahead of
+# the fixed "Logs:"/"Repo:" footer. Every existing caller omits it and gets
+# the exact same generic body as before.
 #
 # Note: the second local is named `check_status`, not `status` — zsh treats
 # `status` as a read-only special parameter (a synonym for `$?`), so
@@ -206,7 +211,7 @@ PY
 #     rare missed duplicate-detection window is acceptable; an actual
 #     duplicate email is not. No retry of any kind.
 sentinel_mail_red_attempt() {
-  local item="$1" reason="$2" at="$3" subject_prefix="${4:-}"
+  local item="$1" reason="$2" at="$3" subject_prefix="${4:-}" detail="${5:-}"
 
   local marker="$SENTINEL_MAIL_RED_STATE_DIR/$item.last-sent" now last
   now="$(date +%s)"
@@ -240,19 +245,28 @@ sentinel_mail_red_attempt() {
     sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
     return 0
   fi
-  if ! python3 - "$payload" "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$subject_prefix" <<'PY' 2>/dev/null
+  if ! python3 - "$payload" "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$subject_prefix" "$detail" <<'PY' 2>/dev/null
 import json, sys
-payload, item, reason, at, to, sender, subject_prefix = sys.argv[1:8]
+payload, item, reason, at, to, sender, subject_prefix, detail = sys.argv[1:9]
+body_lines = [f"Watcher {item} reported red at {at} (reason: {reason})."]
+# `detail`, when given, is a caller-supplied plain-English explanation of
+# THIS specific reason_code (e.g. ui-sentry's host_overloaded: "the site
+# answered its health check but the Mac was too loaded to finish the
+# check"). Optional and empty by default — every existing caller/reason
+# keeps the exact same generic body it always has.
+if detail:
+    body_lines.append("")
+    body_lines.append(detail)
+body_lines.append("")
+body_lines.append("Logs: ~/.streetlight/  (error-stream-health/, ui-sentry/)")
+body_lines.append("Repo: ~/streetlight")
+body_lines.append("")
+body_lines.append("Sent at most once per item every 6 hours.")
 json.dump({
     "from": sender,
     "to": [to],
     "subject": f"{subject_prefix}Streetlight watcher RED: {item} ({reason})",
-    "text": (
-        f"Watcher {item} reported red at {at} (reason: {reason}).\n\n"
-        "Logs: ~/.streetlight/  (error-stream-health/, ui-sentry/)\n"
-        "Repo: ~/streetlight\n\n"
-        "Sent at most once per item every 6 hours."
-    ),
+    "text": "\n".join(body_lines),
 }, open(payload, "w"))
 PY
   then
@@ -355,7 +369,7 @@ except Exception:
 # The marker file alone (the previous version's only guard) cannot do this:
 # two processes can both read it as stale in the same instant.
 sentinel_mail_red() {
-  local item="$1" reason="$2" at="$3"
+  local item="$1" reason="$2" at="$3" detail="${4:-}"
   [ -n "$SENTINEL_MAIL_RED_DISABLED" ] && return 0
   mkdir -p "$SENTINEL_MAIL_RED_STATE_DIR" 2>/dev/null || true
 
@@ -371,7 +385,7 @@ sentinel_mail_red() {
   mkdir -p "$lock_dir" 2>/dev/null || true
 
   python3 "$SENTINEL_MAIL_LOCK_PY" "$lock_dir" \
-    bash "$SENTINEL_CHECKIN_LIB_SELF" --mail-red-attempt "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_SUBJECT_PREFIX" \
+    bash "$SENTINEL_CHECKIN_LIB_SELF" --mail-red-attempt "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_SUBJECT_PREFIX" "$detail" \
     || sentinel_log_fallback_failure "mail-red:$item" "mail_lock_failed_or_timed_out"
   return 0
 }
@@ -384,9 +398,9 @@ sentinel_mail_red() {
 # callers (run-ui-sentry.sh, run-error-stream-health.sh) but is otherwise
 # unused now that nothing validates a claimed cron slot against a registry.
 sentinel_checkin() {
-  local item="$1" check_status="$2" reason_code="$3" at="$4" slot="$5"
+  local item="$1" check_status="$2" reason_code="$3" at="$4" slot="$5" detail="${6:-}"
   if [ "$check_status" = "red" ]; then
-    sentinel_mail_red "$item" "$reason_code" "$at" || true
+    sentinel_mail_red "$item" "$reason_code" "$at" "$detail" || true
   fi
   return 0
 }

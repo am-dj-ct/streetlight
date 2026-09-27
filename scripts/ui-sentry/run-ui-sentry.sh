@@ -55,8 +55,12 @@ fi
 # telemetry. `at`/`slot` are captured TOGETHER right here, before any of the
 # job body (PATH preflight, lock, tests) runs, per spec v5.9 §3.2 — never
 # recomputed at completion. Both items share the
-# exact same schedule (23 7 * * 1,3,5 America/Los_Angeles), so one capture
-# (keyed off sl-ui-sentry) is reused for both check-ins from this run.
+# exact same schedule (0 2 * * * America/Los_Angeles — daily 02:00 local,
+# moved from 07:23 on 2026-09-27; the fragment's cron had drifted to a stale
+# "1,3,5" Mon/Wed/Fri restriction left over from before the 2026-08-23 move
+# to daily, fixed alongside this time change since both live in the same
+# schedule field), so one capture (keyed off sl-ui-sentry) is reused for
+# both check-ins from this run.
 STREETLIGHT_SENTINEL_FALLBACK_LOG="$STATE_ROOT/sentinel-v5-fallback.log"
 export STREETLIGHT_SENTINEL_FALLBACK_LOG
 

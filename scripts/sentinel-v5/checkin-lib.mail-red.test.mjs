@@ -101,6 +101,19 @@ calllog="\${CURL_STUB_CALL_LOG:-}"
 if [ -n "$calllog" ]; then
   printf 'call idempotency=%s\\n' "\${SENTINEL_MAIL_IDEMPOTENCY_KEY:-none}" >> "$calllog"
 fi
+# Copies the -d @<payload-file> body somewhere a test can still read it
+# after sentinel_mail_red_attempt deletes the real payload — used to prove
+# a caller-supplied \`detail\` (2026-09-27) actually reaches the email text,
+# not just the reason_code. Opt-in only (CURL_STUB_PAYLOAD_CAPTURE unset for
+# every pre-existing test), so this changes nothing for them.
+capture="\${CURL_STUB_PAYLOAD_CAPTURE:-}"
+if [ -n "$capture" ]; then
+  for arg in "$@"; do
+    case "$arg" in
+      @*) cp "\${arg#@}" "$capture" 2>/dev/null || true ;;
+    esac
+  done
+fi
 case "$mode" in
   success)
     printf '{"id":"%s"}\\n200\\n' "\${CURL_STUB_RESEND_ID:-01a0debb-1d46-70d9-82a3-42ea138b1dd2}"
@@ -187,11 +200,12 @@ async function makeFixture({ mktempFails = false, markerTouchFails = false } = {
 
 function runCheckin({
   binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode, dopplerMode,
+  detail, payloadCapture,
 }) {
   const script = `
 set -uo pipefail
 source "${checkinLibPath}"
-sentinel_checkin "${item}" "${checkStatus}" "${reasonCode}" "2026-09-26T14:23:01Z" "2026-09-26T14:23:01Z"
+sentinel_checkin "${item}" "${checkStatus}" "${reasonCode}" "2026-09-26T14:23:01Z" "2026-09-26T14:23:01Z" "${detail ?? ""}"
 printf 'RC=%s\\n' "$?"
 `;
   return new Promise((resolve, reject) => {
@@ -206,6 +220,7 @@ printf 'RC=%s\\n' "$?"
         CURL_STUB_MODE: curlMode ?? "success",
         CURL_STUB_CALL_LOG: callLog,
         DOPPLER_STUB_MODE: dopplerMode ?? "success",
+        ...(payloadCapture ? { CURL_STUB_PAYLOAD_CAPTURE: payloadCapture } : {}),
       },
     });
     let stdout = "";
@@ -266,6 +281,49 @@ test("a red check-in sends exactly one email and records a receipt with the Rese
   assert.deepEqual(Object.keys(receipts[0]).sort(), [
     "httpStatus", "job", "outcome", "reason", "resendId", "timestamp",
   ]);
+});
+
+// 2026-09-27: ui-sentry's host_overloaded reason passes an extra
+// plain-English `detail` sentence through sentinel_checkin -> sentinel_mail_red
+// -> sentinel_mail_red_attempt, appended into the actual email body sent to
+// Resend — not just recorded in the reason_code. Every OTHER existing caller
+// omits it and is unaffected (covered by the very next test using the exact
+// same fixture with no detail).
+test("a red check-in with a detail sentence includes it in the email body sent to Resend", async () => {
+  const fx = await makeFixture();
+  const payloadCapture = path.join(fx.dir, "captured-payload.json");
+  const result = await runCheckin({
+    ...fx,
+    item: "sl-ui-sentry",
+    checkStatus: "red",
+    reasonCode: "host_overloaded",
+    detail: "The site answered its health check, but the Mac was too loaded to finish the check. Overall verdict for this run: FAIL.",
+    payloadCapture,
+  });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+
+  const payload = JSON.parse(await readFile(payloadCapture, "utf8"));
+  assert.match(payload.subject, /host_overloaded/);
+  assert.match(payload.text, /too loaded to finish the check/);
+  assert.match(payload.text, /Overall verdict for this run: FAIL/);
+  // The fixed footer must still be there, after the detail.
+  assert.match(payload.text, /Sent at most once per item every 6 hours\./);
+});
+
+test("a red check-in with NO detail keeps the exact same generic body as before", async () => {
+  const fx = await makeFixture();
+  const payloadCapture = path.join(fx.dir, "captured-payload.json");
+  await runCheckin({
+    ...fx, item: "sl-test-a", checkStatus: "red", reasonCode: "job_failed", payloadCapture,
+  });
+  const payload = JSON.parse(await readFile(payloadCapture, "utf8"));
+  assert.equal(
+    payload.text,
+    "Watcher sl-test-a reported red at 2026-09-26T14:23:01Z (reason: job_failed).\n\n" +
+      "Logs: ~/.streetlight/  (error-stream-health/, ui-sentry/)\n" +
+      "Repo: ~/streetlight\n\n" +
+      "Sent at most once per item every 6 hours.",
+  );
 });
 
 test("a green check-in never calls the mail path or writes a receipt", async () => {

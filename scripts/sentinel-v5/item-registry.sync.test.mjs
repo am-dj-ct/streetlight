@@ -57,12 +57,14 @@ test("every fragment item carries shadow:false (fleet is zero-shadow since the 2
 
 // reason_codes became REQUIRED on every check-in item in spec v5.11 and this
 // fragment predates it. The arrays must match what run-ui-sentry.sh actually
-// emits, not what looks reasonable: the sentry reports green/ok or
-// red/job_failed, and the live-chat check reports green/ok or red/degraded.
+// emits, not what looks reasonable: the sentry reports green/ok, or
+// red/job_failed, or (2026-09-27, host-load.mjs) red/host_overloaded when
+// tier1 fails under a Mac load this run itself judged excessive; the
+// live-chat check reports green/ok or red/degraded.
 test("every fragment item declares the reason codes its producer really emits", () => {
   const fragment = JSON.parse(readFileSync(fragmentPath, "utf8"));
   const expected = {
-    "sl-ui-sentry": ["ok", "job_failed"],
+    "sl-ui-sentry": ["ok", "job_failed", "host_overloaded"],
     "sl-ui-sentry-live-chat": ["ok", "degraded"],
     "sl-error-stream-health": ["ok", "degraded", "job_failed"]
   };
