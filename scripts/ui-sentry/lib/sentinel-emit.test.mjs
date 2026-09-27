@@ -91,11 +91,14 @@ test("exit code != 0 with no verifiable state file is red job_failed (the pre-20
   assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
 });
 
-// 2026-09-27, host-load.mjs: a tier1 failure this run's OWN orchestrator
-// judged was caused by Mac CPU load (not a site problem) reports a distinct
-// reason — still red, never downgraded — with a plain-English detail for
-// the email, naming the overall verdict.
-test("exit code != 0 with a verified hostOverloaded:true state reports red host_overloaded, with a detail carrying the verdict", async () => {
+// 2026-09-27, host-load.mjs (reason vocabulary reverted in cross-vendor
+// review of #52 finding 3 — host_overloaded is NOT in checkin-schema.mjs's
+// closed reason vocabulary and this lane does not add new reason codes): a
+// tier1 failure this run's OWN orchestrator judged was caused by Mac CPU
+// load still reports the plain job_failed reason — still red, never
+// downgraded — but carries a plain-English detail for the email, naming the
+// overall verdict, so Jesse reads WHY without a new reason_code existing.
+test("exit code != 0 with a verified hostOverloaded:true state stays reason=job_failed, with a detail carrying the verdict", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
@@ -109,9 +112,9 @@ test("exit code != 0 with a verified hostOverloaded:true state reports red host_
   const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   const line = await lastCheckin(fx.checkinLog);
-  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=host_overloaded detail=/);
+  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=/);
   assert.match(line, /site answered its health check/);
-  assert.match(line, /too loaded/);
+  assert.match(line, /overloaded while the check ran/);
   assert.match(line, /FAIL/, "the detail must name the overall verdict");
 });
 
@@ -134,8 +137,10 @@ test("exit code != 0 with hostOverloaded:false in an otherwise-verified state st
 // A last-run.json claiming hostOverloaded:true is worthless if it isn't
 // verifiably THIS invocation's own run — same fail-closed posture as the
 // state_unverifiable branch below, just folded into job_failed since this
-// exit code already reports red correctly regardless.
-test("exit code != 0 with hostOverloaded:true but a MISMATCHED invocationId falls back to job_failed, not host_overloaded", async () => {
+// exit code already reports red correctly regardless. (The reason_code is
+// always job_failed now; what a mismatched invocationId actually withholds
+// is the detail sentence.)
+test("exit code != 0 with hostOverloaded:true but a MISMATCHED invocationId gets no detail sentence", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
@@ -151,7 +156,7 @@ test("exit code != 0 with hostOverloaded:true but a MISMATCHED invocationId fall
   assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
 });
 
-test("exit code != 0 with a DEGRADED verdict and hostOverloaded:true still reports host_overloaded, carrying DEGRADED in the detail", async () => {
+test("exit code != 0 with a DEGRADED verdict and hostOverloaded:true stays reason=job_failed, carrying DEGRADED in the detail", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
@@ -165,7 +170,7 @@ test("exit code != 0 with a DEGRADED verdict and hostOverloaded:true still repor
   const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   const line = await lastCheckin(fx.checkinLog);
-  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=host_overloaded detail=/);
+  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=/);
   assert.match(line, /DEGRADED/);
 });
 

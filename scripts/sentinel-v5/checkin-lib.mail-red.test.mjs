@@ -283,12 +283,15 @@ test("a red check-in sends exactly one email and records a receipt with the Rese
   ]);
 });
 
-// 2026-09-27: ui-sentry's host_overloaded reason passes an extra
+// 2026-09-27: ui-sentry's host-overload context passes an extra
 // plain-English `detail` sentence through sentinel_checkin -> sentinel_mail_red
 // -> sentinel_mail_red_attempt, appended into the actual email body sent to
-// Resend — not just recorded in the reason_code. Every OTHER existing caller
-// omits it and is unaffected (covered by the very next test using the exact
-// same fixture with no detail).
+// Resend. The reason_code itself STAYS job_failed (cross-vendor review of
+// #52 finding 3 — host_overloaded is not in checkin-schema.mjs's closed
+// reason vocabulary, and this lane does not add new reason codes); the
+// detail sentence is how the extra context reaches the email without one.
+// Every OTHER existing caller omits detail and is unaffected (covered by
+// the very next test using the exact same fixture with no detail).
 test("a red check-in with a detail sentence includes it in the email body sent to Resend", async () => {
   const fx = await makeFixture();
   const payloadCapture = path.join(fx.dir, "captured-payload.json");
@@ -296,15 +299,15 @@ test("a red check-in with a detail sentence includes it in the email body sent t
     ...fx,
     item: "sl-ui-sentry",
     checkStatus: "red",
-    reasonCode: "host_overloaded",
-    detail: "The site answered its health check, but the Mac was too loaded to finish the check. Overall verdict for this run: FAIL.",
+    reasonCode: "job_failed",
+    detail: "The site answered its health check, but the Mac was overloaded while the check ran, so the failures may be caused by the Mac rather than the site. Overall verdict for this run: FAIL.",
     payloadCapture,
   });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
 
   const payload = JSON.parse(await readFile(payloadCapture, "utf8"));
-  assert.match(payload.subject, /host_overloaded/);
-  assert.match(payload.text, /too loaded to finish the check/);
+  assert.match(payload.subject, /job_failed/);
+  assert.match(payload.text, /overloaded while the check ran/);
   assert.match(payload.text, /Overall verdict for this run: FAIL/);
   // The fixed footer must still be there, after the detail.
   assert.match(payload.text, /Sent at most once per item every 6 hours\./);
