@@ -70,31 +70,20 @@ test("without recovery, a hung navigation poisons the very next case's own actio
   }
 });
 
-test("recreatePage after the failure lets the very next case run cleanly, with no cascade", async () => {
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const session = await makeSession(browser);
-    await assert.rejects(
-      () => session.page.goto(`${FIXTURE_ORIGIN}/hangs`, { timeout: 500 }),
-      /Timeout/,
-    );
-
-    await recreatePage(session, []);
-
-    // A genuinely fresh page: the fast navigation succeeds outright, not
-    // "eventually, after also throwing an interrupted-navigation error."
-    const response = await session.page.goto(`${FIXTURE_ORIGIN}/fast`, { timeout: 5_000 });
-    assert.equal(response.status(), 200);
-    assert.equal(await session.page.evaluate(() => document.querySelector("h1")?.textContent), "fast page");
-
-    await browser.close();
-  } catch (error) {
-    await browser.close();
-    throw error;
-  }
-});
-
-test("recreatePage stops the exact click-based contamination the previous test reproduced", async () => {
+// NOTE on why this test uses setContent(), not goto(), to load the "next
+// case"'s content after recovery: an EXPLICIT goto() call — to ANY page,
+// recreated or not — starts a brand-new navigation intent that cancels
+// and supersedes whatever the frame was doing before. That means a test
+// which calls recreatePage() and then immediately goto()s somewhere would
+// pass even if recreatePage() were a complete no-op, because the goto()
+// itself, not the recreation, is what cleared the stale navigation.
+// (Caught in review: an earlier version of this file did exactly that,
+// and it kept passing when recreatePage() was temporarily reduced to
+// `return session.page`.) setContent() does not carry that same
+// navigation-intent reset, so it stays a fair probe of whether THIS page
+// — the one recreatePage() actually handed back — still carries the
+// previous page's stale, still-pending navigation.
+test("recreatePage frees the very next case's own action from the previous case's stale navigation", async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     const session = await makeSession(browser);
@@ -104,12 +93,26 @@ test("recreatePage stops the exact click-based contamination the previous test r
     await hungGoto;
 
     await recreatePage(session, []);
-    await session.page.goto(`${FIXTURE_ORIGIN}/fast`);
 
-    // The same click that got stuck on the stale navigation in the
-    // unrecovered case above now runs cleanly on the fresh page.
-    await session.page.locator("a").click({ timeout: 2_000 });
-    assert.equal(await session.page.evaluate(() => document.querySelector("h1")?.textContent), "fast page");
+    const startedAt = Date.now();
+    await session.page.setContent(
+      `<!doctype html><html><body><h1>fresh</h1><a href="${FIXTURE_ORIGIN}/fast">go</a></body></html>`,
+      { waitUntil: "domcontentloaded", timeout: 5_000 },
+    );
+    // The same kind of action (a link click) that got stuck on the stale
+    // navigation in the unrecovered reproduction above now runs cleanly.
+    await session.page.locator("a").click({ timeout: 5_000 });
+    const elapsedMs = Date.now() - startedAt;
+
+    assert.equal(
+      await session.page.evaluate(() => document.querySelector("h1")?.textContent),
+      "fast page",
+      "the click's own navigation must actually land, not merely resolve",
+    );
+    assert.ok(
+      elapsedMs < 4_000,
+      `a recovered page's next action must not be waiting behind the previous case's stale navigation (took ${elapsedMs}ms)`,
+    );
 
     await browser.close();
   } catch (error) {
