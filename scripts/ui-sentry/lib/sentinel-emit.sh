@@ -114,6 +114,33 @@
 #
 # Producer failures are already swallowed inside sentinel_checkin (log and
 # return 0); this never affects this wrapper's own exit code.
+# Single source of truth for the reason codes sentinel_emit_item_a/b can
+# ever emit (cross-vendor review of #52, 2nd round, finding 2:
+# item-registry.sync.test.mjs used to hand-maintain its OWN separate list
+# for what "the producer really emits," and that list had silently drifted
+# — it was missing state_unverifiable and degraded entirely, both real emit
+# paths in sentinel_emit_item_a below). item-registry.sync.test.mjs reads
+# these two arrays directly, by sourcing this file in a bash subprocess and
+# echoing them, rather than re-deriving its own copy — and
+# _ui_sentry_assert_known_reason below makes each function itself refuse to
+# emit anything outside its own declared array, so a reason_code added at a
+# call site without also being added to the array here fails LOUDLY (to
+# stderr) the first time that path actually runs, rather than silently
+# escaping both this file's own single call site per function and the test.
+UI_SENTRY_ITEM_A_REASON_CODES=(ok job_failed degraded state_unverifiable)
+UI_SENTRY_ITEM_B_REASON_CODES=(ok degraded)
+
+_ui_sentry_assert_known_reason() {
+  local reason="$1" fn="$2"
+  shift 2
+  local candidate
+  for candidate in "$@"; do
+    [ "$candidate" = "$reason" ] && return 0
+  done
+  echo "BUG: $fn computed reason_code '$reason', which is not declared in its own reason-codes array — add it there (and to the registry fragment) before this can ship" >&2
+  return 1
+}
+
 SENTINEL_STATE_FUTURE_TOLERANCE_MS=300000 # 5 minutes — same as item B's
 # _ui_sentry_read_verified_state — the read+validity-gate logic above,
 # factored out (2026-09-27) so BOTH branches of sentinel_emit_item_a can use
@@ -217,41 +244,58 @@ _ui_sentry_read_verified_state() {
 
 sentinel_emit_item_a() {
   local exit_code="$1"
+  local check_status reason detail=""
+
   if [ "$exit_code" != "0" ]; then
-    # host_overloaded (2026-09-27): a tier1 failure this run's own
-    # orchestrator judged was caused by Mac CPU load (the 1-minute load
-    # average at tier0 or tier1 start exceeding 3x the CPU count — see
-    # host-load.mjs) gets a distinct reason from a plain job_failed, so the
-    # red email can tell Jesse "the site answered its health check but the
-    # Mac was too loaded to finish the check" instead of implying a code or
-    # site problem. This NEVER changes the status here — still red, exactly
-    # as red as any other tier1 failure; only the reason_code and the
-    # email's own wording differ. Falls back to plain job_failed whenever
-    # the state read isn't verifiably THIS invocation's own (missing jq,
-    # no file yet, a stale/mismatched invocationId) — the same fail-closed
-    # posture as state_unverifiable below, just folded into the existing
-    # job_failed reason rather than inventing a red-on-red-on-red third
-    # state for a case this exit code already reports correctly on its own.
-    local detail=""
+    # host-overload detail (2026-09-27, refined in cross-vendor review of
+    # #52 finding 3): the reason_code STAYS job_failed — host_overloaded is
+    # not in checkin-schema.mjs's closed reason vocabulary (nor blt-hub's),
+    # and this lane does not add new reason codes to that cross-repo-synced
+    # list (see checkin-schema.mjs's own header). What actually reaches
+    # Jesse differently is the email's own TEXT: when this run's own
+    # orchestrator judged tier 1's failure was caused by Mac CPU load (the
+    # load reading taken at the moment of the first failing case exceeding
+    # 3x the CPU count — see host-load.mjs and tier1.mjs's runCase), an
+    # extra plain-English sentence is appended to the red email explaining
+    # that, so Jesse reads "the site answered its health check but the Mac
+    # was overloaded" instead of a bare "the job failed" with no further
+    # context. The status here is unaffected either way — still red, exactly
+    # as red as any other tier1 failure. Falls back to no detail whenever
+    # the state read isn't verifiably THIS invocation's own (missing jq, no
+    # file yet, a stale/mismatched invocationId) — same fail-closed posture
+    # as state_unverifiable below, just without a distinct reason of its own
+    # since this exit code already reports correctly regardless.
+    check_status="red"
+    reason="job_failed"
     if _ui_sentry_read_verified_state && [ "$UI_SENTRY_VERIFIED_HOST_OVERLOADED" = "true" ]; then
-      detail="The site answered its health check, but the Mac was too loaded to finish the check — a host overload, not a site problem. Overall verdict for this run: ${UI_SENTRY_VERIFIED_LEVEL:-FAIL}."
-      sentinel_checkin sl-ui-sentry red host_overloaded "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" "$detail" || true
-    else
-      sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
+      detail="The site answered its health check, but the Mac was overloaded while the check ran, so the failures may be caused by the Mac rather than the site. Overall verdict for this run: ${UI_SENTRY_VERIFIED_LEVEL:-FAIL}."
     fi
-    return 0
-  fi
-
-  _ui_sentry_read_verified_state
-  local run_level="$UI_SENTRY_VERIFIED_LEVEL" state_is_current="$UI_SENTRY_VERIFIED_CURRENT"
-
-  if [ -z "$run_level" ] || [ "$state_is_current" != "1" ]; then
-    sentinel_checkin sl-ui-sentry red state_unverifiable "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-  elif [ "$run_level" = "DEGRADED" ] || [ "$run_level" = "FAIL" ]; then
-    sentinel_checkin sl-ui-sentry red degraded "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
   else
-    sentinel_checkin sl-ui-sentry green ok "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
+    _ui_sentry_read_verified_state
+    local run_level="$UI_SENTRY_VERIFIED_LEVEL" state_is_current="$UI_SENTRY_VERIFIED_CURRENT"
+
+    if [ -z "$run_level" ] || [ "$state_is_current" != "1" ]; then
+      check_status="red"
+      reason="state_unverifiable"
+    elif [ "$run_level" = "DEGRADED" ] || [ "$run_level" = "FAIL" ]; then
+      check_status="red"
+      reason="degraded"
+    else
+      check_status="green"
+      reason="ok"
+    fi
   fi
+
+  # One call site, one validation point (2026-09-27, 2nd round of
+  # cross-vendor review of #52): every branch above computes check_status/
+  # reason/detail and falls through to here, instead of each branch calling
+  # sentinel_checkin with its own literal reason string — a reason typo'd or
+  # added here without also being added to UI_SENTRY_ITEM_A_REASON_CODES
+  # above is caught at the one place this function actually emits, not
+  # scattered across four call sites a future edit could add a fifth to
+  # unnoticed.
+  _ui_sentry_assert_known_reason "$reason" "sentinel_emit_item_a" "${UI_SENTRY_ITEM_A_REASON_CODES[@]}"
+  sentinel_checkin sl-ui-sentry "$check_status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" "$detail" || true
 }
 
 # sentinel_emit_item_b — "live chat has succeeded recently": status comes
@@ -323,5 +367,6 @@ sentinel_emit_item_b() {
     status="red"
     reason="degraded"
   fi
+  _ui_sentry_assert_known_reason "$reason" "sentinel_emit_item_b" "${UI_SENTRY_ITEM_B_REASON_CODES[@]}"
   sentinel_checkin sl-ui-sentry-live-chat "$status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
 }

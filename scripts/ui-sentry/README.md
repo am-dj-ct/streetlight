@@ -231,6 +231,16 @@ runs/week — see the ADR for the full weekly ceiling this implies.
   runs at all. That gap (R12) is covered from outside: the pager's 74h
   staleness check on `last-run.json`, and the sentinel's grace window on a
   slot that never checked in.
+- DST: 02:00 Pacific doesn't exist on the spring-forward day each March.
+  What launchd itself does with that gap is unverified for this Mac (see
+  the ADR's DST note). If the run simply doesn't happen that day, **nothing
+  currently detects it**: there's no registry slot for that day at all, and
+  the resulting 47-hour gap (vs. the usual 24) is under the pager's 74h
+  staleness threshold, so it reads as an ordinary daily gap. Known,
+  unfixed, recorded in `~/notes/LOOSE-ENDS.md`. If instead the run fires
+  late (once the clock catches up), that path IS already handled safely —
+  no crash, no fabricated slot, no false red/green — see the ADR and
+  `scripts/sentinel-v5/cron-slot.test.mjs`.
 
 ## What this does not do (v1, deliberate)
 
