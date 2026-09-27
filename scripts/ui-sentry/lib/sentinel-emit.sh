@@ -115,25 +115,46 @@
 # Producer failures are already swallowed inside sentinel_checkin (log and
 # return 0); this never affects this wrapper's own exit code.
 SENTINEL_STATE_FUTURE_TOLERANCE_MS=300000 # 5 minutes — same as item B's
-sentinel_emit_item_a() {
-  local exit_code="$1"
-  if [ "$exit_code" != "0" ]; then
-    sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
-    return 0
-  fi
+# _ui_sentry_read_verified_state — the read+validity-gate logic above,
+# factored out (2026-09-27) so BOTH branches of sentinel_emit_item_a can use
+# it: the exit_code==0 branch (which needs overallLevel) and the exit_code!=0
+# branch below it (which needs to know whether THIS run judged the host
+# overloaded before tier1 failed, so an honest cascade failure caused by
+# Mac load is not reported to Jesse as "the job failed"). Sets three globals
+# (bash has no clean multi-value return):
+#   UI_SENTRY_VERIFIED_LEVEL           - overallLevel, or "" if unverifiable
+#   UI_SENTRY_VERIFIED_HOST_OVERLOADED - "true" or "false", always one of the
+#     two — see below for why this field alone never invalidates the read
+#   UI_SENTRY_VERIFIED_CURRENT         - "1" if the five-check gate (single
+#     JSON value, required field types, invocationId exact match, startedAt
+#     bounded both sides) passed, "0" otherwise
+# `hostOverloaded` is read more leniently than overallLevel/startedAt/
+# invocationId on purpose: it did not exist before 2026-09-27, so an older
+# last-run.json (or the PATH-missing fallback's own hand-written JSON, which
+# still has no hostOverloaded field at all) must not fail the WHOLE read over
+# one missing optional field. It only ever reads as "true" when the field is
+# actually the JSON literal `true`; anything else — absent, null, a string,
+# a schema-drifted object — reads as "false", the same safe default as if
+# this field had never been added.
+_ui_sentry_read_verified_state() {
+  UI_SENTRY_VERIFIED_LEVEL=""
+  UI_SENTRY_VERIFIED_HOST_OVERLOADED="false"
+  UI_SENTRY_VERIFIED_CURRENT="0"
 
   local state_file="${STATE_ROOT}/last-run.json"
-  local run_level="" run_started_at="" run_invocation_id="" tsv jq_rc
+  local run_level="" run_started_at="" run_invocation_id="" run_host_overloaded="false" tsv jq_rc
 
   if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
-    # ONE jq invocation for all three fields — a single atomic read of the
+    # ONE jq invocation for all four fields — a single atomic read of the
     # file, and a single exit-code check, rather than separate calls that
     # could in principle disagree if the file changed between them. `-s`
     # (slurp) plus the explicit `length != 1` is what catches a file
     # holding more than one JSON value (see the header above) — a plain
     # exit-status check alone does not, since multiple valid values are not
     # a parse error. `error(...)` makes jq exit nonzero with a message on
-    # its own stderr (discarded here) for either failure shape.
+    # its own stderr (discarded here) for either failure shape. The fourth
+    # field (hostOverloaded) is deliberately outside the strict type gate —
+    # see this function's own header.
     tsv="$(jq -re '
         if length != 1 then error("expected exactly one JSON value")
         else .[0]
@@ -141,22 +162,28 @@ sentinel_emit_item_a() {
               or (.startedAt | type) != "string"
               or (.invocationId | type) != "string"
             then error("field type invalid")
-            else [.overallLevel, .startedAt, .invocationId] | @tsv
+            else [.overallLevel, .startedAt, .invocationId, (if .hostOverloaded == true then "true" else "false" end)] | @tsv
             end
         end
       ' -s "$state_file" 2>/dev/null)"
     jq_rc=$?
     if [ "$jq_rc" -eq 0 ] && [ -n "$tsv" ]; then
       run_level="${tsv%%$'\t'*}"
-      local rest="${tsv#*$'\t'}"
-      run_started_at="${rest%%$'\t'*}"
-      run_invocation_id="${rest#*$'\t'}"
+      local rest1="${tsv#*$'\t'}"
+      run_started_at="${rest1%%$'\t'*}"
+      local rest2="${rest1#*$'\t'}"
+      run_invocation_id="${rest2%%$'\t'*}"
+      run_host_overloaded="${rest2#*$'\t'}"
     fi
   fi
 
   case "$run_level" in
     PASS | DEGRADED | FAIL) : ;;
     *) run_level="" ;;
+  esac
+  case "$run_host_overloaded" in
+    true) run_host_overloaded="true" ;;
+    *) run_host_overloaded="false" ;;
   esac
 
   local state_is_current=1
@@ -181,6 +208,42 @@ sentinel_emit_item_a() {
     ' "$run_started_at" "$UI_SENTRY_SENTINEL_AT" "$SENTINEL_STATE_FUTURE_TOLERANCE_MS" 2>/dev/null; then
     state_is_current=0
   fi
+
+  UI_SENTRY_VERIFIED_LEVEL="$run_level"
+  UI_SENTRY_VERIFIED_HOST_OVERLOADED="$run_host_overloaded"
+  UI_SENTRY_VERIFIED_CURRENT="$state_is_current"
+  [ -n "$run_level" ] && [ "$state_is_current" = "1" ]
+}
+
+sentinel_emit_item_a() {
+  local exit_code="$1"
+  if [ "$exit_code" != "0" ]; then
+    # host_overloaded (2026-09-27): a tier1 failure this run's own
+    # orchestrator judged was caused by Mac CPU load (the 1-minute load
+    # average at tier0 or tier1 start exceeding 3x the CPU count — see
+    # host-load.mjs) gets a distinct reason from a plain job_failed, so the
+    # red email can tell Jesse "the site answered its health check but the
+    # Mac was too loaded to finish the check" instead of implying a code or
+    # site problem. This NEVER changes the status here — still red, exactly
+    # as red as any other tier1 failure; only the reason_code and the
+    # email's own wording differ. Falls back to plain job_failed whenever
+    # the state read isn't verifiably THIS invocation's own (missing jq,
+    # no file yet, a stale/mismatched invocationId) — the same fail-closed
+    # posture as state_unverifiable below, just folded into the existing
+    # job_failed reason rather than inventing a red-on-red-on-red third
+    # state for a case this exit code already reports correctly on its own.
+    local detail=""
+    if _ui_sentry_read_verified_state && [ "$UI_SENTRY_VERIFIED_HOST_OVERLOADED" = "true" ]; then
+      detail="The site answered its health check, but the Mac was too loaded to finish the check — a host overload, not a site problem. Overall verdict for this run: ${UI_SENTRY_VERIFIED_LEVEL:-FAIL}."
+      sentinel_checkin sl-ui-sentry red host_overloaded "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" "$detail" || true
+    else
+      sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
+    fi
+    return 0
+  fi
+
+  _ui_sentry_read_verified_state
+  local run_level="$UI_SENTRY_VERIFIED_LEVEL" state_is_current="$UI_SENTRY_VERIFIED_CURRENT"
 
   if [ -z "$run_level" ] || [ "$state_is_current" != "1" ]; then
     sentinel_checkin sl-ui-sentry red state_unverifiable "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true

@@ -20,7 +20,7 @@
       "escalation": { "digest": true },
       "oracle": "self_report",
       "dependency_keys": ["sl-production-site"],
-      "reason_codes": ["ok", "job_failed"],
+      "reason_codes": ["ok", "job_failed", "host_overloaded"],
       "maintenance_label": "com.streetlight.ui-sentry",
       "registered_at": "2026-08-16T14:30:00Z"
     },

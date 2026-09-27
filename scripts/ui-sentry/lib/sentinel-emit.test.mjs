@@ -51,7 +51,7 @@ function runEmitItemA({ stateRoot, checkinLog, exitCode, sentinelAt, pathOverrid
   const script = `
 set -uo pipefail
 sentinel_checkin() {
-  printf 'CHECKIN item=%s status=%s reason=%s\\n' "$1" "$2" "$3" >> "${checkinLog}"
+  printf 'CHECKIN item=%s status=%s reason=%s detail=%s\\n' "$1" "$2" "$3" "\${6:-}" >> "${checkinLog}"
   return 0
 }
 STATE_ROOT="${stateRoot}"
@@ -84,11 +84,89 @@ async function lastCheckin(checkinLog) {
   return lines.length > 0 ? lines[lines.length - 1] : null;
 }
 
-test("exit code != 0 is always red job_failed, regardless of any state file", async () => {
+test("exit code != 0 with no verifiable state file is red job_failed (the pre-2026-09-27 default)", async () => {
   const fx = await makeFixture();
   const result = await runEmitItemA({ ...fx, exitCode: "5", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
+});
+
+// 2026-09-27, host-load.mjs: a tier1 failure this run's OWN orchestrator
+// judged was caused by Mac CPU load (not a site problem) reports a distinct
+// reason — still red, never downgraded — with a plain-English detail for
+// the email, naming the overall verdict.
+test("exit code != 0 with a verified hostOverloaded:true state reports red host_overloaded, with a detail carrying the verdict", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "FAIL",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+      hostOverloaded: true,
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  const line = await lastCheckin(fx.checkinLog);
+  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=host_overloaded detail=/);
+  assert.match(line, /site answered its health check/);
+  assert.match(line, /too loaded/);
+  assert.match(line, /FAIL/, "the detail must name the overall verdict");
+});
+
+test("exit code != 0 with hostOverloaded:false in an otherwise-verified state stays plain job_failed", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "FAIL",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+      hostOverloaded: false,
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
+});
+
+// A last-run.json claiming hostOverloaded:true is worthless if it isn't
+// verifiably THIS invocation's own run — same fail-closed posture as the
+// state_unverifiable branch below, just folded into job_failed since this
+// exit code already reports red correctly regardless.
+test("exit code != 0 with hostOverloaded:true but a MISMATCHED invocationId falls back to job_failed, not host_overloaded", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "FAIL",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "some-other-invocations-id",
+      hostOverloaded: true,
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
+});
+
+test("exit code != 0 with a DEGRADED verdict and hostOverloaded:true still reports host_overloaded, carrying DEGRADED in the detail", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "DEGRADED",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+      hostOverloaded: true,
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  const line = await lastCheckin(fx.checkinLog);
+  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=host_overloaded detail=/);
+  assert.match(line, /DEGRADED/);
 });
 
 test("a fresh, valid PASS report reports green", async () => {
@@ -103,7 +181,7 @@ test("a fresh, valid PASS report reports green", async () => {
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=green reason=ok");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=green reason=ok detail=");
 });
 
 test("a fresh DEGRADED report reports red degraded", async () => {
@@ -118,7 +196,7 @@ test("a fresh DEGRADED report reports red degraded", async () => {
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=degraded");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=degraded detail=");
 });
 
 test("a fresh FAIL report also reports red", async () => {
@@ -140,7 +218,7 @@ test("no last-run.json at all reports red state_unverifiable, not green", async 
   const fx = await makeFixture();
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("malformed JSON reports red state_unverifiable, not green", async () => {
@@ -148,7 +226,7 @@ test("malformed JSON reports red state_unverifiable, not green", async () => {
   await writeFile(path.join(fx.stateRoot, "last-run.json"), "{not valid json");
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("valid JSON missing the overallLevel field reports red state_unverifiable, not green", async () => {
@@ -159,7 +237,7 @@ test("valid JSON missing the overallLevel field reports red state_unverifiable, 
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("an unrecognized overallLevel value reports red state_unverifiable, not green", async () => {
@@ -174,7 +252,7 @@ test("an unrecognized overallLevel value reports red state_unverifiable, not gre
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("a PASS left over from a PREVIOUS invocation (startedAt before this run started, a different invocationId) reports red state_unverifiable, never green", async () => {
@@ -189,7 +267,7 @@ test("a PASS left over from a PREVIOUS invocation (startedAt before this run sta
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 // 3rd cross-vendor review, 2026-09-26, finding 4: an invocation id lets the
@@ -209,7 +287,7 @@ test("a fresh-looking startedAt with a MISMATCHED invocationId reports red state
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 // 3rd cross-vendor review, finding 4: a non-string value passing a bare
@@ -228,7 +306,7 @@ test("a non-string overallLevel (failing strict field-type validation) reports r
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 // 3rd cross-vendor review, finding 4's own repro: a fresh, otherwise-VALID
@@ -248,7 +326,7 @@ test("a fresh, otherwise-valid PASS report followed by a second JSON value ({}) 
   await writeFile(path.join(fx.stateRoot, "last-run.json"), `${validDoc}\n{}`);
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("a valid PASS object followed by trailing garbage reports red state_unverifiable, not green (2nd cross-vendor review reproduction)", async () => {
@@ -264,7 +342,7 @@ test("a valid PASS object followed by trailing garbage reports red state_unverif
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("a wildly future-dated startedAt (year 2099) reports red state_unverifiable, not green (the lower-bound check alone cannot catch this)", async () => {
@@ -279,7 +357,7 @@ test("a wildly future-dated startedAt (year 2099) reports red state_unverifiable
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("missing jq reports red state_unverifiable, never green, even with a perfectly valid report on disk", async () => {
@@ -296,7 +374,7 @@ test("missing jq reports red state_unverifiable, never green, even with a perfec
     pathOverride: nodeOnly,
   });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=state_unverifiable detail=");
 });
 
 test("mixed timestamp precision (millisecond startedAt vs a second-precision invocation stamp) compares correctly, not as text", async () => {
@@ -316,5 +394,5 @@ test("mixed timestamp precision (millisecond startedAt vs a second-precision inv
   );
   const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=green reason=ok");
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=green reason=ok detail=");
 });
