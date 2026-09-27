@@ -49,23 +49,11 @@ export async function blockUsageEvents(context) {
   });
 }
 
-// Launches a page with console/pageerror/dialog/failed-response watchers
-// armed (tier 1 structural requirement) and the perf probe init script
-// installed. Returns everything the caller needs to tear down cleanly.
-export async function launchPage({ browserType, contextOptions = {}, browser }) {
-  const ownBrowser = browser ?? (await launchTier1Browser(browserType));
-  const context = await ownBrowser.newContext(contextOptions);
-  await blockUsageEvents(context);
-  await context.addInitScript(PERF_INIT_SCRIPT);
-
-  const page = await context.newPage();
-  const watch = {
-    consoleErrors: [],
-    pageErrors: [],
-    dialogs: [],
-    failedApiResponses: [],
-  };
-
+// Wires the same console/pageerror/dialog/failed-response watchers onto a
+// page. Split out of launchPage (2026-09-27) so recreatePage below can
+// re-arm the identical watchers on a freshly created page, rather than
+// duplicating this listener set.
+function wireWatchers(page, watch) {
   page.on("console", (msg) => {
     if (msg.type() === "error") {
       // Truncate hard: this is a debugging aid, not a content channel. Real
@@ -99,8 +87,57 @@ export async function launchPage({ browserType, contextOptions = {}, browser }) 
       watch.failedApiResponses.push(`${response.status()} ${new URL(response.url()).pathname}`);
     }
   });
+}
+
+// Launches a page with console/pageerror/dialog/failed-response watchers
+// armed (tier 1 structural requirement) and the perf probe init script
+// installed. Returns everything the caller needs to tear down cleanly.
+export async function launchPage({ browserType, contextOptions = {}, browser }) {
+  const ownBrowser = browser ?? (await launchTier1Browser(browserType));
+  const context = await ownBrowser.newContext(contextOptions);
+  await blockUsageEvents(context);
+  await context.addInitScript(PERF_INIT_SCRIPT);
+
+  const page = await context.newPage();
+  const watch = {
+    consoleErrors: [],
+    pageErrors: [],
+    dialogs: [],
+    failedApiResponses: [],
+  };
+  wireWatchers(page, watch);
 
   return { browser: ownBrowser, ownsBrowser: !browser, context, page, watch };
+}
+
+// Closes `session.page` and replaces it with a fresh one in the same
+// context, re-arming the same watchers (2026-09-27 — a timed-out
+// navigation in tier 1 can leave a page in a state where the NEXT case's
+// own navigation throws "interrupted by another navigation" instead of
+// running its own check at all; reproduced against production on an
+// overloaded host, where one hung case cascaded into 17 more failures
+// that were never really about anything those cases checked). Mutates
+// `session.page` and `session.watch` in place and returns the new page,
+// so a caller holding onto `session` sees the replacement without needing
+// its own bookkeeping. `initScripts`, if given, are re-run on the fresh
+// page in order — a caller with its OWN page-level addInitScript calls
+// (tier1.mjs's pageshow recorder) needs to redo them here, since a new
+// Page object starts with none of them. Stale watcher state from the page
+// that just failed describes a browsing context that no longer exists, so
+// it is cleared rather than carried forward onto the replacement.
+export async function recreatePage(session, initScripts = []) {
+  await session.page.close().catch(() => {});
+  const page = await session.context.newPage();
+  session.watch.consoleErrors.length = 0;
+  session.watch.pageErrors.length = 0;
+  session.watch.dialogs.length = 0;
+  session.watch.failedApiResponses.length = 0;
+  wireWatchers(page, session.watch);
+  for (const script of initScripts) {
+    await page.addInitScript(script);
+  }
+  session.page = page;
+  return page;
 }
 
 // Tier 1 is a deterministic structural check, so it always uses the

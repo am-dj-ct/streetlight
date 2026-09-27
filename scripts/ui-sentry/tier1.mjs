@@ -2,14 +2,23 @@
 // Chat is never called anywhere in this tier. Runs once per engine
 // (chromium desktop, webkit mobile) — see orchestrator.mjs.
 import AxeBuilder from "@axe-core/playwright";
-import { launchPage, readPerf, watchProblems } from "./lib/browser.mjs";
+import { launchPage, readPerf, recreatePage, watchProblems } from "./lib/browser.mjs";
 import { humanType, settleComposer } from "./lib/human-type.mjs";
 import { gotoConversation, settleAfterConversationLoad } from "./lib/conversation.mjs";
 import { LOCALE_HEADING_MARKERS } from "./fixtures/locale-markers.mjs";
 
 const AXE_SERIOUS_OR_CRITICAL = new Set(["serious", "critical"]);
 
-async function runCase(cases, name, fn) {
+// `recover`, when given, runs ONLY after a failure — never after a pass,
+// since a passing case leaves the page in a well-defined state later
+// cases are entitled to build on (several tier 1 cases are a deliberate
+// journey: click through, type, go back). A failure's page state is NOT
+// well-defined (2026-09-27: a timed-out navigation was found to poison
+// every later case with a fabricated "interrupted by another navigation"
+// error, on a host under heavy load) — recovering after exactly that
+// case, and no other, is what stops it from cascading without discarding
+// the journey continuity every passing case still needs.
+async function runCase(cases, name, fn, recover) {
   const startedAt = Date.now();
   try {
     const detail = await fn();
@@ -21,7 +30,32 @@ async function runCase(cases, name, fn) {
       durationMs: Date.now() - startedAt,
       error: String(error?.message ?? error).slice(0, 300),
     });
+    if (recover) {
+      await recover().catch((recoverError) => {
+        // The recovery itself failing must not crash the run — the next
+        // case will simply fail too, honestly, against whatever page
+        // exists, rather than this function throwing out of runTier1.
+        cases.push({
+          name: `${name} (recovery)`,
+          status: "fail",
+          durationMs: 0,
+          error: `page recovery failed: ${String(recoverError?.message ?? recoverError).slice(0, 200)}`,
+        });
+      });
+    }
   }
+}
+
+// See the installation comment where this is first used, below. Kept as
+// its own constant (rather than an inline arrow at each call site) so
+// both the initial page and any page recreatePage substitutes in after a
+// failure run the IDENTICAL script — a new Page object starts with none
+// of the previous one's addInitScript calls.
+function pageshowRecorderInitScript() {
+  window.__uiSentryBfcachePersisted = null;
+  window.addEventListener("pageshow", (event) => {
+    window.__uiSentryBfcachePersisted = event.persisted;
+  });
 }
 
 // Checks and CONSUMES the watcher arrays — a problem attributed to one case
@@ -58,7 +92,13 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
   let perf = { lcp: null, cls: 0 };
 
   const session = await launchPage({ browserType, contextOptions: deviceOptions });
-  const { page, watch } = session;
+  // `let`, not `const` (2026-09-27): recoverPage below replaces the page
+  // after a failure, and every case's own closure reads whichever page
+  // this binding currently holds at the moment IT runs, not a value
+  // snapshotted when the closure was written — so a reassignment here is
+  // exactly what later, not-yet-run cases pick up automatically, with no
+  // change needed to any individual case body.
+  let { page, watch } = session;
 
   // Records every `pageshow` event's own `persisted` flag (4th
   // cross-vendor review, 2026-09-26) — the back-navigation case below needs
@@ -77,16 +117,22 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
   // because that never loads a new document at all: the same listener,
   // still resident in the same frozen-then-resumed JS heap, fires again on
   // its own.
-  await page.addInitScript(() => {
-    window.__uiSentryBfcachePersisted = null;
-    window.addEventListener("pageshow", (event) => {
-      window.__uiSentryBfcachePersisted = event.persisted;
-    });
-  });
+  await page.addInitScript(pageshowRecorderInitScript);
+
+  // See runCase's own header for why this runs ONLY after a failure.
+  // recreatePage (lib/browser.mjs) closes the poisoned page, opens a
+  // fresh one in the same context, and re-arms the same watchers; the
+  // pageshow recorder is passed through so the replacement page keeps it
+  // too.
+  async function recoverPage() {
+    page = await recreatePage(session, [pageshowRecorderInitScript]);
+    watch = session.watch;
+  }
+  const runCaseAndRecover = (name, fn) => runCase(cases, name, fn, recoverPage);
 
   try {
     // --- Cold-load perf probe (first navigation in this fresh context) ---
-    await runCase(cases, `${engineName}: home loads`, async () => {
+    await runCaseAndRecover(`${engineName}: home loads`, async () => {
       const response = await page.goto(baseUrl, { waitUntil: "load", timeout: 45_000 });
       if (!response || response.status() >= 400) {
         throw new Error(`home page responded ${response?.status() ?? "no response"}`);
@@ -114,7 +160,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     }
 
     // --- Journey: home -> conversation (real link click, not a teleport) ---
-    await runCase(cases, `${engineName}: journey home -> conversation`, async () => {
+    await runCaseAndRecover(`${engineName}: journey home -> conversation`, async () => {
       const firstPromptLink = page.locator('a[href*="/conversation/"]').first();
       await firstPromptLink.click();
       await page.waitForSelector("#conversation-input", { timeout: 20_000 });
@@ -123,7 +169,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Composer accepts typed text, then is cleared, never sent ---
-    await runCase(cases, `${engineName}: composer types and clears`, async () => {
+    await runCaseAndRecover(`${engineName}: composer types and clears`, async () => {
       const probeText = "sentry structural probe — not sent";
       await humanType(page, probeText, { delayMs: 15 });
       const typedValue = await page.inputValue("#conversation-input");
@@ -149,7 +195,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // variant in the DOM simultaneously (CSS-hidden by breakpoint), so the
     // selector is scoped to whichever copy of the button is actually
     // visible at this engine's viewport.
-    await runCase(cases, `${engineName}: phone-action dialog opens and closes`, async () => {
+    await runCaseAndRecover(`${engineName}: phone-action dialog opens and closes`, async () => {
       const footer = page.locator("#crisis-resources");
       await footer.scrollIntoViewIfNeeded();
       const trigger = footer.locator("button:visible").filter({ hasText: /911/ }).first();
@@ -169,7 +215,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
 
     // --- Prompt buttons render (also checked structurally on home; here
     // confirm the alternate-actions row, e.g. "type your own", is present) ---
-    await runCase(cases, `${engineName}: alternate actions render`, async () => {
+    await runCaseAndRecover(`${engineName}: alternate actions render`, async () => {
       // We are on the conversation page now; go back home to re-check in
       // the DOM rather than trust the earlier home-page count alone.
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
@@ -185,7 +231,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
 
     // --- Disclosure tap: crisis-footer <details> (mobile-only; hidden via
     // CSS at sm and above, so this is a mobile-engine-only structural check) ---
-    await runCase(cases, `${engineName}: disclosure toggles`, async () => {
+    await runCaseAndRecover(`${engineName}: disclosure toggles`, async () => {
       if (!isMobile) {
         // Desktop has no <details>/<summary> at all (crisis-footer.tsx:
         // the compact mobile wrapper with the disclosure is `sm:hidden`;
@@ -239,7 +285,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // "Find a human" inside the collapsed mobile disclosure, and the
     // desktop copy of the same link is DOM-present-but-hidden at mobile
     // widths, so a click-based selector is viewport-fragile here. ---
-    await runCase(cases, `${engineName}: navigation to find-human page`, async () => {
+    await runCaseAndRecover(`${engineName}: navigation to find-human page`, async () => {
       await page.goto(new URL("/find-human", baseUrl).toString(), {
         waitUntil: "domcontentloaded",
         timeout: 20_000,
@@ -284,7 +330,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // the same reason every other post-navigation read in this file does,
     // and awaiting it on a resumed page too is a harmless no-op (nothing
     // new needs to hydrate — the frozen JS context already has). ---
-    await runCase(cases, `${engineName}: back navigation (history back) — composer draft state matches how the navigation was actually served`, async () => {
+    await runCaseAndRecover(`${engineName}: back navigation (history back) — composer draft state matches how the navigation was actually served`, async () => {
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       // Same pre-hydration keystroke-drop race gotoConversation guards
@@ -344,7 +390,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // to it" — and it is the deterministic form of the same underlying
     // no-persistence design, since a reload can never be served from
     // history the way a back navigation sometimes can. ---
-    await runCase(cases, `${engineName}: reloading the conversation page clears the composer draft (no persistence, by design)`, async () => {
+    await runCaseAndRecover(`${engineName}: reloading the conversation page clears the composer draft (no persistence, by design)`, async () => {
       const conversationUrl = page.url();
       // The previous case's own last action was a fresh goBack() navigation
       // — same pre-hydration keystroke-drop race as everywhere else typing
@@ -381,7 +427,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // --- Navigation: report-problem page (structural only, never submitted —
     // the form only ever builds a mailto: link or copies to clipboard, no
     // server submit path exists to accidentally trigger) ---
-    await runCase(cases, `${engineName}: report-problem page reachable`, async () => {
+    await runCaseAndRecover(`${engineName}: report-problem page reachable`, async () => {
       await page.goto(new URL("/report-problem", baseUrl).toString(), {
         waitUntil: "domcontentloaded",
         timeout: 20_000,
@@ -391,7 +437,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Scrolling ---
-    await runCase(cases, `${engineName}: long-page scroll`, async () => {
+    await runCaseAndRecover(`${engineName}: long-page scroll`, async () => {
       await page.goto(new URL("/about", baseUrl).toString(), {
         waitUntil: "domcontentloaded",
         timeout: 20_000,
@@ -419,7 +465,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     if (isMobile) {
-      await runCase(cases, `${engineName}: horizontal overflow scan`, async () => {
+      await runCaseAndRecover(`${engineName}: horizontal overflow scan`, async () => {
         const overflowing = [];
         for (const path of ["/", "/find-human", "/about"]) {
           await page.goto(new URL(path, baseUrl).toString(), {
@@ -449,7 +495,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // covers all six in about the same wall-clock cost as one click-based
     // switch did.
     for (const [localeCode, marker] of Object.entries(LOCALE_HEADING_MARKERS)) {
-      await runCase(cases, `${engineName}: locale ${localeCode} renders translated heading`, async () => {
+      await runCaseAndRecover(`${engineName}: locale ${localeCode} renders translated heading`, async () => {
         await page.goto(`${baseUrl}/?lang=${localeCode}`, {
           waitUntil: "domcontentloaded",
           timeout: 20_000,
@@ -462,7 +508,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       });
     }
 
-    await runCase(cases, `${engineName}: locale switch back to en`, async () => {
+    await runCaseAndRecover(`${engineName}: locale switch back to en`, async () => {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("h1", { timeout: 15_000 });
       const headingText = await page.locator("h1").innerText();
@@ -483,7 +529,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // (a real proxy for "assistive tech can reach it") instead of a
     // literal Tab-reaches-it walk, and navigates directly rather than via
     // simulated Tab+Enter.
-    await runCase(cases, `${engineName}: keyboard-only walk`, async () => {
+    await runCaseAndRecover(`${engineName}: keyboard-only walk`, async () => {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("h1", { timeout: 15_000 });
 
@@ -521,16 +567,16 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Accessibility: axe-core scans (serious/critical fail, others warn) ---
-    await runCase(cases, `${engineName}: axe scan home`, async () => {
+    await runCaseAndRecover(`${engineName}: axe scan home`, async () => {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("h1", { timeout: 15_000 });
       return await axeScan(page, "home", warnings);
     });
-    await runCase(cases, `${engineName}: axe scan conversation`, async () => {
+    await runCaseAndRecover(`${engineName}: axe scan conversation`, async () => {
       await gotoConversation(page, baseUrl, "type-your-own");
       return await axeScan(page, "conversation", warnings);
     });
-    await runCase(cases, `${engineName}: axe scan find-human`, async () => {
+    await runCaseAndRecover(`${engineName}: axe scan find-human`, async () => {
       await page.goto(new URL("/find-human", baseUrl).toString(), {
         waitUntil: "domcontentloaded",
         timeout: 20_000,
@@ -540,7 +586,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Slow-network pass: re-run the core journey with route delays ---
-    await runCase(cases, `${engineName}: slow-network journey`, async () => {
+    await runCaseAndRecover(`${engineName}: slow-network journey`, async () => {
       await page.unroute("**/*").catch(() => {});
       await page.route("**/*", async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 300));
