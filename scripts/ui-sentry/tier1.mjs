@@ -5,30 +5,47 @@ import AxeBuilder from "@axe-core/playwright";
 import { launchPage, readPerf, recreatePage, watchProblems } from "./lib/browser.mjs";
 import { humanType, settleComposer } from "./lib/human-type.mjs";
 import { gotoConversation, settleAfterConversationLoad } from "./lib/conversation.mjs";
+import { readHostLoad } from "./lib/host-load.mjs";
 import { LOCALE_HEADING_MARKERS } from "./fixtures/locale-markers.mjs";
 
 const AXE_SERIOUS_OR_CRITICAL = new Set(["serious", "critical"]);
 
-// `recover`, when given, runs ONLY after a failure — never after a pass,
-// since a passing case leaves the page in a well-defined state later
-// cases are entitled to build on (several tier 1 cases are a deliberate
-// journey: click through, type, go back). A failure's page state is NOT
-// well-defined (2026-09-27: a timed-out navigation was found to poison
-// every later case with a fabricated "interrupted by another navigation"
-// error, on a host under heavy load) — recovering after exactly that
-// case, and no other, is what stops it from cascading without discarding
-// the journey continuity every passing case still needs.
-async function runCase(cases, name, fn, recover) {
+// `recover`, when given, runs ONLY after a failure — never after a pass.
+// Exported so browser.recreate-page.test.mjs can drive the EXACT same
+// mechanism tier1.mjs itself uses, rather than a hand-rolled reimplementation
+// that could silently drift from the real thing.
+//
+// Every case below is now self-sufficient (2026-09-27, cross-vendor review
+// of #52 finding 1): it navigates to its own start URL and waits for its
+// own ready selector before acting, rather than assuming a PREVIOUS case
+// already put the page somewhere useful. That review caught a real gap in
+// the 2026-09-27 cascade fix below — recovering the page after a failure
+// (closing it and opening a fresh, blank one) is necessary but not
+// sufficient: a fresh page with no cross-case assumption is exactly as
+// broken as a poisoned one for a case written to assume continuity. Several
+// cases here are still a deliberate multi-step JOURNEY (click through a
+// page it just loaded itself, type, navigate away, come back) — that is
+// still fine and still tested; what changed is that every such journey now
+// starts from a navigation the case performs itself, never from wherever
+// the PREVIOUS case happened to leave the page.
+export async function runCase(cases, name, fn, recover) {
   const startedAt = Date.now();
   try {
     const detail = await fn();
     cases.push({ name, status: "pass", durationMs: Date.now() - startedAt, ...detail });
   } catch (error) {
+    // Content-free (host-load.mjs: numbers only) — captured at the moment
+    // of failure, not the run's start, so a spike that has already cleared
+    // by the time this case fails cannot relabel this failure, and a spike
+    // that only appears mid-run is not missed either (2026-09-27 cross-vendor
+    // review of #52 finding 2).
+    const hostLoadAtFailure = readHostLoad();
     cases.push({
       name,
       status: "fail",
       durationMs: Date.now() - startedAt,
       error: String(error?.message ?? error).slice(0, 300),
+      hostLoadAtFailure,
     });
     if (recover) {
       await recover().catch((recoverError) => {
@@ -159,8 +176,15 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       warnings.push(`cold-load CLS ${perf.cls.toFixed(3)} exceeds the 0.1 warn threshold`);
     }
 
-    // --- Journey: home -> conversation (real link click, not a teleport) ---
+    // --- Journey: home -> conversation (real link click, not a teleport).
+    // Self-sufficient (2026-09-27): loads its OWN home page and waits for
+    // its OWN ready selector first, rather than trusting that the PREVIOUS
+    // case ("home loads") left the page there — that case can itself fail
+    // and get recovered to a blank page, and this case must still run its
+    // own check cleanly regardless. ---
     await runCaseAndRecover(`${engineName}: journey home -> conversation`, async () => {
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector('a[href*="/conversation/"]', { timeout: 15_000 });
       const firstPromptLink = page.locator('a[href*="/conversation/"]').first();
       await firstPromptLink.click();
       await page.waitForSelector("#conversation-input", { timeout: 20_000 });
@@ -168,8 +192,11 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
       await assertNoApiFailures(watch);
     });
 
-    // --- Composer accepts typed text, then is cleared, never sent ---
+    // --- Composer accepts typed text, then is cleared, never sent.
+    // Self-sufficient: loads its own conversation page rather than trusting
+    // the journey case above left one open. ---
     await runCaseAndRecover(`${engineName}: composer types and clears`, async () => {
+      await gotoConversation(page, baseUrl, "type-your-own");
       const probeText = "sentry structural probe — not sent";
       await humanType(page, probeText, { delayMs: 15 });
       const typedValue = await page.inputValue("#conversation-input");
@@ -194,8 +221,13 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // The compact footer renders both a mobile-mini and a desktop-full
     // variant in the DOM simultaneously (CSS-hidden by breakpoint), so the
     // selector is scoped to whichever copy of the button is actually
-    // visible at this engine's viewport.
+    // visible at this engine's viewport. Self-sufficient: loads the home
+    // page itself first — CrisisFooter renders on both home and the
+    // conversation page, so either would do, but this case must not assume
+    // whichever one a previous case happened to leave up.
     await runCaseAndRecover(`${engineName}: phone-action dialog opens and closes`, async () => {
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector("#crisis-resources", { timeout: 15_000 });
       const footer = page.locator("#crisis-resources");
       await footer.scrollIntoViewIfNeeded();
       const trigger = footer.locator("button:visible").filter({ hasText: /911/ }).first();
@@ -214,10 +246,18 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Prompt buttons render (also checked structurally on home; here
-    // confirm the alternate-actions row, e.g. "type your own", is present) ---
+    // confirm they survive a real back/forward SPA navigation cycle, not
+    // just a fresh load). Self-sufficient: builds its OWN two-entry history
+    // (home -> a conversation page) first, rather than trusting a previous
+    // case's page/history state, then exercises the same back/forward
+    // check as before. ---
     await runCaseAndRecover(`${engineName}: alternate actions render`, async () => {
-      // We are on the conversation page now; go back home to re-check in
-      // the DOM rather than trust the earlier home-page count alone.
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector('a[href*="/conversation/"]', { timeout: 15_000 });
+      await page.locator('a[href*="/conversation/"]').first().click();
+      await page.waitForSelector("#conversation-input", { timeout: 20_000 });
+      await settleAfterConversationLoad(page);
+
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("h1", { timeout: 15_000 });
       const count = await page.evaluate(
@@ -230,8 +270,11 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     });
 
     // --- Disclosure tap: crisis-footer <details> (mobile-only; hidden via
-    // CSS at sm and above, so this is a mobile-engine-only structural check) ---
+    // CSS at sm and above, so this is a mobile-engine-only structural check).
+    // Self-sufficient: loads the home page itself first. ---
     await runCaseAndRecover(`${engineName}: disclosure toggles`, async () => {
+      await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      await page.waitForSelector("#crisis-resources", { timeout: 15_000 });
       if (!isMobile) {
         // Desktop has no <details>/<summary> at all (crisis-footer.tsx:
         // the compact mobile wrapper with the disclosure is `sm:hidden`;
@@ -329,8 +372,18 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // path before reading the composer: a fresh navigation needs it for
     // the same reason every other post-navigation read in this file does,
     // and awaiting it on a resumed page too is a harmless no-op (nothing
-    // new needs to hydrate — the frozen JS context already has). ---
+    // new needs to hydrate — the frozen JS context already has). Self-
+    // sufficient (2026-09-27): builds its OWN history (a conversation page,
+    // then find-human) before exercising the same back-navigation checks —
+    // it must not assume a PREVIOUS case already navigated there. ---
     await runCaseAndRecover(`${engineName}: back navigation (history back) — composer draft state matches how the navigation was actually served`, async () => {
+      await gotoConversation(page, baseUrl, "type-your-own");
+      await page.goto(new URL("/find-human", baseUrl).toString(), {
+        waitUntil: "domcontentloaded",
+        timeout: 20_000,
+      });
+      await page.waitForSelector("h1", { timeout: 15_000 });
+
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#conversation-input", { timeout: 15_000 });
       // Same pre-hydration keystroke-drop race gotoConversation guards
@@ -389,14 +442,12 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // this page ever start with stale state" rather than "does going back
     // to it" — and it is the deterministic form of the same underlying
     // no-persistence design, since a reload can never be served from
-    // history the way a back navigation sometimes can. ---
+    // history the way a back navigation sometimes can. Self-sufficient:
+    // loads its own conversation page rather than trusting the previous
+    // case's ending position. ---
     await runCaseAndRecover(`${engineName}: reloading the conversation page clears the composer draft (no persistence, by design)`, async () => {
+      await gotoConversation(page, baseUrl, "type-your-own");
       const conversationUrl = page.url();
-      // The previous case's own last action was a fresh goBack() navigation
-      // — same pre-hydration keystroke-drop race as everywhere else typing
-      // follows a navigation in this file; without this, typing below can
-      // land short/empty before React has hydrated.
-      await settleAfterConversationLoad(page);
 
       const probeText = "sentry reload probe — not sent";
       await humanType(page, probeText, { delayMs: 15 });

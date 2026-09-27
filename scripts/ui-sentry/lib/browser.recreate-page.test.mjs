@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { chromium } from "@playwright/test";
 import test from "node:test";
 import { launchPage, recreatePage } from "./browser.mjs";
+import { runCase } from "../tier1.mjs";
 
 const FIXTURE_ORIGIN = "https://ui-sentry-recreate-fixture.test";
 
@@ -139,6 +140,103 @@ test("recreatePage clears stale watcher state and re-arms the same watchers on t
     await newPage.evaluate(() => console.error("fresh error on the new page"));
     await newPage.waitForTimeout(50);
     assert.deepEqual(session.watch.consoleErrors, ["fresh error on the new page"]);
+
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+});
+
+// 2026-09-27, cross-vendor review of #52 finding 1: recreatePage() alone is
+// NOT sufficient. It hands the next case a genuinely fresh, but BLANK,
+// page — a case written to assume a PREVIOUS case already navigated
+// somewhere useful (the original tier1.mjs shape) still fails against that
+// blank page, recreating a version of the same cascade with a different
+// error message. The real fix is that every tier1 case now navigates to
+// its own start URL and waits for its own ready selector before acting.
+// These two tests use the EXACT `runCase` mechanism tier1.mjs itself uses
+// (imported directly, not reimplemented) to prove that shape, both ways.
+test("a case written the OLD way (assuming a previous case's page state) fails after recovery, even with the fix's own recreatePage", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const session = await makeSession(browser);
+    await session.context.route(`${FIXTURE_ORIGIN}/home`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: '<!doctype html><html><body><h1>home</h1><a href="/fast">go</a></body></html>',
+      }),
+    );
+
+    const cases = [];
+    const recoverPage = () => recreatePage(session, []);
+
+    // Case N: mimics "home loads" — its own navigation hangs and times out.
+    await runCase(cases, "case N (hangs)", async () => {
+      await session.page.goto(`${FIXTURE_ORIGIN}/hangs`, { timeout: 500 });
+    }, recoverPage);
+
+    // Case N+1, written the OLD (pre-fix) way: it assumes case N already
+    // navigated somewhere with an "a" link on it, and just acts — no
+    // navigation of its own.
+    await runCase(cases, "case N+1 (assumes case N's page)", async () => {
+      await session.page.locator("a").click({ timeout: 2_000 });
+    }, recoverPage);
+
+    assert.equal(cases[0].status, "fail");
+    assert.equal(
+      cases[1].status,
+      "fail",
+      `a case that assumes a previous case's page state must still fail on a blank recovered page: ${JSON.stringify(cases[1])}`,
+    );
+
+    await browser.close();
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+});
+
+test("a self-sufficient case N+1 (navigates to its own start URL first) passes after case N hangs and gets recovered", async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const session = await makeSession(browser);
+    await session.context.route(`${FIXTURE_ORIGIN}/home`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: `<!doctype html><html><body><h1>home</h1><a href="${FIXTURE_ORIGIN}/fast">go</a></body></html>`,
+      }),
+    );
+
+    const cases = [];
+    const recoverPage = () => recreatePage(session, []);
+
+    // Case N: mimics "home loads" — its own navigation hangs and times out.
+    await runCase(cases, "case N (hangs)", async () => {
+      await session.page.goto(`${FIXTURE_ORIGIN}/hangs`, { timeout: 500 });
+    }, recoverPage);
+
+    // Case N+1, SELF-SUFFICIENT (the actual 2026-09-27 fix, mirrored from
+    // tier1.mjs's real case bodies): navigates to its OWN start URL and
+    // waits for its OWN ready selector before acting at all. It must pass
+    // even though case N — which it "needed" a page from, under the old
+    // design — never got there.
+    await runCase(cases, "case N+1 (self-sufficient)", async () => {
+      await session.page.goto(`${FIXTURE_ORIGIN}/home`, { waitUntil: "domcontentloaded", timeout: 5_000 });
+      await session.page.waitForSelector("h1", { timeout: 5_000 });
+      await session.page.locator("a").click({ timeout: 5_000 });
+      const heading = await session.page.evaluate(() => document.querySelector("h1")?.textContent);
+      if (heading !== "fast page") throw new Error(`unexpected heading after click: ${heading}`);
+    }, recoverPage);
+
+    assert.equal(cases[0].status, "fail");
+    assert.equal(
+      cases[1].status,
+      "pass",
+      `a self-sufficient case must pass on its own, regardless of case N's outcome: ${JSON.stringify(cases[1])}`,
+    );
 
     await browser.close();
   } catch (error) {
