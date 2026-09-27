@@ -88,6 +88,69 @@ async function assertNoApiFailures(watch) {
   }
 }
 
+// Route-specific ready checks (2026-09-27, 2nd round of cross-vendor review
+// of #52, finding 1): report-problem's old ready selector was "form,
+// section" — this page renders no literal `<form>` element at all
+// (ReportProblemForm never submits to a server, only builds a mailto: link
+// or copies to clipboard), so in practice that selector matched only on
+// `section`. InfoPageShell wraps EVERY info page's content in a `<section>`
+// AND an `<h1>`, and src/app/not-found.tsx (a real 404) renders both too —
+// so neither alone, nor the response status being unchecked, could tell a
+// genuinely reachable report-problem page apart from a 404. Exported so
+// tier1.route-check.test.mjs can prove both fail against a real 404, using
+// the exact function tier1.mjs itself calls.
+export async function checkReportProblemPage(page, baseUrl) {
+  const response = await page.goto(new URL("/report-problem", baseUrl).toString(), {
+    waitUntil: "domcontentloaded",
+    timeout: 20_000,
+  });
+  if (!response || response.status() !== 200) {
+    throw new Error(`report-problem responded ${response?.status() ?? "no response"}`);
+  }
+  // A <select> (the "where"/"what" dropdowns) is the one thing on this page
+  // not-found.tsx never renders — unlike <section>/<h1>, which both pages
+  // share via InfoPageShell.
+  await page.waitForSelector("select", { timeout: 15_000 });
+}
+
+// Same finding, the horizontal-overflow scan: a flat 300ms wait with no
+// ready check and no response-status check at all means a 404 for any of
+// these three paths — which can just as easily render with zero horizontal
+// overflow as a real page — silently passed. Each selector below is
+// something the REAL page renders that a 404 never does (the home page's
+// own prompt links; the `<article>` elements find-human's referral cards
+// and about's content sections both use, absent from not-found.tsx).
+const OVERFLOW_SCAN_READY_SELECTOR = {
+  "/": 'a[href*="/conversation/"]',
+  "/find-human": "article",
+  "/about": "article",
+};
+
+export async function checkHorizontalOverflow(page, baseUrl) {
+  const overflowing = [];
+  for (const path of Object.keys(OVERFLOW_SCAN_READY_SELECTOR)) {
+    const response = await page.goto(new URL(path, baseUrl).toString(), {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
+    if (!response || response.status() !== 200) {
+      throw new Error(`${path} responded ${response?.status() ?? "no response"}`);
+    }
+    await page.waitForSelector(OVERFLOW_SCAN_READY_SELECTOR[path], { timeout: 15_000 });
+    await page.waitForTimeout(300);
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
+      clientWidth: document.scrollingElement?.clientWidth ?? 0,
+    }));
+    if (scrollWidth > clientWidth + 1) {
+      overflowing.push(`${path}(${scrollWidth}>${clientWidth})`);
+    }
+  }
+  if (overflowing.length > 0) {
+    throw new Error(`horizontal overflow: ${overflowing.join(", ")}`);
+  }
+}
+
 async function axeScan(page, pageName, warnings) {
   const results = await new AxeBuilder({ page }).analyze();
   const serious = results.violations.filter((v) => AXE_SERIOUS_OR_CRITICAL.has(v.impact ?? ""));
@@ -479,11 +542,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     // the form only ever builds a mailto: link or copies to clipboard, no
     // server submit path exists to accidentally trigger) ---
     await runCaseAndRecover(`${engineName}: report-problem page reachable`, async () => {
-      await page.goto(new URL("/report-problem", baseUrl).toString(), {
-        waitUntil: "domcontentloaded",
-        timeout: 20_000,
-      });
-      await page.waitForSelector("form, section", { timeout: 15_000 });
+      await checkReportProblemPage(page, baseUrl);
       await assertNoApiFailures(watch);
     });
 
@@ -517,24 +576,7 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
 
     if (isMobile) {
       await runCaseAndRecover(`${engineName}: horizontal overflow scan`, async () => {
-        const overflowing = [];
-        for (const path of ["/", "/find-human", "/about"]) {
-          await page.goto(new URL(path, baseUrl).toString(), {
-            waitUntil: "domcontentloaded",
-            timeout: 20_000,
-          });
-          await page.waitForTimeout(300);
-          const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-            scrollWidth: document.scrollingElement?.scrollWidth ?? 0,
-            clientWidth: document.scrollingElement?.clientWidth ?? 0,
-          }));
-          if (scrollWidth > clientWidth + 1) {
-            overflowing.push(`${path}(${scrollWidth}>${clientWidth})`);
-          }
-        }
-        if (overflowing.length > 0) {
-          throw new Error(`horizontal overflow: ${overflowing.join(", ")}`);
-        }
+        await checkHorizontalOverflow(page, baseUrl);
       });
     }
 
