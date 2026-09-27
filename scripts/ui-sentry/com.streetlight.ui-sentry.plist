@@ -9,15 +9,8 @@
 	</dict>
 	<key>Label</key>
 	<string>com.streetlight.ui-sentry</string>
-	<!-- 2026-09-15 incident: ProcessType=Background made macOS throttle this
-	     job hard enough (taskpolicy -b) that headless Chromium/WebKit launches
-	     which take ~0.5s interactively took 9.6-20s+ here, tripping the
-	     preflight's browser-launch timeout and reporting "missing browsers"
-	     that were actually installed and fine. Standard (the default) does
-	     not get that throttling; removed rather than left implicit so this
-	     doesn't quietly come back on a future plist edit. See
-	     scripts/ui-sentry/lib/preflight.mjs for the matching timeout increase
-	     and failure-class split. -->
+	<key>ProcessType</key>
+	<string>Standard</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/Users/alexmercer/streetlight/scripts/ui-sentry/run-ui-sentry.sh</string>
@@ -29,11 +22,6 @@
 	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.err.log</string>
 	<key>StandardOutPath</key>
 	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.out.log</string>
-	<!-- 2026-09-27: moved from 07:23 to 02:00 local. 02:00 Pacific is safely
-	     after the 00:00 UTC daily monitor-pass Turnstile-skip quota reset
-	     (scripts/ui-sentry/tier2.mjs), and a run (~12 minutes) finishes
-	     comfortably before this Mac's other scheduled jobs at 02:17 and
-	     02:30. See docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md. -->
 	<key>StartCalendarInterval</key>
 	<array>
 		<dict>
