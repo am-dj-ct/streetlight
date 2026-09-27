@@ -218,27 +218,29 @@ _ui_sentry_read_verified_state() {
 sentinel_emit_item_a() {
   local exit_code="$1"
   if [ "$exit_code" != "0" ]; then
-    # host_overloaded (2026-09-27): a tier1 failure this run's own
-    # orchestrator judged was caused by Mac CPU load (the 1-minute load
-    # average at tier0 or tier1 start exceeding 3x the CPU count — see
-    # host-load.mjs) gets a distinct reason from a plain job_failed, so the
-    # red email can tell Jesse "the site answered its health check but the
-    # Mac was too loaded to finish the check" instead of implying a code or
-    # site problem. This NEVER changes the status here — still red, exactly
-    # as red as any other tier1 failure; only the reason_code and the
-    # email's own wording differ. Falls back to plain job_failed whenever
-    # the state read isn't verifiably THIS invocation's own (missing jq,
-    # no file yet, a stale/mismatched invocationId) — the same fail-closed
-    # posture as state_unverifiable below, just folded into the existing
-    # job_failed reason rather than inventing a red-on-red-on-red third
-    # state for a case this exit code already reports correctly on its own.
+    # host-overload detail (2026-09-27, refined in cross-vendor review of
+    # #52 finding 3): the reason_code STAYS job_failed — host_overloaded is
+    # not in checkin-schema.mjs's closed reason vocabulary (nor blt-hub's),
+    # and this lane does not add new reason codes to that cross-repo-synced
+    # list (see checkin-schema.mjs's own header). What actually reaches
+    # Jesse differently is the email's own TEXT: when this run's own
+    # orchestrator judged tier 1's failure was caused by Mac CPU load (the
+    # load reading taken at the moment of the first failing case exceeding
+    # 3x the CPU count — see host-load.mjs and tier1.mjs's runCase), an
+    # extra plain-English sentence is appended to the red email explaining
+    # that, so Jesse reads "the site answered its health check but the Mac
+    # was overloaded" instead of a bare "the job failed" with no further
+    # context. The status here is unaffected either way — still red, exactly
+    # as red as any other tier1 failure. Falls back to no detail whenever
+    # the state read isn't verifiably THIS invocation's own (missing jq, no
+    # file yet, a stale/mismatched invocationId) — same fail-closed posture
+    # as state_unverifiable below, just without a distinct reason of its own
+    # since this exit code already reports correctly regardless.
     local detail=""
     if _ui_sentry_read_verified_state && [ "$UI_SENTRY_VERIFIED_HOST_OVERLOADED" = "true" ]; then
-      detail="The site answered its health check, but the Mac was too loaded to finish the check — a host overload, not a site problem. Overall verdict for this run: ${UI_SENTRY_VERIFIED_LEVEL:-FAIL}."
-      sentinel_checkin sl-ui-sentry red host_overloaded "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" "$detail" || true
-    else
-      sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" || true
+      detail="The site answered its health check, but the Mac was overloaded while the check ran, so the failures may be caused by the Mac rather than the site. Overall verdict for this run: ${UI_SENTRY_VERIFIED_LEVEL:-FAIL}."
     fi
+    sentinel_checkin sl-ui-sentry red job_failed "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" "$detail" || true
     return 0
   fi
 
