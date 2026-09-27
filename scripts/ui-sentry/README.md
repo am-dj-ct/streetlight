@@ -231,6 +231,12 @@ runs/week — see the ADR for the full weekly ceiling this implies.
   runs at all. That gap (R12) is covered from outside: the pager's 74h
   staleness check on `last-run.json`, and the sentinel's grace window on a
   slot that never checked in.
+- DST: 02:00 Pacific doesn't exist on the spring-forward day each March.
+  What launchd itself does with that gap is unverified for this Mac (see
+  the ADR's DST note); either outcome — no fire that day, or a late fire
+  once the clock catches up — is already handled safely without a code
+  change, and the freshness/red-green check never depends on local time at
+  all. See the ADR and `scripts/sentinel-v5/cron-slot.test.mjs`.
 
 ## What this does not do (v1, deliberate)
 
