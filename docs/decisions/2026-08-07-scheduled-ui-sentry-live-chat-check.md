@@ -5,6 +5,8 @@
 > **Partly superseded (2026-08-17).** The reporting decision below — "every run sends an email regardless of outcome" — no longer holds. The sentry sends no email on any path; it writes its report to the run log and `last-run.json`, and two external monitors read those. See `docs/decisions/2026-08-17-ui-sentry-reports-without-email.md`, which also closes the R12 dead-man gap admitted under Consequences. Everything else in this ADR stands.
 >
 > **Cadence updated (2026-08-23).** Jesse's spec, Sentinel chat: the UI checks are supposed to be daily, not Mon/Wed/Fri. Commit `8bc68a9` (#30) moved the live plist to a daily 07:23 local fire; the numbers below are updated to match. The per-run caps this ADR authorizes (≤8 live turns, single-instance lock, no `KeepAlive`, no internal retry loop) are unchanged — only the number of runs per week changed.
+>
+> **Time updated (2026-09-27).** The daily fire moves from 07:23 to 02:00 local. Root cause for the move: the 07:23 fire regularly landed while this Mac was already under heavy load from other scheduled work, and on 2026-09-27 a load average of ~144 on 10 cores made tier 1's own browser commands time out and (before that day's separate cascade fix) fail every later structural case too. 02:00 is safely after the 00:00 UTC daily monitor-pass Turnstile-skip quota reset (`docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`) and clears this Mac's other scheduled jobs at 02:17 and 02:30 — a run takes roughly 12 minutes. Still daily, still 7 runs/week; only the clock time changed. `com.streetlight.ui-sentry.plist`, `config/sentinel-v5-registry-fragment.streetlight.json`'s schedule (which had also separately drifted to a stale Mon/Wed/Fri cron left over from before the 2026-08-23 daily move — fixed in the same change), and `run-ui-sentry.sh` are updated to match.
 
 ## Context
 
@@ -32,8 +34,8 @@ do; this ADR ratifies the resulting build.
 ## Decision
 
 Add `com.streetlight.ui-sentry` — a `launchd` job on the operator's own Mac,
-running `scripts/ui-sentry/run-ui-sentry.sh --live`, daily 07:23 local
-(7 runs/week — see the cadence note above). This ADR **supersedes the 2026-07-12 ADR for this one named
+running `scripts/ui-sentry/run-ui-sentry.sh --live`, daily 02:00 local
+(7 runs/week — see the cadence/time notes above). This ADR **supersedes the 2026-07-12 ADR for this one named
 sentry only** — the 2026-07-12 boundary still applies to every other local
 monitor; it does not become general permission for local tooling to call
 chat routes. Any other monitor must still stay inside the 2026-07-12
@@ -105,7 +107,7 @@ This narrows what "the report is content-free" means in practice, not what
 it protects: the escalation state machine only ever operates on booleans
 and counts (`consecutiveBlockedRuns`, `blockedEscalationActive`) already in
 the allowlisted `last-run.json` schema below — no new field carries content.
-- **Cadence:** daily 07:23 local, no `KeepAlive`, no internal retry
+- **Cadence:** daily 02:00 local, no `KeepAlive`, no internal retry
   loop. A manual run (`run-ui-sentry.sh --live`, the same entry point,
   same caps) is permitted for proof and debugging and shares the same
   turn budget and single-instance lock as the scheduled fire — there is no

@@ -29,13 +29,18 @@
 	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.err.log</string>
 	<key>StandardOutPath</key>
 	<string>/Users/alexmercer/.streetlight/ui-sentry/launchd.out.log</string>
+	<!-- 2026-09-27: moved from 07:23 to 02:00 local. 02:00 Pacific is safely
+	     after the 00:00 UTC daily monitor-pass Turnstile-skip quota reset
+	     (scripts/ui-sentry/tier2.mjs), and a run (~12 minutes) finishes
+	     comfortably before this Mac's other scheduled jobs at 02:17 and
+	     02:30. See docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md. -->
 	<key>StartCalendarInterval</key>
 	<array>
 		<dict>
 			<key>Hour</key>
-			<integer>7</integer>
+			<integer>2</integer>
 			<key>Minute</key>
-			<integer>23</integer>
+			<integer>0</integer>
 		</dict>
 	</array>
 	<key>WorkingDirectory</key>

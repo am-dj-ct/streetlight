@@ -1342,4 +1342,11 @@ One-line summary of every decision in this document, dated for traceability.
 - Named the leading hypothesis for the 3/6 mystery: a `response_timeout` turn's page can keep streaming after this sentry gives up waiting on it, and the app queues rather than sends a submit while still streaming — consistent with a run that made only 3 POSTs across 6 attempted turns. `ensurePageIdleBeforeNextTurn` now waits for streaming to settle (or reloads the page) before advancing past any non-"pass" turn. Not yet confirmed against a real run.
 - Full detail in the same-file amendment: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
 
+**2026-09-27 — tier 1 case isolation, host-load reporting, and the 07:23 -> 02:00 schedule move:**
+
+- Root-caused the 2026-09-27 07:23 FAIL: this Mac's load average was ~144 on 10 cores at run time, chromium-desktop page loads took ~28s, and one timed-out tier 1 navigation cascaded into 17 more fabricated "interrupted by another navigation" failures because every case shared one page. Fixed: each tier 1 failure now closes and recreates the page (`scripts/ui-sentry/lib/browser.mjs`'s `recreatePage`) before the next case runs, so one hung navigation can no longer poison the rest of the run.
+- `os.loadavg()`/`os.cpus().length` (numbers only) are now recorded in the run log and `last-run.json` at tier 0 start and tier 1 start. When tier 1 fails and the highest 1-minute load seen exceeds 3x the CPU count, the run stays exactly as red as before — never downgraded — but the sentinel-v5 check-in reason becomes `host_overloaded` instead of `job_failed`, and the red email says in plain words that the site answered its health check but the Mac was too loaded to finish it, naming the overall verdict.
+- The daily fire moves from 07:23 to 02:00 local — see the ADR's 2026-09-27 note for why. No cadence, page allowlist, live-turn cap, or logging-field change.
+- Full detail: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
+
 *End of document.*
