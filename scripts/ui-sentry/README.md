@@ -94,6 +94,10 @@ working tree:
   Content-free — see the ADR for the exact schema this allowlists. This is
   the file `~/caller-track-pager`'s `checkUiSentry()` pages on, so its
   status and `finishedAt` are load-bearing.
+  Overload-only tier-1 timeouts preserve their raw `observedLevel: FAIL` and
+  fixed `failureClass: host_overloaded`, while alert-facing `status` is
+  `DEGRADED` so neither monitor pages on host load alone. Episode timestamps,
+  counts, minutes, and alert disposition remain content-free.
 - `logs/<timestamp>.log` — one file per run, content-free structured lines
   only (case names, HTTP statuses, timings — never typed prompts or model
   replies).
@@ -120,6 +124,15 @@ what the run wrote, and between them they are the whole alerting surface:
   red/`degraded` from the age of `lastSuccessfulLiveChatAt`). Both are live
   registry items with digest escalation and a 45-minute grace window, so a
   slot that never checks in is itself reported.
+
+When every tier-1 failure is a typed timeout and every failure-time load sample
+exceeds the shared 3x-CPU threshold, the run is locally classified
+`host_overloaded` and its item-A check-in is yellow rather than red. The first
+such run at or beyond 60 minutes without a success is red once with the elapsed
+minutes; later overload-only runs are yellow after confirmed or uncertain
+delivery. A successful run resets the episode; any genuine or mixed failure
+stays red exactly as before and ends that consecutive-overload episode.
+Cooldown or definite non-delivery leaves the sustained alert pending.
 
 ### Sentinel incident closure contract
 

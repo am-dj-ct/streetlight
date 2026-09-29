@@ -43,7 +43,8 @@ def worker(command, seconds):
     return 0
 m.bounded = worker
 assert m.main('synthetic-worker') == 0
-assert json.loads((root / 'slots-state.json').read_text()) == {'slot': 600, 'pending': False}
+first_state = json.loads((root / 'slots-state.json').read_text())
+assert first_state['slot'] == 600 and first_state['pending'] is False
 assert not any(json.loads(line)['status'] == 'missed' for line in (root / 'slots.jsonl').read_text().splitlines())
 # A delayed next invocation still gets its own normal record.
 m.bounded = lambda command, seconds: 0
@@ -57,4 +58,75 @@ missed = [json.loads(line) for line in (root / 'slots.jsonl').read_text().splitl
 assert len(missed) == 1 and missed[0]['slot'] == m.iso(900)
 assert missed[0]['reason'] == 'not_invoked_or_host_unavailable'
 `], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1", STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT: root } });
+});
+
+test("overload timeout stays quiet, sustained overload pages once, and a genuine timeout pages", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "health-overload-policy-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = await exec("python3", ["-c", `
+import importlib.util, json, os
+from pathlib import Path
+s = importlib.util.spec_from_file_location('slots', 'scripts/error-stream-health/slots.py')
+m = importlib.util.module_from_spec(s)
+s.loader.exec_module(m)
+worker = str(Path('scripts/error-stream-health/run-error-stream-health.sh').resolve())
+clock = [900]
+m.time.time = lambda: clock[0]
+m.host_overload_sample = lambda worker: ({'load1': 100, 'load5': 100, 'load15': 100, 'cpuCount': 10}, True)
+checkins = []
+def fake_bounded(command, seconds):
+    if len(command) >= 3 and command[1] == worker and command[2] == '--worker':
+        return 124
+    checkins.append(command)
+    Path(command[-1]).write_text('confirmed')
+    return 0
+m.bounded = fake_bounded
+
+# The first overload-only timeout is recorded locally without a red check-in.
+assert m.main(worker) == 124
+assert checkins == []
+lines = [json.loads(line) for line in (Path(os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT']) / 'slots.jsonl').read_text().splitlines()]
+assert lines[-1]['reason'] == 'host_overloaded'
+assert lines[-1]['underlyingReason'] == 'deadline_exceeded'
+
+# Twelve more five-minute failures cross 60 minutes. Exactly that crossing pages.
+for _ in range(12):
+    clock[0] += 300
+    assert m.main(worker) == 124
+assert len(checkins) == 1
+assert 'has not succeeded for 60 minutes' in checkins[0][-2]
+clock[0] += 300
+assert m.main(worker) == 124
+assert len(checkins) == 1
+
+# A success resets the episode; a later genuine (not overloaded) timeout pages normally.
+def successful_worker(command, seconds):
+    if len(command) >= 3 and command[1] == worker and command[2] == '--worker':
+        return 0
+    checkins.append(command)
+    return 0
+m.bounded = successful_worker
+clock[0] += 300
+assert m.main(worker) == 0
+m.host_overload_sample = lambda worker: ({'load1': 5, 'load5': 5, 'load15': 5, 'cpuCount': 10}, False)
+m.bounded = fake_bounded
+clock[0] += 300
+assert m.main(worker) == 124
+assert len(checkins) == 2
+
+# If the shared policy helper fails, fail closed and page the deadline.
+m.host_overload_sample = lambda worker: ({'load1': 100, 'load5': 100, 'load15': 100, 'cpuCount': 10}, True)
+m.next_overload_episode = lambda *args, **kwargs: None
+clock[0] += 300
+assert m.main(worker) == 124
+assert len(checkins) == 3
+`], {
+    env: {
+      ...process.env,
+      PYTHONDONTWRITEBYTECODE: "1",
+      STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT: root,
+      SENTINEL_MAIL_RED_DISABLED: "1",
+    },
+  });
+  assert.equal(result.stderr, "");
 });

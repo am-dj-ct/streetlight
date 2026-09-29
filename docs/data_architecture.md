@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-09-26
-**Last meaningful change:** 2026-09-26 (bounded UI-sentry Turnstile monitor pass; see `docs/decisions/2026-09-26-ui-sentry-monitor-pass.md`. Also: content-free email acceptance receipts, local missed health-slot accounting, and one failure-only digest watcher; see `docs/decisions/2026-09-26-alert-receipts-and-digest-watch.md`. Same day, separately: the UI sentry's cadence correction, DEGRADED-triggers-red fix, and its own red-mail receipts — see the entry below and `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`)
+**Last reviewed:** 2026-09-28
+**Last meaningful change:** 2026-09-28 (host-overload-only timeouts are recorded locally without paging; a sustained 60-minute episode pages once; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -1348,5 +1348,12 @@ One-line summary of every decision in this document, dated for traceability.
 - `os.loadavg()`/`os.cpus().length` (numbers only) are now recorded in the run log and `last-run.json` at tier 0 start, tier 1 start, roughly every 15s during tier 1, and at the moment each tier 1 case fails. When tier 1 fails and the load reading captured at the first failing case exceeds 3x the CPU count, the run stays exactly as red as before — never downgraded, and still reason_code `job_failed` (`host_overloaded` is not in `checkin-schema.mjs`'s closed reason vocabulary, and this lane does not add new reason codes) — but the red email's own text says in plain words that the site answered its health check but the Mac was overloaded while the check ran, naming the overall verdict.
 - The daily fire moves from 07:23 to 02:00 local — see the ADR's 2026-09-27 note for why. No cadence, page allowlist, live-turn cap, or logging-field change.
 - Full detail: `docs/decisions/2026-08-07-scheduled-ui-sentry-live-chat-check.md`.
+
+**2026-09-28 — host-overload-only timeouts stop paging as application failures:**
+
+- Error-stream deadline exit `124` plus a verified overloaded host is recorded as `host_overloaded` with the underlying deadline, numeric load sample, and a durable episode counter; it does not send red mail by itself.
+- UI sentry suppresses both alert paths only when every tier-1 failure is a typed timeout observed under overload. The raw `FAIL` remains as `observedLevel`, while alert-facing status is `DEGRADED`. Any mixed, non-timeout, missing-sample, or detector failure stays red.
+- After 60 minutes of consecutive overload-only failures, the next run pages once with the elapsed minutes; later overload failures stay quiet after confirmed or uncertain delivery. Cooldown or definite non-delivery leaves the escalation pending. Success resets it; a genuine failure pages normally and ends that consecutive-overload episode.
+- State remains content-free: fixed classifications, timestamps, counts, booleans, alert disposition, and numeric load only. Full rationale: `docs/decisions/2026-09-28-host-overload-alert-suppression.md`.
 
 *End of document.*

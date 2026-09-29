@@ -166,10 +166,14 @@ SENTINEL_STATE_FUTURE_TOLERANCE_MS=300000 # 5 minutes — same as item B's
 _ui_sentry_read_verified_state() {
   UI_SENTRY_VERIFIED_LEVEL=""
   UI_SENTRY_VERIFIED_HOST_OVERLOADED="false"
+  UI_SENTRY_VERIFIED_FAILURE_CLASS=""
+  UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION="normal"
+  UI_SENTRY_VERIFIED_OVERLOAD_MINUTES="0"
   UI_SENTRY_VERIFIED_CURRENT="0"
 
   local state_file="${STATE_ROOT}/last-run.json"
-  local run_level="" run_started_at="" run_invocation_id="" run_host_overloaded="false" tsv jq_rc
+  local run_level="" run_started_at="" run_invocation_id="" run_host_overloaded="false"
+  local run_failure_class="" run_overload_disposition="normal" run_overload_minutes="0" tsv jq_rc
 
   if [ -f "$state_file" ] && command -v jq >/dev/null 2>&1; then
     # ONE jq invocation for all four fields — a single atomic read of the
@@ -189,7 +193,15 @@ _ui_sentry_read_verified_state() {
               or (.startedAt | type) != "string"
               or (.invocationId | type) != "string"
             then error("field type invalid")
-            else [.overallLevel, .startedAt, .invocationId, (if .hostOverloaded == true then "true" else "false" end)] | @tsv
+            else [
+              .overallLevel,
+              .startedAt,
+              .invocationId,
+              (if .hostOverloaded == true then "true" else "false" end),
+              (if .failureClass == "host_overloaded" then "host_overloaded" else "" end),
+              (if (.overloadAlertDisposition == "suppress" or .overloadAlertDisposition == "page") then .overloadAlertDisposition else "normal" end),
+              (if (.overloadDurationMinutes | type) == "number" then (.overloadDurationMinutes | floor | tostring) else "0" end)
+            ] | @tsv
             end
         end
       ' -s "$state_file" 2>/dev/null)"
@@ -200,7 +212,13 @@ _ui_sentry_read_verified_state() {
       run_started_at="${rest1%%$'\t'*}"
       local rest2="${rest1#*$'\t'}"
       run_invocation_id="${rest2%%$'\t'*}"
-      run_host_overloaded="${rest2#*$'\t'}"
+      local rest3="${rest2#*$'\t'}"
+      run_host_overloaded="${rest3%%$'\t'*}"
+      local rest4="${rest3#*$'\t'}"
+      run_failure_class="${rest4%%$'\t'*}"
+      local rest5="${rest4#*$'\t'}"
+      run_overload_disposition="${rest5%%$'\t'*}"
+      run_overload_minutes="${rest5#*$'\t'}"
     fi
   fi
 
@@ -238,6 +256,9 @@ _ui_sentry_read_verified_state() {
 
   UI_SENTRY_VERIFIED_LEVEL="$run_level"
   UI_SENTRY_VERIFIED_HOST_OVERLOADED="$run_host_overloaded"
+  UI_SENTRY_VERIFIED_FAILURE_CLASS="$run_failure_class"
+  UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION="$run_overload_disposition"
+  UI_SENTRY_VERIFIED_OVERLOAD_MINUTES="$run_overload_minutes"
   UI_SENTRY_VERIFIED_CURRENT="$state_is_current"
   [ -n "$run_level" ] && [ "$state_is_current" = "1" ]
 }
@@ -267,8 +288,10 @@ sentinel_emit_item_a() {
     # since this exit code already reports correctly regardless.
     check_status="red"
     reason="job_failed"
-    if _ui_sentry_read_verified_state && [ "$UI_SENTRY_VERIFIED_HOST_OVERLOADED" = "true" ]; then
-      detail="The site answered its health check, but the Mac was overloaded while the check ran, so the failures may be caused by the Mac rather than the site. Overall verdict for this run: ${UI_SENTRY_VERIFIED_LEVEL:-FAIL}."
+    if _ui_sentry_read_verified_state \
+      && [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] \
+      && [ "$UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION" = "page" ]; then
+      detail="The job has not succeeded for ${UI_SENTRY_VERIFIED_OVERLOAD_MINUTES} minutes, and the host was overloaded on every failed scheduled run in that period."
     fi
   else
     _ui_sentry_read_verified_state
@@ -277,6 +300,10 @@ sentinel_emit_item_a() {
     if [ -z "$run_level" ] || [ "$state_is_current" != "1" ]; then
       check_status="red"
       reason="state_unverifiable"
+    elif [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] \
+      && [ "$UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION" = "suppress" ]; then
+      check_status="yellow"
+      reason="degraded"
     elif [ "$run_level" = "DEGRADED" ] || [ "$run_level" = "FAIL" ]; then
       check_status="red"
       reason="degraded"
@@ -294,8 +321,29 @@ sentinel_emit_item_a() {
   # above is caught at the one place this function actually emits, not
   # scattered across four call sites a future edit could add a fifth to
   # unnoticed.
+  local overload_mail_result=""
+  if [ "$check_status" = "red" ] \
+    && [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] \
+    && [ "$UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION" = "page" ]; then
+    overload_mail_result="${STATE_ROOT}/.overload-mail-result.$$"
+    rm -f "$overload_mail_result" 2>/dev/null || true
+    SENTINEL_MAIL_RED_RESULT_FILE="$overload_mail_result"
+    export SENTINEL_MAIL_RED_RESULT_FILE
+  fi
+
   _ui_sentry_assert_known_reason "$reason" "sentinel_emit_item_a" "${UI_SENTRY_ITEM_A_REASON_CODES[@]}"
   sentinel_checkin sl-ui-sentry "$check_status" "$reason" "$UI_SENTRY_SENTINEL_AT" "$UI_SENTRY_SENTINEL_SLOT" "$detail" || true
+
+  if [ -n "$overload_mail_result" ]; then
+    local delivery="unknown" state_file="${STATE_ROOT}/last-run.json" state_tmp="${STATE_ROOT}/.last-run-overload.$$"
+    [ -f "$overload_mail_result" ] && delivery="$(cat "$overload_mail_result" 2>/dev/null || echo unknown)"
+    if [ "$delivery" = "confirmed" ] || [ "$delivery" = "uncertain" ]; then
+      jq '.overloadEscalationActive = true | .overloadAlertDisposition = "delivered"' \
+        "$state_file" > "$state_tmp" 2>/dev/null && mv "$state_tmp" "$state_file"
+    fi
+    rm -f "$overload_mail_result" "$state_tmp" 2>/dev/null || true
+    unset SENTINEL_MAIL_RED_RESULT_FILE
+  fi
 }
 
 # sentinel_emit_item_b — "live chat has succeeded recently": status comes

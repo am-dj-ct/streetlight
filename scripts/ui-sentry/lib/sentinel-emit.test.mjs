@@ -47,11 +47,14 @@ async function nodeOnlyPath(dir) {
   return nodeBinDir;
 }
 
-function runEmitItemA({ stateRoot, checkinLog, exitCode, sentinelAt, pathOverride }) {
+function runEmitItemA({ stateRoot, checkinLog, exitCode, sentinelAt, pathOverride, mailOutcome = "" }) {
   const script = `
 set -uo pipefail
 sentinel_checkin() {
   printf 'CHECKIN item=%s status=%s reason=%s detail=%s\\n' "$1" "$2" "$3" "\${6:-}" >> "${checkinLog}"
+  if [ -n "${mailOutcome}" ] && [ -n "\${SENTINEL_MAIL_RED_RESULT_FILE:-}" ]; then
+    printf '%s\\n' "${mailOutcome}" > "$SENTINEL_MAIL_RED_RESULT_FILE"
+  fi
   return 0
 }
 STATE_ROOT="${stateRoot}"
@@ -98,7 +101,7 @@ test("exit code != 0 with no verifiable state file is red job_failed (the pre-20
 // load still reports the plain job_failed reason — still red, never
 // downgraded — but carries a plain-English detail for the email, naming the
 // overall verdict, so Jesse reads WHY without a new reason_code existing.
-test("exit code != 0 with a verified hostOverloaded:true state stays reason=job_failed, with a detail carrying the verdict", async () => {
+test("sustained host overload emits one red check-in with the quiet-direction detail", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
@@ -107,15 +110,63 @@ test("exit code != 0 with a verified hostOverloaded:true state stays reason=job_
       startedAt: "2026-09-26T14:00:05.000Z",
       invocationId: "2026-09-26T14:00:00.000Z",
       hostOverloaded: true,
+      failureClass: "host_overloaded",
+      overloadAlertDisposition: "page",
+      overloadDurationMinutes: 65,
     }),
   );
-  const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z", mailOutcome: "confirmed" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   const line = await lastCheckin(fx.checkinLog);
   assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=/);
-  assert.match(line, /site answered its health check/);
-  assert.match(line, /overloaded while the check ran/);
-  assert.match(line, /FAIL/, "the detail must name the overall verdict");
+  assert.match(line, /has not succeeded for 65 minutes/);
+  assert.match(line, /overloaded on every failed scheduled run/);
+  const state = JSON.parse(await readFile(path.join(fx.stateRoot, "last-run.json"), "utf8"));
+  assert.equal(state.overloadEscalationActive, true);
+  assert.equal(state.overloadAlertDisposition, "delivered");
+});
+
+test("a definite sustained-overload mail rejection leaves escalation pending for retry", async () => {
+  const fx = await makeFixture();
+  const statePath = path.join(fx.stateRoot, "last-run.json");
+  await writeFile(statePath, JSON.stringify({
+    overallLevel: "FAIL",
+    startedAt: "2026-09-26T14:00:05.000Z",
+    invocationId: "2026-09-26T14:00:00.000Z",
+    hostOverloaded: true,
+    failureClass: "host_overloaded",
+    overloadAlertDisposition: "page",
+    overloadDurationMinutes: 65,
+    overloadEscalationActive: false,
+  }));
+  await runEmitItemA({
+    ...fx,
+    exitCode: "1",
+    sentinelAt: "2026-09-26T14:00:00.000Z",
+    mailOutcome: "rejected",
+  });
+  const state = JSON.parse(await readFile(statePath, "utf8"));
+  assert.equal(state.overloadEscalationActive, false);
+  assert.equal(state.overloadAlertDisposition, "page");
+});
+
+test("an overload-only timeout below the sustained threshold does not emit red", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "DEGRADED",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+      hostOverloaded: true,
+      failureClass: "host_overloaded",
+      overloadAlertDisposition: "suppress",
+      overloadDurationMinutes: 5,
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=yellow reason=degraded detail=");
 });
 
 test("exit code != 0 with hostOverloaded:false in an otherwise-verified state stays plain job_failed", async () => {
@@ -156,12 +207,12 @@ test("exit code != 0 with hostOverloaded:true but a MISMATCHED invocationId gets
   assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
 });
 
-test("exit code != 0 with a DEGRADED verdict and hostOverloaded:true stays reason=job_failed, carrying DEGRADED in the detail", async () => {
+test("hostOverloaded alone without the overload-only classification stays a genuine red failure", async () => {
   const fx = await makeFixture();
   await writeFile(
     path.join(fx.stateRoot, "last-run.json"),
     JSON.stringify({
-      overallLevel: "DEGRADED",
+      overallLevel: "FAIL",
       startedAt: "2026-09-26T14:00:05.000Z",
       invocationId: "2026-09-26T14:00:00.000Z",
       hostOverloaded: true,
@@ -169,9 +220,7 @@ test("exit code != 0 with a DEGRADED verdict and hostOverloaded:true stays reaso
   );
   const result = await runEmitItemA({ ...fx, exitCode: "1", sentinelAt: "2026-09-26T14:00:00.000Z" });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
-  const line = await lastCheckin(fx.checkinLog);
-  assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=/);
-  assert.match(line, /DEGRADED/);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=");
 });
 
 test("a fresh, valid PASS report reports green", async () => {

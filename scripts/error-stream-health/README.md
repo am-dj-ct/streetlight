@@ -36,8 +36,19 @@ five-minute slot and leaves that current slot out of the cursor, so a run
 straddling a boundary cannot preempt the next scheduled invocation. Missed health measurements are never fabricated or
 backfilled as successful. A stopped/asleep host is observable only on resumption.
 The whole worker, including Doppler and reporting, has a 180-second deadline;
-a timed-out process group is killed and recorded. Missed slots/timeouts use the
-existing red-mail path and its six-hour per-item cooldown. No new mail path.
+a timed-out process group is killed and recorded. A deadline timeout observed
+while one-minute host load is above 3x CPU count is recorded as
+`host_overloaded` with its numeric load sample and underlying
+`deadline_exceeded`, but does not send red mail by itself. The atomic slot state
+tracks the overload episode; the first failed scheduled run at or beyond 60
+minutes without a success sends one red email, and later overload failures stay
+quiet after confirmed or uncertain delivery. A successful run resets the
+episode; a genuine non-overload failure pages immediately and ends it. Cooldown,
+rejection, or pre-send failure leaves the sustained alert pending for the next
+scheduled attempt. Missed slots and detector failure retain the existing
+red-mail behavior. Both watchers
+import the threshold from `scripts/lib/host-overload.mjs`; it is not duplicated.
+No new mail path.
 The existing plist and installer do not need to be reinstalled for this change.
 Python 3 must be on launchd's PATH. The ledger starts at first installation;
 it cannot reconstruct missing history that the old logs never retained.

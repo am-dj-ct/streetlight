@@ -16,7 +16,8 @@ import { Logger } from "./lib/logger.mjs";
 import { LOG_DIR } from "./lib/paths.mjs";
 import { readPreviousState, writeStateAtomic } from "./lib/state.mjs";
 import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
-import { isHostOverloaded, readHostLoad } from "./lib/host-load.mjs";
+import { readHostLoad } from "./lib/host-load.mjs";
+import { classifyOverloadAlert } from "./lib/overload-alert.mjs";
 import { runTier0 } from "./tier0.mjs";
 import { runTier1 } from "./tier1.mjs";
 import { runTier2 } from "./tier2.mjs";
@@ -97,15 +98,6 @@ function startPeriodicHostLoadSampler(intervalMs = 15_000) {
 // the failure-time reading, not a run-start snapshot or the max ever seen,
 // is what ties the host_overloaded decision to whether the host was
 // actually overloaded WHILE the failing cases were running.
-function firstFailureHostLoad(tier1) {
-  for (const engine of tier1?.engines ?? []) {
-    for (const c of engine.cases ?? []) {
-      if (c.status === "fail" && c.hostLoadAtFailure) return c.hostLoadAtFailure;
-    }
-  }
-  return null;
-}
-
 async function runTier1BothEngines() {
   logger.line("tier1 starting: chromium-desktop");
   const chromiumResult = await runTier1({
@@ -186,29 +178,29 @@ async function finalize() {
     }
   }
 
-  const effectiveLevel = blockedNarrative === "escalated_once" ? "FAIL" : level;
+  const observedLevel = blockedNarrative === "escalated_once" ? "FAIL" : level;
 
-  // Host-overload detection (2026-09-27, host-load.mjs; refined in
-  // cross-vendor review of #52). A real Mac-load problem (not a site
-  // problem) can make tier1's own browser commands time out and, before the
-  // cascade fix (browser.recreate-page.test.mjs), poison every later case
-  // too. This NEVER changes effectiveLevel/exitCode above — a tier1 failure
-  // is exactly as red whether the host was overloaded or not. It only lets
-  // the check-in layer (run-ui-sentry.sh / lib/sentinel-emit.sh) tell Jesse
-  // WHY in the red email.
-  //
-  // The decision uses the load reading captured AT THE MOMENT OF THE FIRST
-  // FAILING CASE (firstFailureHostLoad, tier1.mjs's own runCase), not a
-  // run-start snapshot and not the max load seen anywhere in the run — a
-  // spike that already cleared by the time tier1 started cannot relabel a
-  // genuine UI regression, and a spike that only appears mid-tier1 (caught
-  // by the periodic sampler below, for visibility, but not the decision)
-  // is not missed just because it happened after the run-start snapshot.
-  const firstFailureLoad = firstFailureHostLoad(partial.tier1);
-  const hostOverloaded =
-    partial.tier1?.status === "fail" &&
-    firstFailureLoad != null &&
-    isHostOverloaded([firstFailureLoad]);
+  // A failure is host_overloaded only when EVERY tier1 failure is a timeout
+  // and every one has a failure-time load sample above the shared 3x-CPU
+  // threshold. Anything mixed, missing, or non-timeout stays a real FAIL.
+  // One overload-only episode is locally visible but non-paging for 60
+  // minutes, pages once at the threshold, and stays quiet until a success
+  // resets it. The raw observed verdict remains in state as observedLevel.
+  const overloadAlert = classifyOverloadAlert({
+    observedLevel,
+    tier1: partial.tier1,
+    previousState,
+    now: finishedAt,
+  });
+  const {
+    effectiveLevel,
+    failureClass,
+    hostOverloaded,
+    overloadAlertDisposition,
+    overloadEpisode,
+  } = overloadAlert;
+  const tier1Failures = overloadAlert.failures;
+  const firstFailureLoad = tier1Failures[0]?.hostLoadAtFailure ?? null;
 
   const lastSuccessfulLiveChatAt =
     partial.tier2?.lastSuccessfulLiveChatAt ?? previousState?.lastSuccessfulLiveChatAt ?? null;
@@ -253,6 +245,7 @@ async function finalize() {
     blockedEscalationActive,
     blockedNarrative,
     crashError: partial.crashError,
+    observedLevel,
     overallLevel: effectiveLevel,
     hostLoad: {
       tier0Start: partial.hostLoadTier0Start,
@@ -261,17 +254,20 @@ async function finalize() {
       firstFailureLoad,
     },
     hostOverloaded,
+    failureClass,
+    overloadAlertDisposition,
+    ...overloadEpisode,
   };
 
   if (partial.crashError) {
     logger.line(`orchestrator crash: ${partial.crashError}`);
   }
   logger.line(
-    `overall status: ${effectiveLevel} (exitCode=${exitCode}, blockedNarrative=${blockedNarrative}, consecutiveBlockedRuns=${consecutiveBlockedRuns}, tier2Skipped=${Boolean(partial.tier2Skipped)}, hostOverloaded=${hostOverloaded})`,
+    `overall status: ${effectiveLevel} (observedLevel=${observedLevel}, exitCode=${exitCode}, blockedNarrative=${blockedNarrative}, consecutiveBlockedRuns=${consecutiveBlockedRuns}, tier2Skipped=${Boolean(partial.tier2Skipped)}, failureClass=${failureClass ?? "none"}, overloadAlertDisposition=${overloadAlertDisposition})`,
   );
 
   const subject = buildSubject({
-    level,
+    level: effectiveLevel,
     siteDown,
     browserLaunchFailed,
     blockedNarrative,
