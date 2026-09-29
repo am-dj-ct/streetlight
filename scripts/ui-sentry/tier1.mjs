@@ -45,6 +45,7 @@ export async function runCase(cases, name, fn, recover) {
       status: "fail",
       durationMs: Date.now() - startedAt,
       error: String(error?.message ?? error).slice(0, 300),
+      errorClass: String(error?.name ?? "Error").slice(0, 80),
       hostLoadAtFailure,
     });
     if (recover) {
@@ -57,6 +58,8 @@ export async function runCase(cases, name, fn, recover) {
           status: "fail",
           durationMs: 0,
           error: `page recovery failed: ${String(recoverError?.message ?? recoverError).slice(0, 200)}`,
+          errorClass: String(recoverError?.name ?? "Error").slice(0, 80),
+          hostLoadAtFailure: readHostLoad(),
         });
       });
     }

@@ -200,7 +200,7 @@ async function makeFixture({ mktempFails = false, markerTouchFails = false } = {
 
 function runCheckin({
   binDir, fallbackDir, mailRedDir, callLog, fallbackLog, item, checkStatus, reasonCode, curlMode, dopplerMode,
-  detail, payloadCapture,
+  detail, payloadCapture, resultFile,
 }) {
   const script = `
 set -uo pipefail
@@ -221,6 +221,7 @@ printf 'RC=%s\\n' "$?"
         CURL_STUB_CALL_LOG: callLog,
         DOPPLER_STUB_MODE: dopplerMode ?? "success",
         ...(payloadCapture ? { CURL_STUB_PAYLOAD_CAPTURE: payloadCapture } : {}),
+        ...(resultFile ? { SENTINEL_MAIL_RED_RESULT_FILE: resultFile } : {}),
       },
     });
     let stdout = "";
@@ -264,7 +265,8 @@ async function readReceipts(mailRedDir) {
 
 test("a red check-in sends exactly one email and records a receipt with the Resend id", async () => {
   const fx = await makeFixture();
-  const result = await runCheckin({ ...fx, item: "sl-test-a", checkStatus: "red", reasonCode: "job_failed" });
+  const resultFile = path.join(fx.dir, "mail-result");
+  const result = await runCheckin({ ...fx, item: "sl-test-a", checkStatus: "red", reasonCode: "job_failed", resultFile });
   assert.match(result.stdout, /^RC=0$/m, result.stderr);
   assert.equal(await callCount(fx.callLog), 1);
 
@@ -275,6 +277,7 @@ test("a red check-in sends exactly one email and records a receipt with the Rese
   assert.equal(receipts[0].httpStatus, 200);
   assert.equal(receipts[0].resendId, "01a0debb-1d46-70d9-82a3-42ea138b1dd2");
   assert.equal(receipts[0].outcome, "confirmed");
+  assert.equal((await readFile(resultFile, "utf8")).trim(), "confirmed");
   // Content-free, and the SAME field names #45 uses (timestamp/job/
   // httpStatus/resendId), plus this path's own fixed `reason` field and
   // the outcome field added in the 3rd cross-vendor review.

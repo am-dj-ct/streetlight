@@ -136,6 +136,15 @@ SENTINEL_CHECKIN_LIB_SELF="${SENTINEL_CHECKIN_LIB_SELF:-$(cd "$(dirname "${BASH_
 # for a call skipped by the cooldown or by SENTINEL_MAIL_RED_DISABLED,
 # neither of which sent anything).
 SENTINEL_MAIL_RED_RECEIPTS_FILE="${SENTINEL_MAIL_RED_RECEIPTS_FILE:-$SENTINEL_MAIL_RED_STATE_DIR/receipts.log}"
+SENTINEL_MAIL_RED_RESULT_FILE="${SENTINEL_MAIL_RED_RESULT_FILE:-}"
+sentinel_write_mail_result() {
+  [ -n "$SENTINEL_MAIL_RED_RESULT_FILE" ] || return 0
+  case "$1" in
+    confirmed | uncertain | rejected | pre_send_failure | cooldown | disabled | lock_failed) : ;;
+    *) return 0 ;;
+  esac
+  printf '%s\n' "$1" > "$SENTINEL_MAIL_RED_RESULT_FILE" 2>/dev/null || true
+}
 sentinel_record_mail_receipt() {
   local item="$1" reason="$2" http_status="$3" resend_id="$4" outcome="$5"
   mkdir -p "$(dirname "$SENTINEL_MAIL_RED_RECEIPTS_FILE")" 2>/dev/null || true
@@ -218,6 +227,7 @@ sentinel_mail_red_attempt() {
   last="$(cat "$marker" 2>/dev/null || echo 0)"
   case "$last" in *[!0-9]*|"") last=0 ;; esac
   if [ $((now - last)) -lt "$SENTINEL_MAIL_RED_COOLDOWN_SECONDS" ]; then
+    sentinel_write_mail_result cooldown
     return 0
   fi
 
@@ -234,6 +244,7 @@ sentinel_mail_red_attempt() {
   if [ -z "$curl_started_marker" ]; then
     sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable (curl-started marker)"
     sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    sentinel_write_mail_result pre_send_failure
     return 0
   fi
   rm -f "$curl_started_marker" 2>/dev/null || true
@@ -243,6 +254,7 @@ sentinel_mail_red_attempt() {
   if [ -z "$payload" ]; then
     sentinel_log_fallback_failure "mail-red:$item" "mktemp unavailable (payload)"
     sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    sentinel_write_mail_result pre_send_failure
     return 0
   fi
   if ! python3 - "$payload" "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_TO" "$SENTINEL_MAIL_RED_FROM" "$subject_prefix" "$detail" <<'PY' 2>/dev/null
@@ -273,6 +285,7 @@ PY
     rm -f "$payload" 2>/dev/null || true
     sentinel_log_fallback_failure "mail-red:$item" "payload build failed"
     sentinel_record_mail_receipt "$item" "$reason" "" "" "pre_send_failure"
+    sentinel_write_mail_result pre_send_failure
     return 0
   fi
 
@@ -354,6 +367,7 @@ except Exception:
   esac
 
   sentinel_record_mail_receipt "$item" "$reason" "${http_status:-}" "$resend_id" "$outcome"
+  sentinel_write_mail_result "$outcome"
 
   rm -f "$payload" 2>/dev/null || true
   return 0
@@ -370,7 +384,10 @@ except Exception:
 # two processes can both read it as stale in the same instant.
 sentinel_mail_red() {
   local item="$1" reason="$2" at="$3" detail="${4:-}"
-  [ -n "$SENTINEL_MAIL_RED_DISABLED" ] && return 0
+  if [ -n "$SENTINEL_MAIL_RED_DISABLED" ]; then
+    sentinel_write_mail_result disabled
+    return 0
+  fi
   mkdir -p "$SENTINEL_MAIL_RED_STATE_DIR" 2>/dev/null || true
 
   if ! command -v python3 >/dev/null 2>&1; then
@@ -386,7 +403,10 @@ sentinel_mail_red() {
 
   python3 "$SENTINEL_MAIL_LOCK_PY" "$lock_dir" \
     bash "$SENTINEL_CHECKIN_LIB_SELF" --mail-red-attempt "$item" "$reason" "$at" "$SENTINEL_MAIL_RED_SUBJECT_PREFIX" "$detail" \
-    || sentinel_log_fallback_failure "mail-red:$item" "mail_lock_failed_or_timed_out"
+    || {
+      sentinel_log_fallback_failure "mail-red:$item" "mail_lock_failed_or_timed_out"
+      sentinel_write_mail_result lock_failed
+    }
   return 0
 }
 # sentinel_checkin no longer writes to the sentinel-v5 spool
