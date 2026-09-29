@@ -6,4 +6,9 @@
 // caused the load: os.loadavg()'s three floats and os.cpus().length.
 // Compatibility re-export. The error-stream watcher and UI sentry deliberately
 // use the same threshold and sampling implementation.
-export { isHostOverloaded, readHostLoad } from "../../lib/host-overload.mjs";
+export {
+  hasUsableHostLoadSample,
+  isHostOverloaded,
+  readHostLoad,
+  tryReadHostLoad,
+} from "../../lib/host-overload.mjs";

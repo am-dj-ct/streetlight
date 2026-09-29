@@ -125,14 +125,15 @@ what the run wrote, and between them they are the whole alerting surface:
   registry items with digest escalation and a 45-minute grace window, so a
   slot that never checks in is itself reported.
 
-When every tier-1 failure is a typed timeout and every failure-time load sample
-exceeds the shared 3x-CPU threshold, the run is locally classified
-`host_overloaded` and its item-A check-in is yellow rather than red. The first
-such run at or beyond 60 minutes without a success is red once with the elapsed
-minutes; later overload-only runs are yellow after confirmed or uncertain
-delivery. A successful run resets the episode; any genuine or mixed failure
-stays red exactly as before and ends that consecutive-overload episode.
-Cooldown or definite non-delivery leaves the sustained alert pending.
+When every tier-1 failure is a typed timeout and each failure-time load sample
+is either above the shared 3x-CPU threshold or unavailable, the run follows the
+recovery-aware episode policy. It is classified `host_overloaded` when every
+sample proves overload, or `host_load_unavailable` when any sample could not be
+obtained; unavailable is unknown, never healthy. The item-A check-in is yellow
+until the first run at or beyond 60 minutes without a success, which is red
+once. A valid healthy-host timeout, any non-timeout failure, or a mixed failure
+stays red exactly as before. Success resets the episode; cooldown or definite
+non-delivery leaves the sustained alert pending.
 
 ### Sentinel incident closure contract
 

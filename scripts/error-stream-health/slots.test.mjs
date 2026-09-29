@@ -26,6 +26,35 @@ test("whole-run deadline kills a stuck process group", async () => {
   assert.equal(result.stdout.trim(), "124");
 });
 
+test("a missed slot followed by a successful run does not page", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "health-missed-recovered-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = await exec("python3", ["-c", `
+import importlib.util, json, os
+from pathlib import Path
+s = importlib.util.spec_from_file_location('slots', 'scripts/error-stream-health/slots.py')
+m = importlib.util.module_from_spec(s)
+s.loader.exec_module(m)
+root = Path(os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT'])
+root.mkdir(parents=True, exist_ok=True)
+(root / 'slots-state.json').write_text(json.dumps({'slot': 300, 'pending': False}))
+m.time.time = lambda: 900
+checkins = []
+def fake_bounded(command, seconds):
+    if command[:1] == ['/bin/bash'] and len(command) >= 3 and command[2] == '--worker':
+        return 0
+    checkins.append(command)
+    return 0
+m.bounded = fake_bounded
+assert m.main('synthetic-worker') == 1
+assert checkins == []
+state = json.loads((root / 'slots-state.json').read_text())
+assert state['overloadConsecutiveFailures'] == 0
+assert state['overloadFirstObservedAt'] is None
+`], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1", STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT: root } });
+  assert.equal(result.stderr, "");
+});
+
 test("boundary crossing leaves the next slot open and accounts for it if later skipped", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "health-boundary-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -60,7 +89,7 @@ assert missed[0]['reason'] == 'not_invoked_or_host_unavailable'
 `], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1", STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT: root } });
 });
 
-test("overload timeout stays quiet, sustained overload pages once, and a genuine timeout pages", async (t) => {
+test("overload or unavailable-sample timeouts stay quiet, then page after 60 minutes", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "health-overload-policy-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const result = await exec("python3", ["-c", `
@@ -114,12 +143,30 @@ clock[0] += 300
 assert m.main(worker) == 124
 assert len(checkins) == 2
 
+# A failed load sample is unknown, not healthy: it stays quiet initially and
+# still pages if the job has not recovered for 60 minutes.
+m.bounded = successful_worker
+clock[0] += 300
+assert m.main(worker) == 0
+m.host_overload_sample = lambda worker: (None, False)
+m.bounded = fake_bounded
+clock[0] += 300
+assert m.main(worker) == 124
+assert len(checkins) == 2
+for _ in range(12):
+    clock[0] += 300
+    assert m.main(worker) == 124
+assert len(checkins) == 3
+lines = [json.loads(line) for line in (Path(os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT']) / 'slots.jsonl').read_text().splitlines()]
+assert lines[-2]['reason'] == 'host_load_unavailable'
+assert lines[-2]['overloadDurationMinutes'] == 60
+
 # If the shared policy helper fails, fail closed and page the deadline.
 m.host_overload_sample = lambda worker: ({'load1': 100, 'load5': 100, 'load15': 100, 'cpuCount': 10}, True)
 m.next_overload_episode = lambda *args, **kwargs: None
 clock[0] += 300
 assert m.main(worker) == 124
-assert len(checkins) == 3
+assert len(checkins) == 4
 `], {
     env: {
       ...process.env,

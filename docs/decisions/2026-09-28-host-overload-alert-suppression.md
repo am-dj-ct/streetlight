@@ -14,8 +14,7 @@ recorded failure-time host load, but still turned that evidence into a red page.
 ## Decision
 
 Both watchers use one shared host-load implementation: one-minute load strictly
-greater than three times the CPU count is overloaded. Detection failure is
-fail-closed and never suppresses a page.
+greater than three times the CPU count is overloaded.
 
 An error-stream run is `host_overloaded` only when the whole-run result is the
 deadline exit `124` and the failure-time host sample exceeds that threshold.
@@ -41,6 +40,22 @@ overload episode. Cooldown, rejection, or pre-send failure leaves the sustained
 alert pending for the next scheduled attempt. The UI sentry's daily cadence means a second
 consecutive daily overload run crosses the same threshold; the wording does not
 claim continuous observation between scheduled runs.
+
+## 2026-09-29 amendment: recovery-aware gaps and unavailable samples
+
+A missing host-load sample is unknown, not evidence that the host was healthy.
+A deadline timeout with an unavailable sample now enters the same sustained
+episode as a verified overload timeout, under the fixed classification
+`host_load_unavailable`. The UI sentry follows the same rule for timeout-only
+tier-1 failures whose failure-time sample is absent or invalid. A valid healthy
+sample still makes a timeout a genuine failure and pages immediately.
+
+Missed error-stream slots seed that sustained episode instead of paging on
+their own. The next successful scheduled run proves recovery and clears the
+episode without a page; if the next run also times out under overload or an
+unavailable sample, elapsed time starts at the earliest missed slot. At 60
+minutes without a success, the watcher still pages once. No delivery gate,
+schedule, endpoint, or message path changed.
 
 ## Privacy and operations
 

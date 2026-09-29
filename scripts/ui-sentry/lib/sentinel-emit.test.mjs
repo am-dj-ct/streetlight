@@ -120,7 +120,7 @@ test("sustained host overload emits one red check-in with the quiet-direction de
   const line = await lastCheckin(fx.checkinLog);
   assert.match(line, /^CHECKIN item=sl-ui-sentry status=red reason=job_failed detail=/);
   assert.match(line, /has not succeeded for 65 minutes/);
-  assert.match(line, /overloaded on every failed scheduled run/);
+  assert.match(line, /host load was overloaded or unavailable/);
   const state = JSON.parse(await readFile(path.join(fx.stateRoot, "last-run.json"), "utf8"));
   assert.equal(state.overloadEscalationActive, true);
   assert.equal(state.overloadAlertDisposition, "delivered");
@@ -160,6 +160,25 @@ test("an overload-only timeout below the sustained threshold does not emit red",
       invocationId: "2026-09-26T14:00:00.000Z",
       hostOverloaded: true,
       failureClass: "host_overloaded",
+      overloadAlertDisposition: "suppress",
+      overloadDurationMinutes: 5,
+    }),
+  );
+  const result = await runEmitItemA({ ...fx, exitCode: "0", sentinelAt: "2026-09-26T14:00:00.000Z" });
+  assert.match(result.stdout, /^RC=0$/m, result.stderr);
+  assert.equal(await lastCheckin(fx.checkinLog), "CHECKIN item=sl-ui-sentry status=yellow reason=degraded detail=");
+});
+
+test("an unavailable load sample below the sustained threshold does not emit red", async () => {
+  const fx = await makeFixture();
+  await writeFile(
+    path.join(fx.stateRoot, "last-run.json"),
+    JSON.stringify({
+      overallLevel: "DEGRADED",
+      startedAt: "2026-09-26T14:00:05.000Z",
+      invocationId: "2026-09-26T14:00:00.000Z",
+      hostOverloaded: false,
+      failureClass: "host_load_unavailable",
       overloadAlertDisposition: "suppress",
       overloadDurationMinutes: 5,
     }),

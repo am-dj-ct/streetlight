@@ -38,15 +38,15 @@ backfilled as successful. A stopped/asleep host is observable only on resumption
 The whole worker, including Doppler and reporting, has a 180-second deadline;
 a timed-out process group is killed and recorded. A deadline timeout observed
 while one-minute host load is above 3x CPU count is recorded as
-`host_overloaded` with its numeric load sample and underlying
-`deadline_exceeded`, but does not send red mail by itself. The atomic slot state
-tracks the overload episode; the first failed scheduled run at or beyond 60
-minutes without a success sends one red email, and later overload failures stay
-quiet after confirmed or uncertain delivery. A successful run resets the
-episode; a genuine non-overload failure pages immediately and ends it. Cooldown,
-rejection, or pre-send failure leaves the sustained alert pending for the next
-scheduled attempt. Missed slots and detector failure retain the existing
-red-mail behavior. Both watchers
+`host_overloaded`; one whose load sample cannot be obtained is recorded as
+`host_load_unavailable`. Neither sends red mail by itself. Missed slots seed the
+same recovery-aware episode, but a successful current run clears it without a
+page. The atomic slot state tracks the episode; the first failed scheduled run
+at or beyond 60 minutes without a success sends one red email, and later
+deferred failures stay quiet after confirmed or uncertain delivery. A timeout
+with a valid healthy-host sample pages immediately. Cooldown, rejection, or
+pre-send failure leaves the sustained alert pending for the next scheduled
+attempt. Both watchers
 import the threshold from `scripts/lib/host-overload.mjs`; it is not duplicated.
 No new mail path.
 The existing plist and installer do not need to be reinstalled for this change.

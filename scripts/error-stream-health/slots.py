@@ -7,6 +7,7 @@ Doppler and reporting, beyond run-health.mjs's per-fetch deadline.
 import datetime
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -44,9 +45,18 @@ def host_overload_sample(worker):
             timeout=5,
         )
         value = json.loads(result.stdout)
-        return value['sample'], value['overloaded'] is True
+        sample = value['sample']
+        if (
+            not isinstance(sample, dict)
+            or not math.isfinite(sample.get('load1', math.nan))
+            or not math.isfinite(sample.get('cpuCount', math.nan))
+            or sample['cpuCount'] <= 0
+        ):
+            return None, False
+        return sample, value['overloaded'] is True
     except Exception:
-        # Detection failure must not hide a real timeout.
+        # Unknown is distinct from healthy. The caller keeps an unavailable
+        # sample on the same sustained, recovery-aware path as overload.
         return None, False
 
 
@@ -102,15 +112,18 @@ def main(worker):
             record(slot, 'missed', 'overlapping_invocation')
             return 1
         missed = False
+        missed_slot_values = []
         previous = {}
         if cursor.exists():
             previous = json.loads(cursor.read_text())
             if previous['pending']:
                 record(previous['slot'], 'missed', 'interrupted_run')
                 missed = True
+                missed_slot_values.append(previous['slot'])
             for absent in missed_slots(previous['slot'], slot):
                 record(absent, 'missed', 'not_invoked_or_host_unavailable')
                 missed = True
+                missed_slot_values.append(absent)
         else:
             record(slot, 'baseline', 'ledger_installed')
         prior_episode = {
@@ -128,16 +141,36 @@ def main(worker):
         started = time.monotonic()
         result = bounded(['/bin/bash', worker, '--worker'], 180)
         load_sample, host_overloaded = host_overload_sample(worker) if result == 124 else (None, False)
-        overloaded_failure = result == 124 and host_overloaded
+        load_sample_unavailable = result == 124 and load_sample is None
+        deferred_failure = result == 124 and (host_overloaded or load_sample_unavailable)
+        failure_class = (
+            'host_overloaded' if result == 124 and host_overloaded
+            else 'host_load_unavailable' if load_sample_unavailable
+            else None
+        )
+
+        latest = int(time.time()) // 300 * 300
+        # Leave the current slot open: its invocation may still be arriving.
+        trailing_missed_slots = list(missed_slots(slot, latest))
+        if trailing_missed_slots:
+            missed = True
+            missed_slot_values.extend(trailing_missed_slots)
+
+        episode_previous = prior_episode
+        if deferred_failure and missed_slot_values and not prior_episode.get('overloadFirstObservedAt'):
+            episode_previous = dict(prior_episode)
+            episode_previous['overloadFirstObservedAt'] = iso(min(missed_slot_values))
         episode = next_overload_episode(
             worker,
-            prior_episode,
+            episode_previous,
             slot,
-            overloaded_failure=overloaded_failure,
+            overloaded_failure=deferred_failure,
             success=result == 0,
         )
-        if episode is None:
-            overloaded_failure = False
+        episode_state_failed = episode is None
+        if episode_state_failed:
+            deferred_failure = False
+            failure_class = None
             episode = dict(
                 overloadFirstObservedAt=None,
                 overloadLastObservedAt=None,
@@ -146,33 +179,33 @@ def main(worker):
                 overloadDurationMinutes=0,
                 shouldPage=False,
             )
-        failure_reason = 'host_overloaded' if overloaded_failure else ('deadline_exceeded' if result == 124 else 'worker_exit')
+        failure_reason = failure_class or ('deadline_exceeded' if result == 124 else 'worker_exit')
         record(
             slot,
             'completed' if result == 0 else 'failed',
             failure_reason,
             exitCode=result,
             durationSeconds=round(time.monotonic() - started, 3),
-            underlyingReason='deadline_exceeded' if overloaded_failure else None,
+            underlyingReason='deadline_exceeded' if deferred_failure else None,
             hostLoad=load_sample,
             overloadDurationMinutes=episode['overloadDurationMinutes'],
             overloadConsecutiveFailures=episode['overloadConsecutiveFailures'],
             overloadPageRequested=episode['shouldPage'],
         )
-        latest = int(time.time()) // 300 * 300
-        # Leave the current slot open: its invocation may still be arriving.
-        for absent in missed_slots(slot, latest):
+        for absent in trailing_missed_slots:
             record(absent, 'missed', 'previous_run_still_active')
-            missed = True
         save(max(slot, latest - 300), False, episode)
-        should_page_overload = overloaded_failure and episode['shouldPage']
-        if missed or (result == 124 and not overloaded_failure) or should_page_overload:
+        should_page_deferred = deferred_failure and episode['shouldPage']
+        genuine_timeout = result == 124 and (
+            episode_state_failed or (load_sample is not None and not host_overloaded)
+        )
+        if genuine_timeout or should_page_deferred:
             # Existing mail path, with its per-item cooldown and Lane A receipts.
             library = str(Path(worker).parent.parent / 'sentinel-v5/checkin-lib.sh')
             detail = ''
-            if should_page_overload:
+            if should_page_deferred:
                 minutes = episode['overloadDurationMinutes']
-                detail = f'The job has not succeeded for {minutes} minutes, and the host was overloaded throughout its failed scheduled runs.'
+                detail = f'The job has not succeeded for {minutes} minutes; scheduled runs were missed or timed out while host load was overloaded or unavailable.'
             mail_result = root / 'overload-mail-result.tmp'
             mail_result.unlink(missing_ok=True)
             bounded([
@@ -180,7 +213,7 @@ def main(worker):
                 'export SENTINEL_MAIL_RED_RESULT_FILE="$4"; . "$1"; sentinel_checkin sl-error-stream-health red job_failed "$2" "$2" "$3"',
                 'slot-alert', library, iso(slot), detail, str(mail_result),
             ], 45)
-            if should_page_overload:
+            if should_page_deferred:
                 delivery = mail_result.read_text().strip() if mail_result.exists() else 'unknown'
                 if delivery in ('confirmed', 'uncertain'):
                     episode['overloadEscalationActive'] = True
