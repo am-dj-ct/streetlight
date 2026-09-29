@@ -16,6 +16,16 @@ import sys
 import time
 
 
+RUNTIME_UNAVAILABLE_EXIT = 20
+ARTIFACT_UNREADABLE_EXIT = 21
+DEFERRED_WORKER_EXITS = {
+    22: 'health_runner_failed',
+    23: 'secret_provider_failed',
+    24: 'secret_rate_limited',
+}
+DEFERRED_ARTIFACT_REASONS = {'request_timeout', 'network_error'}
+
+
 def iso(epoch):
     return datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
 
@@ -84,12 +94,69 @@ def next_overload_episode(worker, previous, now, overloaded_failure, success):
         return None
 
 
+def read_artifact():
+    path = Path(os.environ.get(
+        'STREETLIGHT_ERROR_STREAM_HEALTH_ARTIFACT',
+        str(Path.home() / '.blt-hub/source-health/streetlight-error-stream-health.json'),
+    ))
+    try:
+        value = json.loads(path.read_text())
+        return value if isinstance(value, dict) else None
+    except Exception:
+        return None
+
+
+def classify_worker_result(result, artifact):
+    if result == 124:
+        return None
+    if result in DEFERRED_WORKER_EXITS:
+        return dict(success=False, deferred=True, failureReason=DEFERRED_WORKER_EXITS[result],
+                    checkinStatus='yellow', reasonCode='degraded', immediatePage=False)
+    if result == RUNTIME_UNAVAILABLE_EXIT:
+        return dict(success=False, deferred=False, failureReason='runtime_unavailable',
+                    checkinStatus='red', reasonCode='job_failed', immediatePage=True)
+    if result == ARTIFACT_UNREADABLE_EXIT or artifact is None:
+        return dict(success=False, deferred=False, failureReason='artifact_unreadable',
+                    checkinStatus='red', reasonCode='job_failed', immediatePage=True)
+
+    status = artifact.get('status')
+    reason = artifact.get('reason')
+    consecutive = artifact.get('consecutiveFailures')
+    if status == 'ok':
+        return dict(success=True, deferred=False, failureReason='ok',
+                    checkinStatus='green', reasonCode='ok', immediatePage=False)
+    if status == 'failed':
+        return dict(success=False, deferred=False, failureReason='measured_error_stream_failure',
+                    checkinStatus='red', reasonCode='degraded', immediatePage=True)
+    if status == 'error' and reason in DEFERRED_ARTIFACT_REASONS:
+        return dict(success=False, deferred=True, failureReason=reason,
+                    checkinStatus='yellow', reasonCode='degraded', immediatePage=False)
+    if status == 'error' and isinstance(consecutive, int) and consecutive == 1:
+        return dict(success=False, deferred=False, failureReason=reason or 'worker_error',
+                    checkinStatus='yellow', reasonCode='degraded', immediatePage=False)
+    return dict(success=False, deferred=False, failureReason=reason or 'worker_exit',
+                checkinStatus='red', reasonCode='job_failed', immediatePage=True)
+
+
 def main(worker):
     os.umask(0o077)
     root = Path(os.environ.get('STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT', str(Path.home() / '.streetlight/error-stream-health')))
     root.mkdir(parents=True, exist_ok=True)
     os.environ['STREETLIGHT_SENTINEL_FALLBACK_LOG'] = str(root / 'sentinel-v5-fallback.log')
     cursor = root / 'slots-state.json'
+
+    def emit_checkin(status, reason, at, detail=''):
+        library = str(Path(worker).parent.parent / 'sentinel-v5/checkin-lib.sh')
+        mail_result = root / 'overload-mail-result.tmp'
+        mail_result.unlink(missing_ok=True)
+        bounded([
+            '/bin/bash', '-c',
+            'export SENTINEL_MAIL_RED_RESULT_FILE="$5"; . "$1"; sentinel_checkin sl-error-stream-health "$2" "$3" "$4" "$4" "$6"',
+            'slot-checkin', library, status, reason, at, str(mail_result), detail,
+        ], 45)
+        delivery = mail_result.read_text().strip() if mail_result.exists() else 'unknown'
+        mail_result.unlink(missing_ok=True)
+        return delivery
 
     def record(slot, status, reason, **extra):
         line = json.dumps(dict(timestamp=iso(time.time()), slot=iso(slot), status=status, reason=reason, **extra), separators=(',', ':'))
@@ -140,12 +207,17 @@ def main(worker):
         record(slot, 'started', 'scheduled_check')
         started = time.monotonic()
         result = bounded(['/bin/bash', worker, '--worker'], 180)
+        artifact = read_artifact() if result != 124 else None
+        worker_observation = classify_worker_result(result, artifact)
         load_sample, host_overloaded = host_overload_sample(worker) if result == 124 else (None, False)
         load_sample_unavailable = result == 124 and load_sample is None
-        deferred_failure = result == 124 and (host_overloaded or load_sample_unavailable)
+        deferred_timeout = result == 124 and (host_overloaded or load_sample_unavailable)
+        deferred_failure = deferred_timeout or (worker_observation is not None and worker_observation['deferred'])
+        job_success = worker_observation is not None and worker_observation['success']
         failure_class = (
             'host_overloaded' if result == 124 and host_overloaded
             else 'host_load_unavailable' if load_sample_unavailable
+            else worker_observation['failureReason'] if worker_observation is not None
             else None
         )
 
@@ -165,7 +237,7 @@ def main(worker):
             episode_previous,
             slot,
             overloaded_failure=deferred_failure,
-            success=result == 0,
+            success=job_success,
         )
         episode_state_failed = episode is None
         if episode_state_failed:
@@ -186,7 +258,7 @@ def main(worker):
             failure_reason,
             exitCode=result,
             durationSeconds=round(time.monotonic() - started, 3),
-            underlyingReason='deadline_exceeded' if deferred_failure else None,
+            underlyingReason='deadline_exceeded' if deferred_timeout else None,
             hostLoad=load_sample,
             overloadDurationMinutes=episode['overloadDurationMinutes'],
             overloadConsecutiveFailures=episode['overloadConsecutiveFailures'],
@@ -199,27 +271,23 @@ def main(worker):
         genuine_timeout = result == 124 and (
             episode_state_failed or (load_sample is not None and not host_overloaded)
         )
-        if genuine_timeout or should_page_deferred:
-            # Existing mail path, with its per-item cooldown and Lane A receipts.
-            library = str(Path(worker).parent.parent / 'sentinel-v5/checkin-lib.sh')
+        immediate_page = genuine_timeout or (
+            worker_observation is not None and worker_observation['immediatePage']
+        )
+        if should_page_deferred:
             detail = ''
-            if should_page_deferred:
-                minutes = episode['overloadDurationMinutes']
-                detail = f'The job has not succeeded for {minutes} minutes; scheduled runs were missed or timed out while host load was overloaded or unavailable.'
-            mail_result = root / 'overload-mail-result.tmp'
-            mail_result.unlink(missing_ok=True)
-            bounded([
-                '/bin/bash', '-c',
-                'export SENTINEL_MAIL_RED_RESULT_FILE="$4"; . "$1"; sentinel_checkin sl-error-stream-health red job_failed "$2" "$2" "$3"',
-                'slot-alert', library, iso(slot), detail, str(mail_result),
-            ], 45)
-            if should_page_deferred:
-                delivery = mail_result.read_text().strip() if mail_result.exists() else 'unknown'
-                if delivery in ('confirmed', 'uncertain'):
-                    episode['overloadEscalationActive'] = True
-                    save(max(slot, latest - 300), False, episode)
-                record(slot, 'alert', 'host_overload_page_' + delivery, overloadDurationMinutes=episode['overloadDurationMinutes'])
-            mail_result.unlink(missing_ok=True)
+            minutes = episode['overloadDurationMinutes']
+            detail = f'The job has not succeeded for {minutes} minutes; scheduled runs were missed or ended in load-susceptible worker failures.'
+            delivery = emit_checkin('red', 'job_failed', iso(slot), detail)
+            if delivery in ('confirmed', 'uncertain'):
+                episode['overloadEscalationActive'] = True
+                save(max(slot, latest - 300), False, episode)
+            record(slot, 'alert', 'sustained_failure_page_' + delivery, overloadDurationMinutes=episode['overloadDurationMinutes'])
+        elif immediate_page:
+            reason_code = worker_observation['reasonCode'] if worker_observation is not None else 'job_failed'
+            emit_checkin('red', reason_code, iso(slot))
+        elif worker_observation is not None:
+            emit_checkin(worker_observation['checkinStatus'], worker_observation['reasonCode'], iso(slot))
         return result if result else int(missed)
 
 

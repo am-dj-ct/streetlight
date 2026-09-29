@@ -15,10 +15,13 @@ requested, written, or logged.
 Transient request failures (`request_timeout`, `network_error`, `rate_limited`,
 upstream 5xx, upstream timeout, or an empty response) are retried once after
 20 seconds. A first final failure is a yellow `degraded` check-in with the
-`rerun_once` repair action and a clean process exit. The second consecutive
-final failure is a red `job_failed` check-in with the `escalate` action and the
-reason in the local diagnostic line. Any successful read resets the failure
-streak.
+`rerun_once` repair action and a clean process exit. `request_timeout` and
+`network_error` then stay on the supervisor's recovery-aware episode instead
+of paging from the worker's consecutive-failure counter. The same episode owns
+runner, Doppler-provider, and Doppler-rate-limit failures that produce no fresh
+artifact. It pages once only after the job has not succeeded for 60 minutes;
+any successful read resets it. Other second consecutive artifact errors and
+measured red health results retain their immediate red behavior.
 
 `OPS_READ_TOKEN` is loaded at runtime from Doppler. Install with `./install.sh`
 after the change is merged into the main checkout. The installer first checks
@@ -41,14 +44,19 @@ while one-minute host load is above 3x CPU count is recorded as
 `host_overloaded`; one whose load sample cannot be obtained is recorded as
 `host_load_unavailable`. Neither sends red mail by itself. Missed slots seed the
 same recovery-aware episode, but a successful current run clears it without a
-page. The atomic slot state tracks the episode; the first failed scheduled run
-at or beyond 60 minutes without a success sends one red email, and later
+page. The atomic slot state tracks one episode shared by missed slots, deadline
+timeouts under overload or unavailable load, runner/Doppler failures without a
+fresh artifact, and `request_timeout`/`network_error` artifacts. The first
+failed scheduled run at or beyond 60 minutes without a success sends one red email, and later
 deferred failures stay quiet after confirmed or uncertain delivery. A timeout
 with a valid healthy-host sample pages immediately. Cooldown, rejection, or
 pre-send failure leaves the sustained alert pending for the next scheduled
 attempt. Both watchers
 import the threshold from `scripts/lib/host-overload.mjs`; it is not duplicated.
-No new mail path.
+The slot supervisor is the only code that emits this job's Sentinel check-ins;
+the worker no longer has an independent red-page decision. Missing `node` or
+`doppler`, an unreadable artifact, measured red health, and non-load-susceptible
+artifact failures still page immediately. No new mail path.
 The existing plist and installer do not need to be reinstalled for this change.
 Python 3 must be on launchd's PATH. The ledger starts at first installation;
 it cannot reconstruct missing history that the old logs never retained.

@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
 **Last reviewed:** 2026-09-29
-**Last meaningful change:** 2026-09-29 (missed watcher slots and timeouts with unavailable load samples use the recovery-aware 60-minute episode; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
+**Last meaningful change:** 2026-09-29 (load-susceptible error-stream worker failures use the same recovery-aware 60-minute episode as missed slots and host timeouts; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -1361,5 +1361,17 @@ One-line summary of every decision in this document, dated for traceability.
 - A failed or invalid host-load sample is `host_load_unavailable`, not a healthy-host reading. Timeout-only failures with that classification follow the same 60-minute sustained episode as verified overload.
 - Missed error-stream slots no longer page when the next scheduled run succeeds. They seed the episode only when the job has not recovered, with elapsed time beginning at the earliest missed slot.
 - A valid healthy-host timeout and every non-timeout failure remain genuine failures. Sustained overload/unavailable episodes still page once at 60 minutes. No delivery gate, schedule, endpoint, or mail path changed.
+
+**2026-09-29 — load-susceptible error-stream worker failures join the recovery-aware episode:**
+
+- The slot supervisor now owns every `sl-error-stream-health` check-in and the
+  only red-page decision; the shell worker and artifact watcher no longer page
+  independently.
+- Health-runner, Doppler-provider, Doppler-rate-limit, `request_timeout`, and
+  `network_error` failures page only when the job has not succeeded for 60
+  minutes. Recovery inside that window clears the episode.
+- Missing runtimes, unreadable artifacts, measured red health, healthy-host
+  whole-run timeouts, and non-load-susceptible artifact escalation remain
+  immediate genuine-failure pages. No delivery gate or mail path was added.
 
 *End of document.*

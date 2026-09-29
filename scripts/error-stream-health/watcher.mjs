@@ -20,12 +20,24 @@ export function decideWatcher(artifact) {
   }
 
   const consecutiveFailures = artifact?.consecutiveFailures;
+  const sustainedFailure = artifact?.status === "error"
+    && ["request_timeout", "network_error"].includes(artifact?.reason);
   if (artifact?.status === "error" && Number.isInteger(consecutiveFailures) && consecutiveFailures === 1) {
     return {
       checkinStatus: "yellow",
       reasonCode: "degraded",
       action: "rerun_once",
       exitCode: 0,
+    };
+  }
+
+
+  if (sustainedFailure && Number.isInteger(consecutiveFailures) && consecutiveFailures >= 2) {
+    return {
+      checkinStatus: "yellow",
+      reasonCode: "degraded",
+      action: "defer",
+      exitCode: 1,
     };
   }
 

@@ -43,7 +43,6 @@ checkins = []
 def fake_bounded(command, seconds):
     if command[:1] == ['/bin/bash'] and len(command) >= 3 and command[2] == '--worker':
         return 0
-    checkins.append(command)
     return 0
 m.bounded = fake_bounded
 assert m.main('synthetic-worker') == 1
@@ -99,6 +98,8 @@ s = importlib.util.spec_from_file_location('slots', 'scripts/error-stream-health
 m = importlib.util.module_from_spec(s)
 s.loader.exec_module(m)
 worker = str(Path('scripts/error-stream-health/run-error-stream-health.sh').resolve())
+artifact = Path(os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT']) / 'artifact.json'
+os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_ARTIFACT'] = str(artifact)
 clock = [900]
 m.time.time = lambda: clock[0]
 m.host_overload_sample = lambda worker: ({'load1': 100, 'load5': 100, 'load15': 100, 'cpuCount': 10}, True)
@@ -106,8 +107,9 @@ checkins = []
 def fake_bounded(command, seconds):
     if len(command) >= 3 and command[1] == worker and command[2] == '--worker':
         return 124
-    checkins.append(command)
-    Path(command[-1]).write_text('confirmed')
+    if len(command) > 5 and command[5] == 'red':
+        checkins.append(command)
+        Path(command[8]).write_text('confirmed')
     return 0
 m.bounded = fake_bounded
 
@@ -123,7 +125,7 @@ for _ in range(12):
     clock[0] += 300
     assert m.main(worker) == 124
 assert len(checkins) == 1
-assert 'has not succeeded for 60 minutes' in checkins[0][-2]
+assert 'has not succeeded for 60 minutes' in checkins[0][-1]
 clock[0] += 300
 assert m.main(worker) == 124
 assert len(checkins) == 1
@@ -131,8 +133,8 @@ assert len(checkins) == 1
 # A success resets the episode; a later genuine (not overloaded) timeout pages normally.
 def successful_worker(command, seconds):
     if len(command) >= 3 and command[1] == worker and command[2] == '--worker':
+        artifact.write_text(json.dumps({'status': 'ok', 'consecutiveFailures': 0}))
         return 0
-    checkins.append(command)
     return 0
 m.bounded = successful_worker
 clock[0] += 300
@@ -175,5 +177,107 @@ assert len(checkins) == 4
       SENTINEL_MAIL_RED_DISABLED: "1",
     },
   });
+  assert.equal(result.stderr, "");
+});
+
+test("each load-susceptible worker path suppresses one failure and recovery but pages at 60 minutes", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "health-worker-policy-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = await exec("python3", ["-c", `
+import importlib.util, json, os
+from pathlib import Path
+s = importlib.util.spec_from_file_location('slots', 'scripts/error-stream-health/slots.py')
+m = importlib.util.module_from_spec(s)
+s.loader.exec_module(m)
+base = Path(os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT'])
+worker = str(Path('scripts/error-stream-health/run-error-stream-health.sh').resolve())
+paths = [
+    ('health_runner_failed', 22, None),
+    ('secret_provider_failed', 23, None),
+    ('secret_rate_limited', 24, None),
+    ('request_timeout', 1, 'request_timeout'),
+    ('network_error', 1, 'network_error'),
+]
+
+for name, exit_code, artifact_reason in paths:
+    path_root = base / name
+    path_root.mkdir(parents=True)
+    os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT'] = str(path_root)
+    artifact_path = path_root / 'artifact.json'
+    os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_ARTIFACT'] = str(artifact_path)
+    clock = [900]
+    m.time.time = lambda: clock[0]
+    mode = ['failure']
+    failures = [0]
+    red = []
+
+    def fake_bounded(command, seconds):
+        if len(command) >= 3 and command[1] == worker and command[2] == '--worker':
+            if mode[0] == 'success':
+                artifact_path.write_text(json.dumps({'status': 'ok', 'consecutiveFailures': 0}))
+                return 0
+            failures[0] += 1
+            if artifact_reason is not None:
+                artifact_path.write_text(json.dumps({
+                    'status': 'error',
+                    'reason': artifact_reason,
+                    'consecutiveFailures': failures[0],
+                }))
+                return 0 if failures[0] == 1 else exit_code
+            artifact_path.unlink(missing_ok=True)
+            return exit_code
+        if len(command) > 5 and command[5] == 'red':
+            red.append(command)
+            Path(command[8]).write_text('confirmed')
+        return 0
+
+    m.bounded = fake_bounded
+    m.host_overload_sample = lambda worker: (None, False)
+
+    m.main(worker)
+    assert red == [], name
+
+    mode[0] = 'success'
+    clock[0] += 300
+    assert m.main(worker) == 0
+    assert red == [], name
+    state = json.loads((path_root / 'slots-state.json').read_text())
+    assert state['overloadFirstObservedAt'] is None, name
+
+    mode[0] = 'failure'
+    failures[0] = 0
+    clock[0] += 300
+    m.main(worker)
+    for _ in range(12):
+        clock[0] += 300
+        m.main(worker)
+    assert len(red) == 1, name
+    assert 'has not succeeded for 60 minutes' in red[0][9], name
+
+os.environ['STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT'] = str(base)
+`], {
+    env: {
+      ...process.env,
+      PYTHONDONTWRITEBYTECODE: "1",
+      STREETLIGHT_ERROR_STREAM_HEALTH_STATE_ROOT: root,
+      SENTINEL_MAIL_RED_DISABLED: "1",
+    },
+  });
+  assert.equal(result.stderr, "");
+});
+
+test("genuine worker breakage still pages immediately", async () => {
+  const result = await exec("python3", ["-c", `
+import importlib.util
+s = importlib.util.spec_from_file_location('slots', 'scripts/error-stream-health/slots.py')
+m = importlib.util.module_from_spec(s)
+s.loader.exec_module(m)
+for code, reason in [(20, 'runtime_unavailable'), (21, 'artifact_unreadable')]:
+    observed = m.classify_worker_result(code, None)
+    assert observed['immediatePage'] is True
+    assert observed['failureReason'] == reason
+assert m.classify_worker_result(2, {'status': 'failed'})['immediatePage'] is True
+assert m.classify_worker_result(1, {'status': 'error', 'reason': 'auth_failed', 'consecutiveFailures': 2})['immediatePage'] is True
+`], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" } });
   assert.equal(result.stderr, "");
 });
