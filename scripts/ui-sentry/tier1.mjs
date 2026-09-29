@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { launchPage, readPerf, recreatePage, watchProblems } from "./lib/browser.mjs";
 import { humanType, settleComposer } from "./lib/human-type.mjs";
 import { gotoConversation, settleAfterConversationLoad } from "./lib/conversation.mjs";
-import { readHostLoad } from "./lib/host-load.mjs";
+import { tryReadHostLoad } from "./lib/host-load.mjs";
 import { LOCALE_HEADING_MARKERS } from "./fixtures/locale-markers.mjs";
 
 const AXE_SERIOUS_OR_CRITICAL = new Set(["serious", "critical"]);
@@ -39,7 +39,7 @@ export async function runCase(cases, name, fn, recover) {
     // by the time this case fails cannot relabel this failure, and a spike
     // that only appears mid-run is not missed either (2026-09-27 cross-vendor
     // review of #52 finding 2).
-    const hostLoadAtFailure = readHostLoad();
+    const hostLoadAtFailure = tryReadHostLoad();
     cases.push({
       name,
       status: "fail",
@@ -59,7 +59,7 @@ export async function runCase(cases, name, fn, recover) {
           durationMs: 0,
           error: `page recovery failed: ${String(recoverError?.message ?? recoverError).slice(0, 200)}`,
           errorClass: String(recoverError?.name ?? "Error").slice(0, 80),
-          hostLoadAtFailure: readHostLoad(),
+          hostLoadAtFailure: tryReadHostLoad(),
         });
       });
     }

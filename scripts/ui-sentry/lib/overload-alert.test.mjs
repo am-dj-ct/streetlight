@@ -49,6 +49,49 @@ test("sustained overload crosses to pager-facing FAIL exactly once", () => {
   assert.equal(later.overloadAlertDisposition, "suppress");
 });
 
+test("an unavailable load sample does not page a timeout immediately but pages after 60 minutes", () => {
+  const tier1 = {
+    status: "fail",
+    engines: [{ cases: [{ status: "fail", errorClass: "TimeoutError", hostLoadAtFailure: null }] }],
+  };
+  const first = classifyOverloadAlert({
+    observedLevel: "FAIL",
+    tier1,
+    previousState: null,
+    now: "2026-09-29T17:00:00Z",
+  });
+  assert.equal(first.effectiveLevel, "DEGRADED");
+  assert.equal(first.failureClass, "host_load_unavailable");
+  assert.equal(first.hostOverloaded, false);
+  assert.equal(first.overloadAlertDisposition, "suppress");
+
+  const sustained = classifyOverloadAlert({
+    observedLevel: "FAIL",
+    tier1,
+    previousState: first.overloadEpisode,
+    now: "2026-09-29T18:00:00Z",
+  });
+  assert.equal(sustained.effectiveLevel, "FAIL");
+  assert.equal(sustained.overloadAlertDisposition, "page");
+  assert.equal(sustained.overloadEpisode.overloadDurationMinutes, 60);
+});
+
+test("a healthy host sample keeps a genuine timeout red even after 60 minutes", () => {
+  const tier1 = {
+    status: "fail",
+    engines: [{ cases: [{ status: "fail", errorClass: "TimeoutError", hostLoadAtFailure: { load1: 5, cpuCount: 10 } }] }],
+  };
+  const result = classifyOverloadAlert({
+    observedLevel: "FAIL",
+    tier1,
+    previousState: { overloadFirstObservedAt: "2026-09-29T17:00:00Z", overloadConsecutiveFailures: 12 },
+    now: "2026-09-29T18:00:00Z",
+  });
+  assert.equal(result.effectiveLevel, "FAIL");
+  assert.equal(result.overloadAlertDisposition, "normal");
+  assert.equal(result.failureClass, null);
+});
+
 test("a genuine non-timeout failure remains pager-facing FAIL", () => {
   const tier1 = {
     status: "fail",

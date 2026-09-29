@@ -16,7 +16,7 @@ import { Logger } from "./lib/logger.mjs";
 import { LOG_DIR } from "./lib/paths.mjs";
 import { readPreviousState, writeStateAtomic } from "./lib/state.mjs";
 import { buildReportBody, buildSubject, computeOverallLevel } from "./lib/report.mjs";
-import { readHostLoad } from "./lib/host-load.mjs";
+import { tryReadHostLoad } from "./lib/host-load.mjs";
 import { classifyOverloadAlert } from "./lib/overload-alert.mjs";
 import { runTier0 } from "./tier0.mjs";
 import { runTier1 } from "./tier1.mjs";
@@ -63,6 +63,10 @@ let finalized = false;
 // the 07:23 run that fabricated 17 cascaded failures under load ~144/10
 // cores had no evidence of load anywhere in the report at all).
 function logHostLoad(label, sample) {
+  if (sample == null) {
+    logger.line(`host load at ${label}: unavailable`);
+    return;
+  }
   logger.line(
     `host load at ${label}: load1=${sample.load1.toFixed(2)} load5=${sample.load5.toFixed(2)} ` +
       `load15=${sample.load15.toFixed(2)} cpus=${sample.cpuCount}`,
@@ -82,9 +86,11 @@ function logHostLoad(label, sample) {
 function startPeriodicHostLoadSampler(intervalMs = 15_000) {
   const samples = [];
   const timer = setInterval(() => {
-    const sample = { at: new Date().toISOString(), ...readHostLoad() };
+    const reading = tryReadHostLoad();
+    const sample = reading == null ? { at: new Date().toISOString(), unavailable: true } : { at: new Date().toISOString(), ...reading };
     samples.push(sample);
-    logger.line(
+    if (reading == null) logger.line("host load sample (during tier1): unavailable");
+    else logger.line(
       `host load sample (during tier1): load1=${sample.load1.toFixed(2)} load5=${sample.load5.toFixed(2)} ` +
         `load15=${sample.load15.toFixed(2)} cpus=${sample.cpuCount}`,
     );
@@ -317,7 +323,7 @@ process.on("SIGINT", handleSignal("SIGINT"));
 async function main() {
   logger.line(`ui-sentry run starting against ${BASE_URL}`);
 
-  partial.hostLoadTier0Start = readHostLoad();
+  partial.hostLoadTier0Start = tryReadHostLoad();
   logHostLoad("tier0 start", partial.hostLoadTier0Start);
 
   partial.tier0 = await runTier0({ baseUrl: BASE_URL, logger });
@@ -327,7 +333,7 @@ async function main() {
     return;
   }
 
-  partial.hostLoadTier1Start = readHostLoad();
+  partial.hostLoadTier1Start = tryReadHostLoad();
   logHostLoad("tier1 start", partial.hostLoadTier1Start);
 
   const periodicSampler = startPeriodicHostLoadSampler();

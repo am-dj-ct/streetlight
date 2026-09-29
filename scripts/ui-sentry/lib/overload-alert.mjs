@@ -1,4 +1,5 @@
 import {
+  hasUsableHostLoadSample,
   isHostOverloaded,
   isTimeoutFailure,
   nextHostOverloadEpisode,
@@ -12,33 +13,42 @@ function failedTier1Cases(tier1) {
 
 export function classifyOverloadAlert({ observedLevel, tier1, previousState, now }) {
   const failures = failedTier1Cases(tier1);
-  const overloadOnlyTimeout =
+  const deferredTimeout =
     observedLevel === "FAIL" &&
     failures.length > 0 &&
     failures.every(
       (testCase) =>
         isTimeoutFailure(testCase) &&
-        testCase.hostLoadAtFailure != null &&
-        isHostOverloaded([testCase.hostLoadAtFailure]),
+        (!hasUsableHostLoadSample(testCase.hostLoadAtFailure) ||
+          isHostOverloaded([testCase.hostLoadAtFailure])),
     );
+  const allSamplesOverloaded =
+    deferredTimeout && failures.every((testCase) =>
+      hasUsableHostLoadSample(testCase.hostLoadAtFailure),
+    );
+  const failureClass = deferredTimeout
+    ? allSamplesOverloaded
+      ? "host_overloaded"
+      : "host_load_unavailable"
+    : null;
   const overloadEpisode = nextHostOverloadEpisode({
     previous: previousState,
     now,
-    overloadedFailure: overloadOnlyTimeout,
+    overloadedFailure: deferredTimeout,
     success: observedLevel === "PASS",
   });
-  const overloadAlertDisposition = overloadOnlyTimeout
+  const overloadAlertDisposition = deferredTimeout
     ? overloadEpisode.shouldPage
       ? "page"
       : "suppress"
     : "normal";
   const effectiveLevel =
-    overloadOnlyTimeout && !overloadEpisode.shouldPage ? "DEGRADED" : observedLevel;
+    deferredTimeout && !overloadEpisode.shouldPage ? "DEGRADED" : observedLevel;
 
   return {
     failures,
-    hostOverloaded: overloadOnlyTimeout,
-    failureClass: overloadOnlyTimeout ? "host_overloaded" : null,
+    hostOverloaded: allSamplesOverloaded,
+    failureClass,
     overloadAlertDisposition,
     effectiveLevel,
     overloadEpisode,

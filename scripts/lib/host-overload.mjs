@@ -11,6 +11,19 @@ export function readHostLoad() {
   return { load1, load5, load15, cpuCount: os.cpus().length };
 }
 
+export function tryReadHostLoad() {
+  try {
+    const sample = readHostLoad();
+    return hasUsableHostLoadSample(sample) ? sample : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasUsableHostLoadSample(sample) {
+  return Number.isFinite(sample?.load1) && Number.isFinite(sample?.cpuCount) && sample.cpuCount > 0;
+}
+
 export function isHostOverloaded(
   samples,
   thresholdMultiplier = DEFAULT_OVERLOAD_THRESHOLD_MULTIPLIER,

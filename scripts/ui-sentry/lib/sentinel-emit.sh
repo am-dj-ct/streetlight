@@ -198,7 +198,7 @@ _ui_sentry_read_verified_state() {
               .startedAt,
               .invocationId,
               (if .hostOverloaded == true then "true" else "false" end),
-              (if .failureClass == "host_overloaded" then "host_overloaded" else "" end),
+              (if (.failureClass == "host_overloaded" or .failureClass == "host_load_unavailable") then .failureClass else "" end),
               (if (.overloadAlertDisposition == "suppress" or .overloadAlertDisposition == "page") then .overloadAlertDisposition else "normal" end),
               (if (.overloadDurationMinutes | type) == "number" then (.overloadDurationMinutes | floor | tostring) else "0" end)
             ] | @tsv
@@ -289,9 +289,9 @@ sentinel_emit_item_a() {
     check_status="red"
     reason="job_failed"
     if _ui_sentry_read_verified_state \
-      && [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] \
+      && { [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] || [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_load_unavailable" ]; } \
       && [ "$UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION" = "page" ]; then
-      detail="The job has not succeeded for ${UI_SENTRY_VERIFIED_OVERLOAD_MINUTES} minutes, and the host was overloaded on every failed scheduled run in that period."
+      detail="The job has not succeeded for ${UI_SENTRY_VERIFIED_OVERLOAD_MINUTES} minutes; scheduled runs timed out while host load was overloaded or unavailable."
     fi
   else
     _ui_sentry_read_verified_state
@@ -300,7 +300,7 @@ sentinel_emit_item_a() {
     if [ -z "$run_level" ] || [ "$state_is_current" != "1" ]; then
       check_status="red"
       reason="state_unverifiable"
-    elif [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] \
+    elif { [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] || [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_load_unavailable" ]; } \
       && [ "$UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION" = "suppress" ]; then
       check_status="yellow"
       reason="degraded"
@@ -323,7 +323,7 @@ sentinel_emit_item_a() {
   # unnoticed.
   local overload_mail_result=""
   if [ "$check_status" = "red" ] \
-    && [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] \
+    && { [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_overloaded" ] || [ "$UI_SENTRY_VERIFIED_FAILURE_CLASS" = "host_load_unavailable" ]; } \
     && [ "$UI_SENTRY_VERIFIED_OVERLOAD_DISPOSITION" = "page" ]; then
     overload_mail_result="${STATE_ROOT}/.overload-mail-result.$$"
     rm -f "$overload_mail_result" 2>/dev/null || true

@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-09-28
-**Last meaningful change:** 2026-09-28 (host-overload-only timeouts are recorded locally without paging; a sustained 60-minute episode pages once; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
+**Last reviewed:** 2026-09-29
+**Last meaningful change:** 2026-09-29 (missed watcher slots and timeouts with unavailable load samples use the recovery-aware 60-minute episode; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -1355,5 +1355,11 @@ One-line summary of every decision in this document, dated for traceability.
 - UI sentry suppresses both alert paths only when every tier-1 failure is a typed timeout observed under overload. The raw `FAIL` remains as `observedLevel`, while alert-facing status is `DEGRADED`. Any mixed, non-timeout, missing-sample, or detector failure stays red.
 - After 60 minutes of consecutive overload-only failures, the next run pages once with the elapsed minutes; later overload failures stay quiet after confirmed or uncertain delivery. Cooldown or definite non-delivery leaves the escalation pending. Success resets it; a genuine failure pages normally and ends that consecutive-overload episode.
 - State remains content-free: fixed classifications, timestamps, counts, booleans, alert disposition, and numeric load only. Full rationale: `docs/decisions/2026-09-28-host-overload-alert-suppression.md`.
+
+**2026-09-29 — missed slots and unavailable load samples become recovery-aware:**
+
+- A failed or invalid host-load sample is `host_load_unavailable`, not a healthy-host reading. Timeout-only failures with that classification follow the same 60-minute sustained episode as verified overload.
+- Missed error-stream slots no longer page when the next scheduled run succeeds. They seed the episode only when the job has not recovered, with elapsed time beginning at the earliest missed slot.
+- A valid healthy-host timeout and every non-timeout failure remain genuine failures. Sustained overload/unavailable episodes still page once at 60 minutes. No delivery gate, schedule, endpoint, or mail path changed.
 
 *End of document.*
