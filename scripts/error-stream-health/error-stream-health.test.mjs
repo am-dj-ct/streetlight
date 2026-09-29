@@ -58,14 +58,20 @@ test("operational failures are distinct from a measured red", () => {
   assert.equal(artifact.totalInteractions, null);
 });
 
-test("watcher repairs once, then escalates on the second consecutive failure", () => {
+test("watcher keeps load-susceptible request failures on the supervisor episode", () => {
   assert.deepEqual(decideWatcher({ status: "error", consecutiveFailures: 1 }), {
     checkinStatus: "yellow",
     reasonCode: "degraded",
     action: "rerun_once",
     exitCode: 0,
   });
-  assert.deepEqual(decideWatcher({ status: "error", consecutiveFailures: 2 }), {
+  assert.deepEqual(decideWatcher({ status: "error", reason: "request_timeout", consecutiveFailures: 2 }), {
+    checkinStatus: "yellow",
+    reasonCode: "degraded",
+    action: "defer",
+    exitCode: 1,
+  });
+  assert.deepEqual(decideWatcher({ status: "error", reason: "auth_failed", consecutiveFailures: 2 }), {
     checkinStatus: "red",
     reasonCode: "job_failed",
     action: "escalate",

@@ -64,3 +64,25 @@ is limited to timestamps, counts, booleans, a fixed classification, numeric
 host-load values, and the alert disposition. No vendor, secret, schedule,
 endpoint, or retention policy changes. The existing direct red-mail path is
 used only for the single sustained-overload escalation and genuine failures.
+
+## 2026-09-29 amendment: worker-side load-susceptible failures
+
+The worker had two page decisions outside the slot supervisor. A failed health
+runner with no fresh artifact paged immediately, including Doppler-provider and
+Doppler-rate-limit failures. Separately, `watcher.mjs` paged the second
+consecutive artifact error; that included `request_timeout` and
+`network_error`. Those conditions can all be produced by a busy host and could
+page before the recovery-aware episode saw them.
+
+The slot supervisor now owns every `sl-error-stream-health` check-in and the
+only red-page decision. `health_runner_failed`, `secret_provider_failed`,
+`secret_rate_limited`, `request_timeout`, and `network_error` join the existing
+missed-slot/host-timeout episode. Its clock means exactly "the job has not
+succeeded": one failure stays quiet, a success before 60 minutes clears the
+episode, and the first failure at or after 60 minutes pages once. The policy
+does not depend on obtaining a host-load sample.
+
+Missing `node` or `doppler`, an unreadable artifact, a measured red health
+result, a healthy-host whole-run timeout, and non-load-susceptible artifact
+failure escalation remain genuine breakage and page immediately. This changes
+no delivery path, schedule, endpoint, secret, or gate.
