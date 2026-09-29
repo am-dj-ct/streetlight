@@ -1,6 +1,6 @@
 # Host overload does not page as an application failure
 
-**Date:** 2026-09-28  
+**Date:** 2026-09-28
 **Status:** Accepted
 
 ## Context
