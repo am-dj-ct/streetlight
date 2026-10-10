@@ -135,6 +135,23 @@ once. A valid healthy-host timeout, any non-timeout failure, or a mixed failure
 stays red exactly as before. Success resets the episode; cooldown or definite
 non-delivery leaves the sustained alert pending.
 
+### Digest line (`UI_SENTRY_LAST_RESULT`)
+
+The daily usage digest email (GitHub Actions, `usage-digest.yml`) opens with
+one UI/UX audit line, so a green digest also says whether the audit passed.
+The cloud cannot read this Mac, so `run-ui-sentry.sh` publishes a small
+content-free summary to the repo Actions variable `UI_SENTRY_LAST_RESULT`
+(`publish-result.mjs`, `gh variable set`) from its `EXIT` handler, which
+covers every ending, including the PATH-preflight, node_modules and
+lock-held exits. It is best-effort: bounded to 30 seconds, never changes the
+wrapper's exit code, and logs one line to the run log and
+`~/.streetlight/ui-sentry/publish-result.log`. `UI_SENTRY_PUBLISH=0` skips it.
+The summary and the line's wording live in `scripts/lib/ui-audit-summary.mjs`;
+see ADR `docs/decisions/2026-10-10-ui-sentry-result-in-usage-digest.md`.
+
+To republish by hand from the latest `last-run.json` (no browser, no model
+spend): `node scripts/ui-sentry/publish-result.mjs`.
+
 ### Sentinel incident closure contract
 
 For `sl-ui-sentry` + `job_failed`, the one content-free incident lifecycle

@@ -33,6 +33,10 @@ jobs:
       - name: Build usage digest
         env:
           OPS_READ_TOKEN: ${{ secrets.OPS_READ_TOKEN }}
+          # Content-free summary of the nightly UI sentry run, published to
+          # this repo variable by the Mac that runs the sentry
+          # (scripts/ui-sentry/publish-result.mjs). Empty until first publish.
+          UI_SENTRY_LAST_RESULT: ${{ vars.UI_SENTRY_LAST_RESULT }}
         run: |
           node scripts/build-usage-digest-email.mjs \
             --output "$BODY_PATH" \

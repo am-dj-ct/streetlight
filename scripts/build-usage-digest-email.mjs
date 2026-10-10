@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { formatAuditLine } from "./lib/ui-audit-summary.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const outputPath = args.output ?? "tmp/usage-digest-email.md";
@@ -15,7 +16,11 @@ if (!opsReadToken) {
 }
 
 const summary = await fetchUsageSummary({ baseUrl, days, opsReadToken });
-const body = buildUsageDigest({ reportDate, summary });
+// The nightly UI/UX audit runs on Jesse's Mac; the workflow passes in the
+// content-free summary the Mac published. formatAuditLine never throws and
+// never returns nothing: a missing or old result becomes a NO RESULT line.
+const auditLine = formatAuditLine(process.env.UI_SENTRY_LAST_RESULT);
+const body = buildUsageDigest({ reportDate, summary, auditLine });
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, body, "utf8");
@@ -49,7 +54,7 @@ async function fetchUsageSummary({ baseUrl, days, opsReadToken }) {
   return summary;
 }
 
-function buildUsageDigest({ reportDate, summary }) {
+function buildUsageDigest({ reportDate, summary, auditLine }) {
   const daily = getDay(summary, reportDate);
   const periodCounts = summary.periodCounts ?? {};
   const periodUnique = summary.periodUnique ?? {};
@@ -115,6 +120,8 @@ function buildUsageDigest({ reportDate, summary }) {
   const dailyDetails = formatOptionalDailyDetails(daily);
   const lines = [
     `# Streetlight usage digest - ${reportDate}`,
+    "",
+    auditLine,
     "",
     "Aggregate counts only. No raw IPs, user agents, messages, answers, paths, or session records.",
     "",
