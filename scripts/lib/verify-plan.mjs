@@ -48,6 +48,15 @@ export const checkCatalog = [
     phase: "static",
   },
   {
+    // Pure node tests with no install beyond the repo's own: the UI-audit
+    // summary the usage digest prints, the Mac-side publisher, and the digest
+    // builder run end to end against a stub server.
+    id: "test:usage-digest",
+    command: ["npm", "run", "test:usage-digest"],
+    label: "usage digest and UI-audit summary tests",
+    phase: "static",
+  },
+  {
     // {{base}} is substituted by scripts/run-verify-plan.mjs from the
     // manifest's comparison base. It used to be a literal "HEAD", which
     // compares the working tree to HEAD -- always clean on a CI checkout, so

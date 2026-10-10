@@ -1,7 +1,7 @@
 # Data and Privacy Architecture
 
-**Last reviewed:** 2026-09-29
-**Last meaningful change:** 2026-09-29 (load-susceptible error-stream worker failures use the same recovery-aware 60-minute episode as missed slots and host timeouts; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
+**Last reviewed:** 2026-10-10
+**Last meaningful change:** 2026-10-10 (the usage digest reports the nightly UI sentry result from a content-free repo variable; see `docs/decisions/2026-10-10-ui-sentry-result-in-usage-digest.md`). Previously 2026-09-29 (load-susceptible error-stream worker failures use the same recovery-aware 60-minute episode as missed slots and host timeouts; see `docs/decisions/2026-09-28-host-overload-alert-suppression.md`)
 **Next scheduled review:** 2026-11-07 (quarterly)
 
 ---
@@ -1373,5 +1373,11 @@ One-line summary of every decision in this document, dated for traceability.
 - Missing runtimes, unreadable artifacts, measured red health, healthy-host
   whole-run timeouts, and non-load-susceptible artifact escalation remain
   immediate genuine-failure pages. No delivery gate or mail path was added.
+
+**2026-10-10 — the usage digest reports the nightly UI/UX audit:**
+
+- The UI sentry still sends no mail and stays on the operator's machine. After every wrapper ending it now also publishes a content-free summary (overall status, fixed headline, finish time, per-tier status, check counts, up to 8 fixed failed test-case names) to the GitHub Actions repo variable `UI_SENTRY_LAST_RESULT` with `gh variable set`. No new vendor, secret, or inbound path.
+- The daily usage digest prints one line from it: PASSED IN FULL only when status is PASS and tiers 0, 1 and 2 all passed; otherwise NOT A FULL PASS; a missing, unreadable, or over-30-hour-old result prints NO RESULT. The line is never omitted.
+- Scope, content-free allowlist, failure behavior and limits: `docs/decisions/2026-10-10-ui-sentry-result-in-usage-digest.md`.
 
 *End of document.*

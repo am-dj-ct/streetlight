@@ -11,6 +11,7 @@
     "test:sentinel-v5": "node --test scripts/sentinel-v5/*.test.mjs",
     "test:ui-sentry": "node --test scripts/lib/host-overload.test.mjs scripts/ui-sentry/*.test.mjs scripts/ui-sentry/lib/*.test.mjs",
     "test:verify-plan": "node --test scripts/verify-plan.test.mjs",
+    "test:usage-digest": "node --test scripts/lib/ui-audit-summary.test.mjs scripts/ui-sentry/publish-result.test.mjs scripts/build-usage-digest-email.test.mjs",
     "lint": "eslint",
     "check:audit": "npm audit",
     "check:locales": "node scripts/report-missing-locales.mjs",

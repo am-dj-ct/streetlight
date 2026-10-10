@@ -118,6 +118,42 @@ export UI_SENTRY_INVOCATION_ID="$SENTINEL_AT"
 
 mkdir -p "$STATE_ROOT/logs"
 
+# Digest publish (docs: scripts/lib/ui-audit-summary.mjs). Every ending of
+# this wrapper, normal or early-exit, leaves behind a last-run.json; the EXIT
+# handler below copies a content-free summary of it into a GitHub Actions repo
+# variable so the cloud-side usage digest can report whether the nightly
+# audit passed in full. It is strictly best-effort: publish-result.mjs always
+# exits 0, is time-bounded, logs its own outcome, and the handler re-exits
+# with the status this wrapper was already exiting with, so a publish problem
+# can never change the sentry's exit code or its other reporting. Set
+# UI_SENTRY_PUBLISH=0 to skip it (tests, local experiments).
+LOCK_HELD=0
+ui_sentry_publish_result() {
+  [ "${UI_SENTRY_PUBLISH:-1}" = "0" ] && return 0
+  local node_bin
+  node_bin="$(command -v node 2>/dev/null || true)"
+  if [ -z "$node_bin" ]; then
+    for candidate in /opt/homebrew/bin/node /usr/local/bin/node; do
+      [ -x "$candidate" ] && node_bin="$candidate" && break
+    done
+  fi
+  if [ -z "$node_bin" ]; then
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) ui-sentry publish-result: skipped - node not found" >> "$STATE_ROOT/publish-result.log" 2>/dev/null
+    return 0
+  fi
+  "$node_bin" "$SCRIPT_DIR/publish-result.mjs" >/dev/null 2>> "$STATE_ROOT/publish-result.log"
+  return 0
+}
+ui_sentry_on_exit() {
+  local rc=$?
+  if [ "$LOCK_HELD" = "1" ]; then
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+  fi
+  ui_sentry_publish_result || true
+  exit "$rc"
+}
+trap ui_sentry_on_exit EXIT
+
 # PATH preflight. launchd's default minimal PATH for a GUI agent
 # (/usr/bin:/bin:/usr/sbin:/sbin) does not include Homebrew, where both
 # `doppler` and `node` live on this Mac — and the plist now sets
@@ -222,7 +258,7 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   rmdir "$LOCK_DIR" 2>/dev/null || true
   mkdir "$LOCK_DIR"
 fi
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+LOCK_HELD=1
 
 cd "$SCRIPT_DIR"
 
