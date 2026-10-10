@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { buildAuditSummary } from "../lib/ui-audit-summary.mjs";
+import { buildSubject } from "./lib/report.mjs";
 import { publishResult, summarizeState, VARIABLE_NAME } from "./publish-result.mjs";
 
 const state = {
@@ -79,4 +81,26 @@ test("the headline matches the run log's own wording, including the early-exit s
   });
   assert.equal(earlyExit.headline, "Streetlight UI sentry: FAIL");
   assert.equal(earlyExit.tiers.tier1, "missing");
+});
+
+test("every headline the sentry can print survives the summary's headline allowlist", () => {
+  const levels = ["PASS", "DEGRADED", "FAIL"];
+  const narratives = ["none", "escalated_once", "steady_blocked", "recovery"];
+  let checked = 0;
+  for (const level of levels) {
+    for (const blockedNarrative of narratives) {
+      for (const tier2Skipped of [false, true]) {
+        for (const tier2Status of [null, "pass", "partial", "blocked", "fail"]) {
+          for (const [siteDown, browserLaunchFailed] of [[false, false], [true, false], [false, true]]) {
+            const headline = buildSubject({
+              level, siteDown, browserLaunchFailed, blockedNarrative, consecutiveBlockedRuns: 7, tier2Skipped, tier2Status,
+            });
+            assert.equal(buildAuditSummary(state, { headline }).headline, headline, headline);
+            checked += 1;
+          }
+        }
+      }
+    }
+  }
+  assert.ok(checked > 100);
 });

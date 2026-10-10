@@ -26,11 +26,33 @@ export const STALE_AFTER_MS = 30 * 60 * 60 * 1000;
 const MAX_FAILED_NAMES = 8;
 // Allowlists, not scrubbing: anything that is not a recognisable fixed test
 // name or sentry headline is replaced, never truncated, so unexpected text
-// cannot slip through as a prefix. Case names are fixed strings in tier0/1
-// ("chromium-desktop: home loads"); they use letters, digits, spaces and a
-// little punctuation, and one em dash.
+// cannot slip through as a prefix. Case names are string literals in the
+// sentry's own code, always starting with an engine or tier label
+// ("chromium-desktop: home loads", "healthz gate"), and use letters, digits,
+// spaces and a little punctuation, plus one em dash. Headlines are the exact
+// strings buildSubject() in scripts/ui-sentry/lib/report.mjs can produce; a
+// test in publish-result.test.mjs keeps the two in step.
+const CASE_NAME_PREFIXES = [
+  "chromium-desktop: ",
+  "webkit-mobile: ",
+  "browser preflight: ",
+  "site-up (",
+  "healthz gate",
+  "tier 2: ",
+];
 const CASE_NAME_PATTERN = /^[A-Za-z0-9 .,:;()/_'+>\u2014-]{1,160}$/;
-const HEADLINE_PATTERN = /^Streetlight UI sentry: (PASS|DEGRADED|FAIL)( \([A-Za-z0-9 ,.-]{1,80}\))?$/;
+const HEADLINE_LEVELS = "(PASS|DEGRADED|FAIL)";
+const HEADLINE_PATTERNS = [
+  new RegExp(`^Streetlight UI sentry: ${HEADLINE_LEVELS}$`),
+  new RegExp(`^Streetlight UI sentry: ${HEADLINE_LEVELS} \\(structural only, tier 2 skipped\\)$`),
+  /^Streetlight UI sentry: PASS \(chat recovered\)$/,
+  /^Streetlight UI sentry: FAIL \(site down\)$/,
+  /^Streetlight UI sentry: FAIL \(browser launch failed\/timed out, not a site failure\)$/,
+  /^Streetlight UI sentry: FAIL \(chat blocked 3 runs running\)$/,
+  /^Streetlight UI sentry: DEGRADED \(chat blocked, \d{1,4} consecutive\)$/,
+  /^Streetlight UI sentry: DEGRADED \(some chat turns passed\)$/,
+  /^Streetlight UI sentry: DEGRADED \(chat blocked\)$/,
+];
 const UNRECOGNIZED_NAME = "unrecognized check name";
 const STATUSES = new Set(["PASS", "DEGRADED", "FAIL", "UNKNOWN"]);
 const TIER_STATUSES = new Set(["pass", "fail", "blocked", "partial", "skipped", "missing", "unknown"]);
@@ -76,7 +98,7 @@ export function buildAuditSummary(state, { headline = null } = {}) {
   return {
     v: AUDIT_SUMMARY_VERSION,
     status: STATUSES.has(state?.status) ? state.status : "UNKNOWN",
-    headline: typeof headline === "string" && HEADLINE_PATTERN.test(headline) ? headline : null,
+    headline: typeof headline === "string" && HEADLINE_PATTERNS.some((pattern) => pattern.test(headline)) ? headline : null,
     finishedAt: validIso(state?.finishedAt),
     exitCode: Number.isInteger(state?.exitCode) ? state.exitCode : null,
     tiers: {
@@ -114,7 +136,11 @@ function fixedToken(value, fallback) {
 }
 
 function safeCaseName(value) {
-  return typeof value === "string" && CASE_NAME_PATTERN.test(value) ? value : UNRECOGNIZED_NAME;
+  const known =
+    typeof value === "string" &&
+    CASE_NAME_PATTERN.test(value) &&
+    CASE_NAME_PREFIXES.some((prefix) => value.startsWith(prefix));
+  return known ? value : UNRECOGNIZED_NAME;
 }
 
 function validIso(value) {
@@ -192,7 +218,11 @@ function parseSummary(raw, now) {
   if (!isCount(value.totalChecks) || !isCount(value.failedChecks) || value.failedChecks > value.totalChecks) {
     return "unreadable";
   }
-  if (!Array.isArray(value.failedNames) || value.failedNames.length > MAX_FAILED_NAMES) return "unreadable";
+  // The Mac lists min(failed, 8) names, so any other combination (for
+  // example zero failures with names attached) was not produced by it.
+  if (!Array.isArray(value.failedNames) || value.failedNames.length !== Math.min(value.failedChecks, MAX_FAILED_NAMES)) {
+    return "unreadable";
+  }
 
   const finishedMs = Date.parse(value.finishedAt);
   if (finishedMs - now.getTime() > FUTURE_SKEW_MS) return "future";

@@ -111,12 +111,14 @@ test("anything that is not a recognisable fixed test name is replaced, not trunc
   const state = passingState();
   state.tier0.cases = [
     { name: `bad\nname`, status: "fail" },
+    { name: "/Users/alice/private notes", status: "fail" },
+    { name: "Streetlight said: my name is Alice", status: "fail" },
     { name: long, status: "fail" },
     { name: "see https://example.org/?q=private text", status: "fail" },
     { name: "healthz gate", status: "fail" },
   ];
   const { failedNames } = buildAuditSummary(state);
-  assert.deepEqual(failedNames, ["unrecognized check name", "unrecognized check name", "unrecognized check name", "healthz gate"]);
+  assert.deepEqual(failedNames, [...Array(5).fill("unrecognized check name"), "healthz gate"]);
 });
 
 test("the real long, punctuated case names the sentry uses are kept intact", () => {
@@ -134,6 +136,8 @@ test("the headline is kept only when it matches the sentry's own fixed wording",
   assert.equal(buildAuditSummary(passingState(), { headline: "Streetlight UI sentry: DEGRADED (chat blocked, 4 consecutive)" }).headline,
     "Streetlight UI sentry: DEGRADED (chat blocked, 4 consecutive)");
   assert.equal(buildAuditSummary(passingState(), { headline: "Streetlight UI sentry: FAIL (site says: hello there!)" }).headline, null);
+  assert.equal(buildAuditSummary(passingState(), { headline: "Streetlight UI sentry: FAIL (client said my name is Alice)" }).headline, null);
+  assert.equal(buildAuditSummary(passingState(), { headline: "Streetlight UI sentry: DEGRADED (chat blocked, 4 consecutive and more)" }).headline, null);
   assert.equal(buildAuditSummary(passingState(), { headline: "anything else" }).headline, null);
 });
 
@@ -151,6 +155,8 @@ test("an edited or hostile variable is never printed: bad shape means NO RESULT"
     { ...good, failedChecks: 99, totalChecks: 5 },
     { ...good, failedNames: "nope" },
     { ...good, failedNames: Array.from({ length: 9 }, () => "x") },
+    { ...good, failedChecks: 0, failedNames: ["healthz gate"] },
+    { ...good, failedChecks: 2, failedNames: ["healthz gate"] },
   ]) {
     assert.match(formatAuditLine(bad, { now: NOW }), unreadable, JSON.stringify(bad).slice(0, 80));
   }
