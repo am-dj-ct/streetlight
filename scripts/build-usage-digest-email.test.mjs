@@ -1,7 +1,7 @@
 // Runs the real digest builder against a stub usage endpoint and checks the
 // UI/UX audit line that ends up in the email body.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -25,7 +25,6 @@ async function buildDigest(auditValue) {
   try {
     // Async spawn: the stub server lives in this process, so a sync spawn
     // would block the event loop that has to answer the child's request.
-    const { spawn } = await import("node:child_process");
     const child = spawn(
       process.execPath,
       [builder, "--output", output, "--baseUrl", `http://127.0.0.1:${server.address().port}`, "--date", "2026-10-09"],

@@ -24,8 +24,18 @@ export const AUDIT_SUMMARY_VERSION = 1;
 export const STALE_AFTER_MS = 30 * 60 * 60 * 1000;
 
 const MAX_FAILED_NAMES = 8;
-const MAX_NAME_LENGTH = 120;
-const MAX_HEADLINE_LENGTH = 200;
+// Allowlists, not scrubbing: anything that is not a recognisable fixed test
+// name or sentry headline is replaced, never truncated, so unexpected text
+// cannot slip through as a prefix. Case names are fixed strings in tier0/1
+// ("chromium-desktop: home loads"); they use letters, digits, spaces and a
+// little punctuation, and one em dash.
+const CASE_NAME_PATTERN = /^[A-Za-z0-9 .,:;()/_'+>\u2014-]{1,160}$/;
+const HEADLINE_PATTERN = /^Streetlight UI sentry: (PASS|DEGRADED|FAIL)( \([A-Za-z0-9 ,.-]{1,80}\))?$/;
+const UNRECOGNIZED_NAME = "unrecognized check name";
+const STATUSES = new Set(["PASS", "DEGRADED", "FAIL", "UNKNOWN"]);
+const TIER_STATUSES = new Set(["pass", "fail", "blocked", "partial", "skipped", "missing", "unknown"]);
+// Tolerated clock skew between the Mac that stamped finishedAt and the runner.
+const FUTURE_SKEW_MS = 10 * 60 * 1000;
 const TIME_ZONE = "America/Los_Angeles";
 
 const TIER_LABELS = {
@@ -65,8 +75,8 @@ export function buildAuditSummary(state, { headline = null } = {}) {
 
   return {
     v: AUDIT_SUMMARY_VERSION,
-    status: fixedToken(state?.status, "UNKNOWN"),
-    headline: cleanText(headline, MAX_HEADLINE_LENGTH) ?? null,
+    status: STATUSES.has(state?.status) ? state.status : "UNKNOWN",
+    headline: typeof headline === "string" && HEADLINE_PATTERN.test(headline) ? headline : null,
     finishedAt: validIso(state?.finishedAt),
     exitCode: Number.isInteger(state?.exitCode) ? state.exitCode : null,
     tiers: {
@@ -80,8 +90,7 @@ export function buildAuditSummary(state, { headline = null } = {}) {
     failedChecks: failed.length,
     failedNames: failed
       .slice(0, MAX_FAILED_NAMES)
-      .map((check) => cleanText(check.name, MAX_NAME_LENGTH))
-      .filter(Boolean),
+      .map((check) => safeCaseName(check.name)),
   };
 }
 
@@ -93,7 +102,8 @@ function casesOf(cases) {
 // "pass" | "fail" | "blocked" | "partial" | "skipped" | "missing" ...
 function tierStatus(tier) {
   if (!tier) return "missing";
-  return fixedToken(tier.status, "unknown").toLowerCase();
+  const status = fixedToken(tier.status, "unknown").toLowerCase();
+  return TIER_STATUSES.has(status) ? status : "unknown";
 }
 
 // A short machine token (PASS, host_overloaded, ...). Anything else, such as
@@ -103,12 +113,8 @@ function fixedToken(value, fallback) {
   return fallback;
 }
 
-function cleanText(value, max) {
-  if (typeof value !== "string") return null;
-  // eslint-disable-next-line no-control-regex
-  const flat = value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
-  if (!flat) return null;
-  return flat.length > max ? `${flat.slice(0, max - 3)}...` : flat;
+function safeCaseName(value) {
+  return typeof value === "string" && CASE_NAME_PATTERN.test(value) ? value : UNRECOGNIZED_NAME;
 }
 
 function validIso(value) {
@@ -129,10 +135,13 @@ function validIso(value) {
  * @param {{ now?: Date }} [options]
  */
 export function formatAuditLine(raw, { now = new Date() } = {}) {
-  const summary = parseSummary(raw);
+  const summary = parseSummary(raw, now);
 
   if (summary === "missing") {
     return "UI/UX audit: NO RESULT - nothing has been published yet by the nightly audit on Jesse's Mac";
+  }
+  if (summary === "future") {
+    return "UI/UX audit: NO RESULT - the published audit result is dated in the future, so its clock cannot be trusted";
   }
   if (summary === "unreadable") {
     return "UI/UX audit: NO RESULT - the published audit result could not be read";
@@ -153,7 +162,11 @@ export function formatAuditLine(raw, { now = new Date() } = {}) {
   return `UI/UX audit: NOT A FULL PASS - ${describeProblem(summary)} (run ${when})`;
 }
 
-function parseSummary(raw) {
+// The variable is operator-editable and travels into an email, so the digest
+// side validates the whole shape rather than trusting it: a wrong version,
+// an unknown status, a non-integer count, or a name outside the allowlist
+// makes the result "unreadable" (reported as NO RESULT), never printed.
+function parseSummary(raw, now) {
   if (raw === undefined || raw === null) return "missing";
   let value = raw;
   if (typeof raw === "string") {
@@ -165,9 +178,34 @@ function parseSummary(raw) {
     }
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) return "unreadable";
-  if (!Number.isFinite(Date.parse(value.finishedAt))) return "unreadable";
-  if (typeof value.status !== "string") return "unreadable";
-  return value;
+  if (value.v !== AUDIT_SUMMARY_VERSION) return "unreadable";
+  if (!STATUSES.has(value.status)) return "unreadable";
+  if (typeof value.finishedAt !== "string" || !Number.isFinite(Date.parse(value.finishedAt))) return "unreadable";
+
+  const tiers = value.tiers;
+  if (!tiers || typeof tiers !== "object") return "unreadable";
+  for (const key of ["tier0", "tier1", "tier2"]) {
+    if (!TIER_STATUSES.has(tiers[key])) return "unreadable";
+  }
+
+  const isCount = (n) => Number.isInteger(n) && n >= 0 && n <= 100000;
+  if (!isCount(value.totalChecks) || !isCount(value.failedChecks) || value.failedChecks > value.totalChecks) {
+    return "unreadable";
+  }
+  if (!Array.isArray(value.failedNames) || value.failedNames.length > MAX_FAILED_NAMES) return "unreadable";
+
+  const finishedMs = Date.parse(value.finishedAt);
+  if (finishedMs - now.getTime() > FUTURE_SKEW_MS) return "future";
+
+  return {
+    status: value.status,
+    finishedAt: value.finishedAt,
+    tiers: { tier0: tiers.tier0, tier1: tiers.tier1, tier2: tiers.tier2 },
+    tier0Reason: typeof value.tier0Reason === "string" && /^[a-z0-9_]{1,40}$/.test(value.tier0Reason) ? value.tier0Reason : null,
+    totalChecks: value.totalChecks,
+    failedChecks: value.failedChecks,
+    failedNames: value.failedNames.map(safeCaseName),
+  };
 }
 
 // A full pass needs the sentry's own verdict to be PASS and all three tiers
