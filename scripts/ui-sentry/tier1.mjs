@@ -294,6 +294,11 @@ export async function runTier1({ baseUrl, browserType, deviceOptions, engineName
     await runCaseAndRecover(`${engineName}: phone-action dialog opens and closes`, async () => {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20_000 });
       await page.waitForSelector("#crisis-resources", { timeout: 15_000 });
+      // Wait for hydration before clicking: a click on the server-rendered 911
+      // button before React wires it is dropped, so the dialog never opens
+      // (chromium desktop failed this way 10/04-10/12; 4 of 12 immediate
+      // clicks lost vs 15 of 15 after settling, reproduced 2026-10-12).
+      await settleAfterConversationLoad(page);
       const footer = page.locator("#crisis-resources");
       await footer.scrollIntoViewIfNeeded();
       const trigger = footer.locator("button:visible").filter({ hasText: /911/ }).first();
